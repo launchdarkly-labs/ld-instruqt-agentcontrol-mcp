@@ -13,7 +13,10 @@ REPO_ROOT = pathlib.Path("/opt/ld/ai-configs-intro")
 SERVER_PY = REPO_ROOT / "app" / "server.py"
 PASTE_FILE = REPO_ROOT / "terraform" / "evaluate-04" / "judge-server-paste.py"
 MARKER = "    # ─── Challenge 07 judge injects below this marker ──────────────────────"
-SIGNATURE = 'ai_client.judge_config(\n            "otto-claim-accuracy-judge"'
+# Signature keyed off the paste's stable header comment. Prior value
+# was a snippet of the ai_client.judge_config call, which would break
+# idempotency if the paste's call shape were ever reformatted.
+SIGNATURE = "# ─── Evaluate 04: product-claim accuracy judge"
 
 
 def main() -> int:

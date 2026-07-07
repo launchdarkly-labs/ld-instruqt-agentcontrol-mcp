@@ -14,12 +14,16 @@ PASTE_FILE = REPO_ROOT / "terraform" / "challenge-01" / "server-paste.py"
 BEGIN_MARKER = "    # ─────────────────────────────────────────────────────────────────────\n    # Challenge 01 paste block"
 END_MARKER = "    # ─── End Challenge 01 paste block ────────────────────────────────────"
 
+# Signature keyed off the paste's stable header comment. Idempotency:
+# post-patch server.py contains this line; pre-patch server.py does not.
+SIGNATURE = "# ─── Challenge 01: wire Otto to /chat"
+
 
 def main() -> int:
     text = SERVER_PY.read_text()
     paste = PASTE_FILE.read_text()
 
-    if 'ai_client.completion_config(OTTO_CONFIG_KEY' in text:
+    if SIGNATURE in text:
         print("server.py already wired — no patch needed.")
         return 0
 

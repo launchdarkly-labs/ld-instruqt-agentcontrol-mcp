@@ -17,7 +17,10 @@ REPO_ROOT = pathlib.Path("/opt/ld/ai-configs-intro")
 SERVER_PY = REPO_ROOT / "app" / "server.py"
 PASTE_FILE = REPO_ROOT / "terraform" / "evaluate-02" / "builtin-judges-server-paste.py"
 MARKER = "    # ─── Challenge 07 judge injects below this marker ──────────────────────"
-SIGNATURE = "_BUILTIN_JUDGES_LOADED"
+# Signature keyed off the paste's stable header comment. The prior
+# value `_BUILTIN_JUDGES_LOADED` never appeared in the paste, so this
+# check always failed and re-runs duplicated the block.
+SIGNATURE = "# ─── Evaluate 02: built-in judges"
 
 
 def main() -> int:

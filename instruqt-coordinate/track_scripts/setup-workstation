@@ -23,7 +23,8 @@ done
 REPO=/opt/ld/ai-configs-intro
 
 # 1. Bootstrap the LD project.
-cd "${REPO}/terraform/student-bootstrap"
+cd /opt/ld/terraform-ld-student
+terraform destroy -auto-approve
 echo "sandbox_id = \"${_SANDBOX_ID}\"" > terraform.tfvars
 terraform apply -auto-approve
 export LD_PROJECT_KEY="$(terraform output -json | jq -r '.students.value[0].project_key')"
@@ -96,7 +97,11 @@ for ch in evaluate-01 evaluate-02 evaluate-03 evaluate-04 evaluate-07; do
     terraform apply -auto-approve
 done
 
-# Patch server.py with the Evaluate-03 and Evaluate-04 judge integrations.
+# Patch server.py with Evaluate-02/03/04 judge invocations. All three
+# insert their paste block after the "Challenge 07 judge injects below
+# this marker" comment. Each patch is idempotent (keyed off its paste's
+# distinctive header comment), so safe to re-run.
+python3 "${REPO}/terraform/evaluate-02/patch-server.py"
 python3 "${REPO}/terraform/evaluate-03/patch-server.py"
 python3 "${REPO}/terraform/evaluate-04/patch-server.py"
 

@@ -1,3 +1,4 @@
+    # ─── Challenge 01: wire Otto to /chat ─────────────────────────────────
     # Build context, evaluate the otto-assistant Config.
     context = Context.builder(req.session_id).set("tier", req.user_tier).build()
     cfg = ai_client.completion_config(OTTO_CONFIG_KEY, context, FALLBACK_CONFIG)
