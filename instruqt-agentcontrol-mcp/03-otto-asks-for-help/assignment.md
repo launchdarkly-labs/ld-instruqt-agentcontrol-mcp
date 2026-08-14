@@ -7,7 +7,8 @@ teaser: Ship Otto's confident answers, hold his borderline ones for a human, and
   suppress the bad ones — with the thresholds living in LaunchDarkly.
 notes:
 - type: text
-  contents: A judge score is only worth what you do with it. In this challenge you'll
+  contents: >-
+    A judge score is only worth what you do with it. In this challenge you'll
     put Otto's answers through a three-way gate: high scores go straight to the
     customer, middling scores get held for a human to approve or fix, and low scores
     never leave the building. The thresholds live in a LaunchDarkly flag, so you can

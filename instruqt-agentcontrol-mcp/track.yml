@@ -1,9 +1,11 @@
 slug: ld-agentcontrol-mcp
 id: 3rryhtvk9jvp
 title: Govern an AI Agent with AgentControl and MCP
-teaser: Build an AI assistant, grade it with a judge, and hold its shakiest answers
+teaser: >-
+  Build an AI assistant, grade it with a judge, and hold its shakiest answers
   for a human — driving LaunchDarkly entirely from your coding agent.
-description: AgentControl lets you treat prompts, models, and quality gates as runtime
+description: >-
+  AgentControl lets you treat prompts, models, and quality gates as runtime
   configuration instead of hardcoded values. In this track you'll build Otto — the
   shopping assistant for ToggleWear, a fictional online retailer of LaunchDarkly-branded
   apparel. You won't click through the LaunchDarkly UI to do it. Instead you'll connect
