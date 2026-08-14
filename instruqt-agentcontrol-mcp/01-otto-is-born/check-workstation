@@ -12,7 +12,9 @@ CONFIG_URL="https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-co
 #    Check while the agent's last write is still settling.
 i=0
 while [ $i -lt 5 ]; do
-  CONFIG=$(curl -s -X GET "$CONFIG_URL" -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
+  CONFIG=$(curl -s -X GET "$CONFIG_URL" \
+    -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+    -H 'LD-API-Version: beta')
   [ "$(echo "$CONFIG" | jq -r '.key // "null"')" = "otto-assistant" ] && break
   i=$((i + 1))
   sleep 2
@@ -54,7 +56,8 @@ fi
 #    id and compare ids, so a renamed variation doesn't break the check.
 TARGETING=$(curl -s -X GET \
   "${CONFIG_URL}/targeting" \
-  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+  -H 'LD-API-Version: beta')
 BORN_ID=$(echo "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | ._id // empty')
 FALLTHROUGH_IDX=$(echo "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
 FALLTHROUGH_ID=$(echo "$TARGETING" | jq -r ".variations[${FALLTHROUGH_IDX}]._id // empty")

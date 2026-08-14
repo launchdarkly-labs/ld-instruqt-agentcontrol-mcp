@@ -83,6 +83,7 @@ resource "null_resource" "set_brand_voice_judge_fallthrough" {
       curl -fsS -X PATCH \
         'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/${launchdarkly_ai_config.brand_voice_judge.key}/targeting' \
         -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
+        -H 'LD-API-Version: beta' \
         -H 'Content-Type: application/json; domain-model=launchdarkly.semanticpatch' \
         --data-raw '{"environmentKey":"test","instructions":[{"kind":"updateFallthroughVariationOrRollout","variationId":"${launchdarkly_ai_config_variation.brand_voice_judge_default.variation_id}"}]}'
     EOT

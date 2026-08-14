@@ -180,6 +180,12 @@ case "$LD_TOKEN_HTTP" in
     echo "" >&2
     echo "  Fix: set the LAUNCHDARKLY_ACCESS_TOKEN Instruqt secret to an Admin token." >&2
     echo "" >&2
+    echo "  LaunchDarkly said: $(printf '%s' "$LD_TOKEN_JSON" | head -c 500)" >&2
+    echo "" >&2
+    echo "  If the token IS Admin, the message above is the real reason. Common" >&2
+    echo "  causes: it is a personal token whose member is not an Admin, or the" >&2
+    echo "  account restricts creating tokens that carry an inline role." >&2
+    echo "" >&2
     exit 1 ;;
   *)
     echo "" >&2

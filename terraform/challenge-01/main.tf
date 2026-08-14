@@ -75,6 +75,7 @@ resource "null_resource" "set_test_fallthrough" {
       curl -fsS -X PATCH \
         'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/${launchdarkly_ai_config.otto.key}/targeting' \
         -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
+        -H 'LD-API-Version: beta' \
         -H 'Content-Type: application/json; domain-model=launchdarkly.semanticpatch' \
         --data-raw '{"environmentKey":"test","instructions":[{"kind":"updateFallthroughVariationOrRollout","variationId":"${launchdarkly_ai_config_variation.otto_born.variation_id}"}]}'
     EOT

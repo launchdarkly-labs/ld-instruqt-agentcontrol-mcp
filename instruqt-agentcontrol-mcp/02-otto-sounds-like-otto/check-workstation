@@ -18,7 +18,8 @@ i=0
 while [ $i -lt 5 ]; do
   JUDGE=$(curl -fsS -X GET \
     "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-brand-voice-judge" \
-    -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" 2>/dev/null)
+    -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+    -H 'LD-API-Version: beta' 2>/dev/null)
   [ "$(echo "$JUDGE" | jq -r '.key // "null"')" = "otto-brand-voice-judge" ] && break
   i=$((i + 1))
   sleep 2
