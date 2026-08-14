@@ -47,15 +47,20 @@ Finally, `rm -rf /root/.claude/projects` so learners don't inherit your session 
 | `evaluatortracker.service` | `/etc/systemd/system/` | Runs `traffic-generator/realchat_traffic.py` for the lab's duration, so judge scores have traffic to grade. |
 | `code-server.service` | `/etc/systemd/system/` | Port 8080, `--auth none`, workspace `/opt/ld/ai-configs-intro/app`. Terminal env and `sendKeybindingsToShell` are set so the Claude Code TUI works in the browser. |
 
-## Credentials: what's baked, what arrives at lab start, and one known problem
+## Credentials
 
-Arrives at lab start via Instruqt secrets and `track_scripts/setup-workstation`: the LD project (created by `terraform/student-bootstrap/`), the SDK/client keys, the scoped `LD_API_TOKEN`, and the rendered `app/.mcp.json` plus the token substituted into `/root/.claude.json`.
+**Arrives at lab start** via Instruqt secrets and `track_scripts/setup-workstation`: the LD project (created by `terraform/student-bootstrap/`), the SDK and client keys, the scoped `LD_API_TOKEN`, the rendered `app/.mcp.json`, and that same token substituted into `/root/.claude.json` for the MCP server.
 
-**Not solved, and it predates this track:** `AWS_PROFILE=BedrockProfile` is referenced by `app/server.py` and now by Claude Code, but **nothing in this repo writes `~/.aws/credentials` or `~/.aws/config`.** `gcp-federation/aws-instruqt-role.tf` sets `max_session_duration = 3600` and its comments point at a `/opt/bin/credentials.sh` that isn't in this repo. A one-hour STS session baked at image time cannot still be valid at lab time, so either that profile actually holds long-lived IAM user keys — in which case the "short-lived federated credentials" claim in `CLAUDE.md` is wrong — or Bedrock calls have been failing.
+**Bedrock, baked:** `/root/.aws/config` defines `BedrockProfile` with a `credential_process` pointing at `/opt/ld/bin/bedrock-credential-process.sh`, which exchanges the GCE instance identity token for an STS session on demand. One mechanism serving boto3 (the app), the AWS CLI (check scripts), and Claude Code, with no credential stored on disk and no expiry mid-lab.
 
-Adding Claude Code makes this load-bearing twice over. Resolve it before the first delivery. The durable fix is a `credential_process` entry in `/root/.aws/config` that exchanges the GCE instance identity token for an STS session on demand, which serves boto3, the AWS CLI, and Claude Code from one mechanism and never expires mid-lab. Note that the IAM trust policy pins a specific GCP service account, so **this must be tested on a real Instruqt sandbox, not on the bake VM** — the two may run under different service accounts, and the bake test will pass either way.
+This replaced a real gap: nothing in this repo previously wrote `~/.aws` at all, while `app/server.py` has always asked for a profile named `BedrockProfile`, and the federated session `gcp-federation/` describes lasts an hour — so either undocumented long-lived IAM keys were being hand-written at bake, or Bedrock calls were failing.
 
-The IAM policy also needs `bedrock:ListInferenceProfiles` and `bedrock:GetInferenceProfile` added; without them Claude Code can't resolve inference profiles and applies the `us.` prefix blind.
+**Two things you must do before baking:**
+
+1. Fill in `/etc/bedrock-federation.env` with `BEDROCK_ROLE_ARN` (from `terraform output role_arn` in `gcp-federation/`) and `BEDROCK_JWT_AUDIENCE` (the `gcp_aud` value passed to that module). The credential process fails closed without them.
+2. Add `bedrock:ListInferenceProfiles` and `bedrock:GetInferenceProfile` to the policy in `gcp-federation/aws-instruqt-role.tf`. Without them Claude Code can't resolve inference profiles and applies the `us.` prefix blind. Sonnet 4.6 is already in that policy's resource list, so the model pin itself needs no change.
+
+**Still unverified, and it's the most likely thing to fail:** the IAM trust policy pins `accounts.google.com:sub` to a specific GCP service account. If the bake VM and the runtime Instruqt sandbox run under different service accounts, the exchange succeeds during your bake test and fails at lab time with an opaque `AccessDenied`. **Test it on a real sandbox**, and have the test print the decoded JWT's `sub` so a mismatch is a one-line diagnosis.
 
 ## When to re-bake
 
