@@ -3,6 +3,11 @@
 # Layered so a failure names the culprit instead of "MCP doesn't work".
 # Nothing here spends model tokens.
 #
+# Uses printf rather than echo to feed captured output into grep/jq. The sibling
+# checks are /bin/sh (dash on Ubuntu), whose builtin echo interprets backslash
+# escapes and corrupts JSON; printf is correct in both shells, so the habit is
+# uniform across all four checks.
+#
 set -uo pipefail
 
 APP_DIR=/opt/ld/ai-configs-intro/app
@@ -39,12 +44,12 @@ fi
 
 MCP_LIST=$(cd "$APP_DIR" && claude mcp list 2>&1)
 
-if ! echo "$MCP_LIST" | grep -q 'LaunchDarkly'; then
+if ! printf '%s' "$MCP_LIST" | grep -q 'LaunchDarkly'; then
   fail-message "Claude Code doesn't have the LaunchDarkly MCP server registered. Tell your instructor."
   exit 1
 fi
 
-if echo "$MCP_LIST" | grep -qi 'pending approval'; then
+if printf '%s' "$MCP_LIST" | grep -qi 'pending approval'; then
   fail-message "The LaunchDarkly MCP server is waiting for approval. Tell your instructor."
   exit 1
 fi
@@ -67,7 +72,7 @@ MCP_TOOLS=$(curl -fsS -X POST 'https://mcp.launchdarkly.com/mcp/launchdarkly' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' 2>&1) || MCP_TOOLS=""
 
-if ! echo "$MCP_TOOLS" | grep -q 'create-agentcontrol-config'; then
+if ! printf '%s' "$MCP_TOOLS" | grep -q 'create-agentcontrol-config'; then
   fail-message "The LaunchDarkly MCP server didn't respond with the tools this track needs. Tell your instructor."
   exit 1
 fi

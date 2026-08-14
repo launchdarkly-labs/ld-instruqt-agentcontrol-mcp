@@ -10,6 +10,11 @@
 #
 # Variation names aren't asserted — the agent may name them anything.
 
+#
+# NOTE: this is /bin/sh, which is dash on Ubuntu, and dash's builtin `echo`
+# interprets backslash escapes. `echo "$JSON" | jq` therefore turns escaped \n
+# inside JSON strings into real newlines and jq fails with "control characters
+# must be escaped". Always `printf '%s' "$JSON" | jq`.
 API="https://app.launchdarkly.com/api/v2"
 
 i=0
@@ -17,12 +22,12 @@ while [ $i -lt 5 ]; do
   FLAG=$(curl -fsS -X GET \
     "${API}/flags/${LD_PROJECT_KEY}/otto-review-thresholds?env=test" \
     -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" 2>/dev/null)
-  [ "$(echo "$FLAG" | jq -r '.key // "null"')" = "otto-review-thresholds" ] && break
+  [ "$(printf '%s' "$FLAG" | jq -r '.key // "null"')" = "otto-review-thresholds" ] && break
   i=$((i + 1))
   sleep 2
 done
 
-if [ "$(echo "$FLAG" | jq -r '.key // "null"')" != "otto-review-thresholds" ]; then
+if [ "$(printf '%s' "$FLAG" | jq -r '.key // "null"')" != "otto-review-thresholds" ]; then
   fail-message "No flag with key **otto-review-thresholds** exists yet. Ask Claude Code for it using the prompt under **Ask for the thresholds flag**."
   exit 1
 fi
@@ -31,14 +36,14 @@ fi
 # variation *values* are what make it JSON. Verified against the live API.
 # Asserting kind=="json" here would fail 100% of the time, so the real check is
 # the variation-shape assertion below.
-KIND=$(echo "$FLAG" | jq -r '.kind // ""')
+KIND=$(printf '%s' "$FLAG" | jq -r '.kind // ""')
 if [ "$KIND" != "multivariate" ] && [ "$KIND" != "json" ]; then
   fail-message "**otto-review-thresholds** is a \`${KIND}\` flag. The gate reads both thresholds out of a single JSON value, so ask Claude Code to recreate it as a JSON flag with two variations."
   exit 1
 fi
 
 # A usable variation has both numbers, and auto must sit above review.
-VALID=$(echo "$FLAG" | jq '[.variations[]?.value
+VALID=$(printf '%s' "$FLAG" | jq '[.variations[]?.value
   | select(type=="object")
   | select((.auto|type)=="number" and (.review|type)=="number")
   | select(.auto > .review)] | length')
@@ -48,7 +53,7 @@ if [ "${VALID:-0}" -lt 1 ]; then
   exit 1
 fi
 
-ON=$(echo "$FLAG" | jq -r '.environments.test.on // false')
+ON=$(printf '%s' "$FLAG" | jq -r '.environments.test.on // false')
 if [ "$ON" != "true" ]; then
   fail-message "**otto-review-thresholds** is off in the Test environment. Ask Claude Code to turn it on in Test and serve the Balanced variation."
   exit 1

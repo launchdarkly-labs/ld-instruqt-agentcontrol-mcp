@@ -69,6 +69,36 @@ else
     echo "WARNING: repo refresh failed; continuing with the image's baked checkout" >&2
 fi
 
+# ---------------------------------------------------------------------------
+# Self-heal the tool layer.
+#
+# The image is supposed to ship Claude Code, the AWS CLI, the Claude Code
+# pre-seed, and the Bedrock credential_process. If it doesn't — an old image, or
+# one baked before those were added — install them now rather than failing
+# challenge 00 with "Claude Code isn't installed on this workstation."
+#
+# Guarded on `claude` being absent, so a properly baked image skips this
+# entirely and pays nothing. On an un-baked image it costs a couple of minutes
+# at lab start, which is the correct trade against a lab that cannot work.
+#
+# BEDROCK_ROLE_ARN comes from an Instruqt secret when present. Without it the
+# tools still install and everything except Bedrock works, so challenge 00
+# passes and you learn what else is broken.
+# ---------------------------------------------------------------------------
+if ! command -v claude >/dev/null 2>&1; then
+    echo "Claude Code not on this image — running the live bootstrap (this is slow)."
+    if [ -x "${REPO_DIR}/vm-image/bootstrap-live.sh" ]; then
+        BEDROCK_ROLE_ARN="${BEDROCK_ROLE_ARN:-}" \
+        BEDROCK_JWT_AUDIENCE="${BEDROCK_JWT_AUDIENCE:-instruqt-agentcontrol}" \
+        bash "${REPO_DIR}/vm-image/bootstrap-live.sh" \
+          || echo "WARNING: bootstrap-live.sh reported problems; continuing" >&2
+    else
+        echo "WARNING: ${REPO_DIR}/vm-image/bootstrap-live.sh not found" >&2
+    fi
+else
+    echo "Claude Code present ($(claude --version 2>/dev/null | head -1)) — skipping bootstrap."
+fi
+
 # The steps below and cleanup-workstation both cd to this path. Point it at the
 # module in the refreshed repo, unconditionally.
 #

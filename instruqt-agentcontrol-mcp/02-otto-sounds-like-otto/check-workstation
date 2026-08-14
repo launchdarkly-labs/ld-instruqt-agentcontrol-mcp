@@ -12,6 +12,11 @@
 # Prompt wording beyond {{response}} is not asserted: the agent is free to
 # reword the rubric, and challenge 03 only needs a score in 0.0-1.0.
 
+#
+# NOTE: this is /bin/sh, which is dash on Ubuntu, and dash's builtin `echo`
+# interprets backslash escapes. `echo "$JSON" | jq` therefore turns escaped \n
+# inside JSON strings into real newlines and jq fails with "control characters
+# must be escaped". Always `printf '%s' "$JSON" | jq`.
 API="https://app.launchdarkly.com/api/v2"
 
 i=0
@@ -20,12 +25,12 @@ while [ $i -lt 5 ]; do
     "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-brand-voice-judge" \
     -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
     -H 'LD-API-Version: beta' 2>/dev/null)
-  [ "$(echo "$JUDGE" | jq -r '.key // "null"')" = "otto-brand-voice-judge" ] && break
+  [ "$(printf '%s' "$JUDGE" | jq -r '.key // "null"')" = "otto-brand-voice-judge" ] && break
   i=$((i + 1))
   sleep 2
 done
 
-if [ "$(echo "$JUDGE" | jq -r '.key // "null"')" != "otto-brand-voice-judge" ]; then
+if [ "$(printf '%s' "$JUDGE" | jq -r '.key // "null"')" != "otto-brand-voice-judge" ]; then
   fail-message "No Config with key **otto-brand-voice-judge** exists yet. Ask Claude Code for it using the prompt under **Ask for the judge**, and make sure it uses that exact key."
   exit 1
 fi
@@ -34,25 +39,25 @@ fi
 # so an agent that supplies a bare name gets a 400 and creates nothing. If the
 # config exists at all this has already passed, but assert it so a partially
 # created judge fails with a useful message rather than a confusing one.
-EVAL_KEY=$(echo "$JUDGE" | jq -r '.evaluationMetricKey // ""')
+EVAL_KEY=$(printf '%s' "$JUDGE" | jq -r '.evaluationMetricKey // ""')
 case "$EVAL_KEY" in
   '$ld:ai:judge:'*) : ;;
   *) fail-message "The judge's evaluation metric key is \`${EVAL_KEY}\`. LaunchDarkly requires it to start with \`\$ld:ai:judge:\` — ask Claude Code to set it to \`\$ld:ai:judge:otto-brand-voice-score\`."
      exit 1 ;;
 esac
 
-JUDGE_MODE=$(echo "$JUDGE" | jq -r '.mode // ""')
+JUDGE_MODE=$(printf '%s' "$JUDGE" | jq -r '.mode // ""')
 if [ "$JUDGE_MODE" != "judge" ]; then
   fail-message "**otto-brand-voice-judge** exists but its mode is \`${JUDGE_MODE}\`, not judge. Mode is fixed at creation, so ask Claude Code to delete it and recreate it in judge mode."
   exit 1
 fi
 
-SYSTEM_MSG=$(echo "$JUDGE" | jq -r '.variations[]? | .messages[]? | select(.role=="system") | .content' | head -c 8192)
+SYSTEM_MSG=$(printf '%s' "$JUDGE" | jq -r '.variations[]? | .messages[]? | select(.role=="system") | .content' | head -c 8192)
 if [ -z "$SYSTEM_MSG" ]; then
   fail-message "The judge has no variation with a system message. Ask Claude Code to add the Default variation with the grading prompt."
   exit 1
 fi
-if ! echo "$SYSTEM_MSG" | grep -q '{{response}}'; then
+if ! printf '%s' "$SYSTEM_MSG" | grep -q '{{response}}'; then
   fail-message "The judge's prompt is missing the **{{response}}** template variable, so it would grade an empty string. Ask Claude Code to add it back at the end of the prompt."
   exit 1
 fi
