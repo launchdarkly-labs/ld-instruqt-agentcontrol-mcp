@@ -17,7 +17,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Edit these before pasting:
 # ---------------------------------------------------------------------------
-REPO_URL="https://github.com/launchdarkly-labs/ld-instruqt-ai-configs-intro.git"
+REPO_URL="https://github.com/launchdarkly-labs/ld-instruqt-agentcontrol-mcp.git"
 REPO_REF="main"
 TERRAFORM_VERSION="1.15.2"
 NODE_VERSION="26.x"

@@ -6,7 +6,7 @@ This directory contains the inputs for the Instruqt VM image used by the `instru
 
 1. **Spin up a base VM in the Instruqt console.** Ubuntu 24.04 LTS. The script uses whatever `python3` ships with the base, which must be ≥3.10.
 2. **Open the terminal on that VM and become root** (`sudo -i`, or run `sudo bash` before pasting the script).
-3. **Edit the top of `build-image.sh`** to point `REPO_URL` and `REPO_REF` at the desired commit of this repo. `REPO_URL` still points at `launchdarkly-labs/ld-instruqt-ai-configs-intro` — **change it**, since this track's content does not exist there.
+3. **Check `REPO_URL` and `REPO_REF` at the top of `build-image.sh`.** They point at `launchdarkly-labs/ld-instruqt-agentcontrol-mcp` on `main`. Pin `REPO_REF` to a specific commit SHA for a delivery you want reproducible — `main` moves.
 4. **Paste the entire script.** It echoes progress at each step and `set -e`s on the first failure.
 5. **Run the verification block** the script prints at the end (see below).
 6. **Save the running VM as a new image**, named to match the `image:` field in `instruqt-agentcontrol-mcp/config.yml` (currently `launchdarkly/workshop-ai-configs`). Bump a trailing `-N` when re-baking so labs in flight don't get pulled out from under their learners.
