@@ -182,12 +182,24 @@ Note the bare `except` returning `None`. A judge is a second model call in the m
 
 A traffic generator is running against Otto in the background, so scores start landing within a minute or so.
 
-1. Open the [LaunchDarkly](#tab-0) tab and go to **Agents → Configs → Otto Assistant**.
-2. Open the **Monitoring** tab.
-3. From the metric dropdown, select **otto-brand-voice-score**.
+Ask the agent for them:
 
-<!-- VERIFY: confirm the Monitoring tab metric dropdown lists a custom numeric metric alongside evaluator metrics, and that otto-brand-voice-score appears there rather than only under Evaluator metrics. -->
+```
+Which metric events has my LaunchDarkly project received recently? I'm looking for otto-brand-voice-score.
+```
 
-You should see scores in the middle of the range rather than near 1.0. Otto's prompt from challenge 01 told him to be "accurate and concise" and said nothing about warmth, so he's being graded against a standard nobody asked him to meet. That gap is the whole point of the next challenge.
+Once `otto-brand-voice-score` shows up with a recent timestamp, the loop is closed: Otto answered, the judge graded him, and the score reached LaunchDarkly.
+
+Then ask for the substance rather than just the existence:
+
+```
+Summarise the recent otto-brand-voice-score values for my project. What's the rough average, and what's the spread?
+```
+
+You should see scores clustered in the middle of the range rather than near 1.0. Otto's prompt tells him to be "accurate and concise" and says nothing about warmth, so he's being graded against a standard nobody asked him to meet. He knows the catalog, he just recites it. That gap is the whole reason the next challenge exists.
+
+<!-- VERIFY: confirm the agent can summarise metric values, not just list event keys. If the MCP surface only exposes event keys and last-seen timestamps, cut the second prompt and keep the first. -->
+
+You can also see this in the LaunchDarkly UI under **Agents → Configs → Otto Assistant → Monitoring**, selecting **otto-brand-voice-score** from the metric dropdown. Treat that as optional: the [LaunchDarkly](#tab-0) tab depends on a sandbox sign-in service that isn't always available, and nothing in this track requires it.
 
 Click **Check** when the judge is live and `server.py` invokes it.

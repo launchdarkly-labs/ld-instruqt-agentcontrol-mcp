@@ -79,7 +79,9 @@ If the agent reports an invalid access token, tell the operator — the lab's cr
 
 This track assumes you already know the LaunchDarkly basics: flags, contexts, environments, targeting rules. If you don't, the [LaunchDarkly Basics](https://launchdarkly.com) track is a better starting point.
 
-All three tabs matter here. [Code Editor](#tab-2) is where you'll spend most of your time, both for Claude Code and for editing `server.py`. [ToggleWear](#tab-1) is the live storefront. [LaunchDarkly](#tab-0) is for looking at what the agent built and for reading Otto's scores.
+[Code Editor](#tab-2) is where you'll spend most of your time, both for Claude Code and for editing `server.py`. [ToggleWear](#tab-1) is the live storefront.
+
+The [LaunchDarkly](#tab-0) tab is optional. It signs you into a sandbox LaunchDarkly account so you can look at what you've built, but that sign-in service isn't always available, and nothing in this track needs it — everything you create, you can also read back by asking the agent.
 
 # When the agent gets it wrong
 

@@ -8,6 +8,8 @@ This track shifts most of the verification burden from *UI drift* to *agent beha
 
 ## Blocking items — do these before anything else
 
+- [ ] **The LaunchDarkly IdP-simulator lambda is returning 502 on every request** and has been since at least 2026-08-14. Verified with a bare `curl` — no query string, no sandbox id, still `502 Internal Server Error` — so it is broken server-side, not sandbox-specific. That is the `virtualbrowsers` entry in `config.yml`, inherited from the reference track. This track no longer *depends* on it (the challenge-02 payoff reads scores back through the agent instead, and every other UI reference is marked optional), but the tab is dead until whoever owns that lambda revives it. Either get it fixed or drop the `virtualbrowsers` block and the `#tab-0` references.
+
 - [x] ~~**Confirm the project-scoped LD token is sufficient**~~ — spiked 2026-08-14 against a live account. It was **not** sufficient as originally written; the inline role has been rewritten and a containment `deny` added. See the spike entry in `DECISIONS.md`.
 - [x] ~~**Confirm bearer-header auth works**~~ — verified 2026-08-14: `initialize` returns a session, `tools/list` returns 120 tools. Still undocumented by LaunchDarkly, so the `npx @launchdarkly/mcp-server --api-key` fallback note stands, and asking the MCP team whether header auth is supported long-term is still worth one message.
 - [ ] **Verify `LAUNCHDARKLY_ACCESS_TOKEN` is an Admin token, not Writer.** `setup-workstation` mints the per-lab scoped token via `POST /api/v2/tokens`, which Writer cannot do — it 403s and `set -euo pipefail` aborts setup before challenge 00. The existing team secret is described as being for the Terraform provider, which only needs Writer.

@@ -89,7 +89,7 @@ The keys matter. The app looks up `otto-assistant` by key, and the next challeng
 Two things worth noticing when it finishes:
 
 - That last instruction is the one people forget. A new Config serves a built-in "disabled" variation until you point the default rule somewhere, so a Config with a perfectly good variation still returns nothing.
-- Open the [LaunchDarkly](#tab-0) tab and look at what it built, under **Agents → Configs**. It's an ordinary Config. Nothing about it is special because an agent made it, which is the point.
+- Nothing it built is special because an agent built it. It's an ordinary Config, the same one you'd get by clicking — which is the point. If the [LaunchDarkly](#tab-0) tab signs you in, you can see it under **Agents → Configs**; that tab relies on a sandbox sign-in service that isn't always up, so the next section reads the Config back through the agent instead.
 
 # Check its work
 
