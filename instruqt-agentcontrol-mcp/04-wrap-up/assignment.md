@@ -3,7 +3,7 @@ slug: wrap-up
 id: hnylkffksunn
 type: quiz
 title: Wrap-Up
-teaser: Otto is built, graded, and governed. So are you.
+teaser: Otto is built, graded, and governed. One question before you go.
 notes:
 - type: text
   contents: You started with a placeholder line in server.py and ended with an AI

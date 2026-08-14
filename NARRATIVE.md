@@ -26,7 +26,7 @@ Each challenge is a beat in Otto's story. The titles and one-line beats:
 | 01 | Otto is born | First Config, first prompt, first words. Asked for, not clicked. |
 | 02 | Otto sounds like Otto | A judge grades every answer against the brand voice. Otto is being watched. |
 | 03 | Otto asks for help | Otto learns to hand his shaky answers to a human instead of guessing. |
-| 04 | Wrap-up | Otto is graded and governed. So are you. |
+| 04 | Wrap-up | Otto is graded and governed. What you'd reach for next. |
 
 The narrative is light-touch — it lives in section intros and in transitions between challenges. The bulk of each `assignment.md` is still directive prose. But the arc gives the track a center of gravity.
 
