@@ -136,7 +136,11 @@ echo "export LD_SDK_KEY=${LD_SDK_KEY}" >> ~/.bashrc
 # project in the account and read their SDK keys — verified. It also makes
 # challenge 00's "you should see exactly one project" true, which is what lets
 # every prompt in the track say "my project" instead of naming a key.
-LD_TOKEN_JSON=$(curl -fsS -X POST \
+# Failure here is the single most likely reason a lab won't start, and with
+# `curl -fsS` under `set -e` it surfaces only as "Process exited with status 22".
+# Capture the status and say what's actually wrong.
+LD_TOKEN_HTTP=0
+LD_TOKEN_JSON=$(curl -sS -w '\n%{http_code}' -X POST \
   "https://app.launchdarkly.com/api/v2/tokens" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
@@ -160,6 +164,31 @@ LD_TOKEN_JSON=$(curl -fsS -X POST \
          {effect: "deny", actions: ["viewProject"], notResources: ["proj/\($proj)"]}
        ])
      }')")
+LD_TOKEN_HTTP=$(printf '%s' "$LD_TOKEN_JSON" | tail -n1)
+LD_TOKEN_JSON=$(printf '%s' "$LD_TOKEN_JSON" | sed '$d')
+
+case "$LD_TOKEN_HTTP" in
+  201|200) : ;;
+  403)
+    echo "" >&2
+    echo "FATAL: LAUNCHDARKLY_ACCESS_TOKEN cannot create API tokens (403)." >&2
+    echo "" >&2
+    echo "  This track mints a per-lab, project-scoped token at startup. Only an" >&2
+    echo "  ADMIN token can call POST /api/v2/tokens — a Writer token gets 403." >&2
+    echo "  The Terraform apply above succeeded because Writer is enough for that," >&2
+    echo "  which is why this is the first thing to fail." >&2
+    echo "" >&2
+    echo "  Fix: set the LAUNCHDARKLY_ACCESS_TOKEN Instruqt secret to an Admin token." >&2
+    echo "" >&2
+    exit 1 ;;
+  *)
+    echo "" >&2
+    echo "FATAL: minting the per-lab LaunchDarkly token failed (HTTP ${LD_TOKEN_HTTP})." >&2
+    echo "  Response: $(printf '%s' "$LD_TOKEN_JSON" | head -c 400)" >&2
+    echo "" >&2
+    exit 1 ;;
+esac
+
 LD_API_TOKEN=$(echo "$LD_TOKEN_JSON" | jq -r .token)
 # Stash the token id so cleanup can revoke it. Without this every lab run
 # leaks a live token that outlives the sandbox.
