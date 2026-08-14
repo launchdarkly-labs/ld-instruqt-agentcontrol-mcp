@@ -21,7 +21,9 @@ tags:
 owner: launchdarkly
 developers:
 - kcochran@launchdarkly.com
+- aroberson@launchdarkly.com
 - sattensil@launchdarkly.com
+- dgorton@launchdarkly.com
 show_timer: true
 idle_timeout: 1200
 timelimit: 5400
@@ -37,5 +39,5 @@ lab_config:
   hideStopButton: false
   default_layout: AssignmentRight
   default_layout_sidebar_size: 25
-checksum: "14405194049143078391"
+checksum: "10459438587065023157"
 enhanced_loading: false

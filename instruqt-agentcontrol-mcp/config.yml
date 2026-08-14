@@ -6,8 +6,6 @@ virtualmachines:
 - name: workstation
   image: launchdarkly/workshop-ai-configs
   shell: /bin/bash
-  # Bumped from n1-standard-2: this track runs code-server, uvicorn, the
-  # evaluator-tracker traffic loop, and Claude Code on the same box.
   machine_type: n1-standard-4
 secrets:
 - name: AWS_ACCESS_KEY_ID
