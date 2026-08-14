@@ -70,6 +70,29 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Bedrock federation values.
+#
+# The role ARN arrives as an Instruqt secret rather than being baked into the
+# image or committed — the repo is public, and the ARN carries the AWS account
+# id. Written before the bootstrap below so the credential_process has it on the
+# first call, and rewritten on every start so a re-baked image never carries a
+# stale value.
+#
+# The audience is the accounts.google.com:oaud claim in the role's trust policy.
+# It is not a secret, so it has a default.
+# ---------------------------------------------------------------------------
+cat > /etc/bedrock-federation.env <<EOF
+export BEDROCK_ROLE_ARN="${BEDROCK_ROLE_ARN:-}"
+export BEDROCK_JWT_AUDIENCE="${BEDROCK_JWT_AUDIENCE:-instruqt-agentcontrol}"
+EOF
+chmod 600 /etc/bedrock-federation.env
+if [ -z "${BEDROCK_ROLE_ARN:-}" ]; then
+    echo "WARNING: BEDROCK_ROLE_ARN secret is not set. Bedrock will not work, so" >&2
+    echo "         Claude Code has no model and Otto cannot answer. Everything" >&2
+    echo "         else still runs. Add the secret in Instruqt to fix." >&2
+fi
+
+# ---------------------------------------------------------------------------
 # Self-heal the tool layer.
 #
 # The image is supposed to ship Claude Code, the AWS CLI, the Claude Code
