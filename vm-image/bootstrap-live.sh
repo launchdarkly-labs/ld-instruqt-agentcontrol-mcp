@@ -37,20 +37,6 @@ CLAUDE_BEDROCK_MODEL="us.anthropic.claude-sonnet-4-6"
 CLAUDE_BEDROCK_SMALL_MODEL="us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 # ---------------------------------------------------------------------------
-say "Federation values (edit these before running, or export them first)"
-# From the trust policy on RoleForAccessFromInstruqt. Not committed with real
-# values because this repo is public — see vm-image/README.md.
-BEDROCK_ROLE_ARN="${BEDROCK_ROLE_ARN:-}"
-BEDROCK_JWT_AUDIENCE="${BEDROCK_JWT_AUDIENCE:-instruqt-agentcontrol}"
-if [ -z "$BEDROCK_ROLE_ARN" ]; then
-    printf '    \033[33mBEDROCK_ROLE_ARN is unset.\033[0m Bedrock will not work until you set it:\n'
-    printf '      export BEDROCK_ROLE_ARN="arn:aws:iam::<account>:role/RoleForAccessFromInstruqt"\n'
-    printf '    Continuing — everything else still installs.\n'
-else
-    ok "role $BEDROCK_ROLE_ARN"
-fi
-
-# ---------------------------------------------------------------------------
 say "Node.js (needed by Claude Code)"
 if command -v node >/dev/null 2>&1; then
     ok "node $(node --version) already present"
@@ -75,7 +61,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-say "AWS CLI v2 (the credential_process shells out to it)"
+say "AWS CLI v2 (used by the checks and for Bedrock smoke tests)"
 if command -v aws >/dev/null 2>&1; then
     ok "$(aws --version 2>&1 | cut -d' ' -f1) already present"
 else
@@ -206,44 +192,33 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-say "Bedrock credential_process"
-mkdir -p /opt/ld/bin /root/.aws
-cat > /etc/bedrock-federation.env <<SH
-export BEDROCK_ROLE_ARN="${BEDROCK_ROLE_ARN}"
-export BEDROCK_JWT_AUDIENCE="${BEDROCK_JWT_AUDIENCE}"
-SH
-chmod 600 /etc/bedrock-federation.env
-
-cat > /opt/ld/bin/bedrock-credential-process.sh <<'SH'
-#!/bin/bash
-set -euo pipefail
-. /etc/bedrock-federation.env
-: "${BEDROCK_ROLE_ARN:?BEDROCK_ROLE_ARN unset — see /etc/bedrock-federation.env}"
-: "${BEDROCK_JWT_AUDIENCE:?BEDROCK_JWT_AUDIENCE unset}"
-JWT="$(curl -fsS --max-time 5 -H 'Metadata-Flavor: Google' \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${BEDROCK_JWT_AUDIENCE}&format=full")"
-aws sts assume-role-with-web-identity \
-  --role-arn "$BEDROCK_ROLE_ARN" \
-  --role-session-name "instruqt-$(hostname -s)" \
-  --web-identity-token "$JWT" \
-  --duration-seconds 3600 --region us-east-1 --output json \
-| jq '{Version:1, AccessKeyId:.Credentials.AccessKeyId,
-       SecretAccessKey:.Credentials.SecretAccessKey,
-       SessionToken:.Credentials.SessionToken, Expiration:.Credentials.Expiration}'
-SH
-chmod 755 /opt/ld/bin/bedrock-credential-process.sh
-
-cat > /root/.aws/config <<'INI'
+say "Bedrock credentials (static keys from the Instruqt secrets)"
+# The GCP->AWS federation does not work here: metadata.google.internal is
+# unreachable from an Instruqt workstation, so no identity token can be fetched.
+# See DECISIONS.md. Track setup writes these from the AWS_* secrets; this block
+# only fills them in when you are running the bootstrap by hand.
+mkdir -p /root/.aws
+if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+    cat > /root/.aws/credentials <<EOF
+[BedrockProfile]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+EOF
+    chmod 600 /root/.aws/credentials
+    cat > /root/.aws/config <<EOF
 [profile BedrockProfile]
-region = us-east-1
-credential_process = /opt/ld/bin/bedrock-credential-process.sh
-INI
-chmod 600 /root/.aws/config
-ok "credential_process installed"
+region = ${AWS_REGION:-us-east-1}
+EOF
+    chmod 600 /root/.aws/config
+    ok "BedrockProfile written from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY"
+elif [ -f /root/.aws/credentials ]; then
+    skip "BedrockProfile already present (written by track setup)"
+else
+    skip "no AWS keys in the environment — export AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or let track setup do it"
+fi
 
-# ---------------------------------------------------------------------------
 say "Smoke test"
-if [ -n "$BEDROCK_ROLE_ARN" ]; then
+if [ -f /root/.aws/credentials ]; then
     if aws sts get-caller-identity --profile BedrockProfile --region us-east-1 >/tmp/sts.json 2>/tmp/sts.err; then
         ok "STS: $(jq -r .Arn /tmp/sts.json)"
         if aws bedrock-runtime invoke-model --region us-east-1 --model-id "$CLAUDE_BEDROCK_MODEL" \
@@ -266,7 +241,7 @@ print(json.loads(base64.urlsafe_b64decode(p)).get('sub','?'))" "$T" 2>/dev/null)
           || echo "      (no token — audience likely wrong)"
     fi
 else
-    skip "no role ARN, skipping the AWS smoke test"
+    skip "no BedrockProfile credentials, skipping the AWS smoke test"
 fi
 
 if [ -f "$APP/.mcp.json" ]; then

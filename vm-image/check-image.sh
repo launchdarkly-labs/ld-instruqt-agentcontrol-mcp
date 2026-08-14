@@ -110,25 +110,28 @@ else
        "if a real token is baked in, EVERY learner shares it — re-run the pre-seed step"
 fi
 
-head2 "Bedrock credentials (the known-fragile part)"
-[ -f /etc/bedrock-federation.env ] && ok "/etc/bedrock-federation.env present" \
-  || bad "/etc/bedrock-federation.env missing" "credential_process cannot run"
-if [ -f /etc/bedrock-federation.env ]; then
-  . /etc/bedrock-federation.env
-  [ -n "${BEDROCK_ROLE_ARN:-}" ] && ok "BEDROCK_ROLE_ARN set" \
-    || bad "BEDROCK_ROLE_ARN empty" "fill from 'terraform output role_arn' in gcp-federation/"
-  [ -n "${BEDROCK_JWT_AUDIENCE:-}" ] && ok "BEDROCK_JWT_AUDIENCE set" \
-    || bad "BEDROCK_JWT_AUDIENCE empty" "must match accounts.google.com:oaud in the role's trust policy"
+head2 "Bedrock credentials"
+# Credentials themselves are written at LAB START from the AWS_* Instruqt
+# secrets, not baked. So at bake time we only check that nothing broken is
+# baked in — specifically that no credential_process survives, since the GCP
+# federation it used cannot work here (metadata.google.internal is unreachable
+# from an Instruqt workstation).
+if grep -q credential_process /root/.aws/config 2>/dev/null; then
+  bad "/root/.aws/config still has a credential_process" \
+      "the GCP federation cannot work on Instruqt; track setup writes static keys instead"
+else
+  ok "no stale credential_process baked in (credentials arrive at lab start)"
 fi
-[ -x /opt/ld/bin/bedrock-credential-process.sh ] && ok "credential_process script executable" \
-  || bad "credential_process script missing/not executable" "build-image.sh step failed"
-grep -q credential_process /root/.aws/config 2>/dev/null && ok "BedrockProfile uses credential_process" \
-  || bad "/root/.aws/config not wired" "boto3 and Claude Code will find no credentials"
+[ -d /root/.aws ] && ok "/root/.aws exists for lab-start credentials" \
+  || bad "/root/.aws missing" "build-image.sh should mkdir it"
 command -v aws >/dev/null 2>&1 && ok "aws CLI present ($(aws --version 2>&1 | cut -d' ' -f1))" \
-  || bad "aws CLI missing" "credential_process shells out to it"
+  || bad "aws CLI missing" "the checks and smoke tests shell out to it"
 
 echo
-if aws sts get-caller-identity --profile BedrockProfile --region us-east-1 >/tmp/sts.json 2>/tmp/sts.err; then
+if [ ! -f /root/.aws/credentials ]; then
+  warn "no BedrockProfile credentials on this image" \
+       "EXPECTED at bake time — track setup writes them from the AWS_* Instruqt secrets. Verify Bedrock in a live lab, not here."
+elif aws sts get-caller-identity --profile BedrockProfile --region us-east-1 >/tmp/sts.json 2>/tmp/sts.err; then
   ok "STS exchange works: $(python3 -c 'import json;print(json.load(open("/tmp/sts.json"))["Arn"])' 2>/dev/null)"
   MODEL=$(grep -m1 '^CLAUDE_BEDROCK_MODEL=' "$REPO/vm-image/build-image.sh" 2>/dev/null | cut -d'"' -f2)
   if aws bedrock-runtime invoke-model --region us-east-1 --model-id "$MODEL" \
@@ -140,19 +143,7 @@ if aws sts get-caller-identity --profile BedrockProfile --region us-east-1 >/tmp
     bad "Bedrock invoke failed for $MODEL" "$(head -c 200 /tmp/br.err)"
   fi
 else
-  warn "STS exchange failed on the BAKE VM" \
-       "EXPECTED if the bake VM runs under a different GCP service account than the sandbox. The trust policy pins accounts.google.com:sub. Re-test in a REAL lab: $(head -c 160 /tmp/sts.err)"
-  echo "       JWT sub seen by this VM (compare against gcp_sub in the trust policy):"
-  TOKEN=$(curl -fsS --max-time 5 -H 'Metadata-Flavor: Google' \
-    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${BEDROCK_JWT_AUDIENCE:-none}&format=full" 2>/dev/null)
-  if [ -n "$TOKEN" ]; then
-    echo "       $(python3 -c "
-import base64,json,sys
-p=sys.argv[1].split('.')[1]; p+='='*(-len(p)%4)
-print(json.loads(base64.urlsafe_b64decode(p)).get('sub','?'))" "$TOKEN" 2>/dev/null)"
-  else
-    echo "       (could not fetch an identity token — audience may be wrong)"
-  fi
+  bad "BedrockProfile credentials are present but rejected" "$(head -c 200 /tmp/sts.err)"
 fi
 
 head2 "Shell environment"

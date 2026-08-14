@@ -507,3 +507,23 @@ Everything here was found by `instruqt track test` or a live lab, not by reading
 **ch02 deliberately reads the log rather than the response.** Judge failures are swallowed so a broken judge never poisons a customer's chat — which means Otto replies normally and the response body cannot reveal the failure. The log is the only honest signal. That is a general lesson: when the app is designed to fail open, the check has to look where the failure is actually recorded.
 
 **Cost:** each Check press makes real model calls. Accepted. A green check should mean the chapter works.
+
+---
+
+## Bedrock uses static AWS keys; GCP federation cannot work on Instruqt (2026-08-14)
+
+**Decision:** `track_scripts/setup-workstation` writes a `[BedrockProfile]` into `/root/.aws/credentials` from the `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` Instruqt secrets. No `credential_process`, no role assumption, no GCP identity token.
+
+**Why the federation cannot work, measured rather than assumed:** the credential process has to fetch a GCE instance identity token from `metadata.google.internal`. On a live Instruqt workstation that request times out:
+
+```
+curl: (28) Operation timed out after 5002 milliseconds with 0 bytes received
+```
+
+The metadata endpoint is simply not reachable from the sandbox. No role ARN, audience, or trust-policy change can fix that, because the token can never be obtained in the first place. This also explains a red herring: `RoleForAccessFromInstruqt` had a `RoleLastUsed` of a week earlier, which I read as evidence the federation worked from these labs. Something else was using that role.
+
+**What this cost:** most of a day. I ranked the STS exchange as the top risk and then built `credential_process` plumbing, a JWT-`sub` diagnostic, and operator documentation around it — all for a path that could never work here. The check that settled it took one command in a live lab. Reach for that first when a claim is about *the environment* rather than about code.
+
+**Trade-off, accepted deliberately:** long-lived keys land on a box the learner has a root shell on, so a learner can read them. Federated short-lived credentials would be better. Mitigations: scope the IAM user to Bedrock invoke on the workshop's inference profiles and nothing else, and treat the keys as rotatable. `gcp-federation/` stays in the repo as documentation of the intended posture and for any environment where metadata *is* reachable.
+
+**Consequence:** `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are now load-bearing rather than declared-but-unused, and `app/server.py`'s `profile_name="BedrockProfile"` finally resolves to something real.

@@ -70,9 +70,8 @@ npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
 claude --version
 
 say "Installing the AWS CLI v2"
-# Required by the credential_process below (it calls `aws sts
-# assume-role-with-web-identity`) and by the Bedrock reachability check in
-# the operator smoke test. Not on the Ubuntu base image.
+# Used by check-image.sh's Bedrock reachability test and by the per-challenge
+# checks. Not on the Ubuntu base image.
 AWS_ARCH="$(uname -m)"
 curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_ARCH}.zip" -o /tmp/awscliv2.zip
 unzip -q -o /tmp/awscliv2.zip -d /tmp
@@ -212,59 +211,12 @@ cat > /root/.claude/settings.json <<JSON
 JSON
 chmod 600 /root/.claude/settings.json
 
-say "Installing the federated Bedrock credential_process"
-# Nothing previously wrote ~/.aws at all, and the federated STS session the repo
-# documents lasts an hour — so a credential baked at image time is dead long
-# before a lab runs. Resolve on demand instead: exchange the GCE instance
-# identity token for an STS session when boto3, the AWS CLI, or Claude Code asks
-# for credentials. One mechanism, three consumers, no expiry mid-lab.
-#
-# BEDROCK_ROLE_ARN and BEDROCK_JWT_AUDIENCE come from gcp-federation/ outputs and
-# must be filled in before baking. The audience must match accounts.google.com:oaud
-# in the role's trust policy.
-mkdir -p /opt/ld/bin /root/.aws
-cat > /etc/bedrock-federation.env <<'SH'
-# Fill these in from `terraform output` in gcp-federation/ before baking.
-export BEDROCK_ROLE_ARN=""
-export BEDROCK_JWT_AUDIENCE=""
-SH
-chmod 600 /etc/bedrock-federation.env
-
-cat > /opt/ld/bin/bedrock-credential-process.sh <<'SH'
-#!/bin/bash
-# Emits AWS credential_process JSON. No secret is stored on disk.
-set -euo pipefail
-. /etc/bedrock-federation.env
-: "${BEDROCK_ROLE_ARN:?BEDROCK_ROLE_ARN unset — see /etc/bedrock-federation.env}"
-: "${BEDROCK_JWT_AUDIENCE:?BEDROCK_JWT_AUDIENCE unset — see /etc/bedrock-federation.env}"
-
-# --max-time is not optional: Claude Code aborts the whole credential chain
-# after 60s, and a hung metadata call looks like a broken model, not a broken
-# credential.
-JWT="$(curl -fsS --max-time 5 -H 'Metadata-Flavor: Google' \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${BEDROCK_JWT_AUDIENCE}&format=full")"
-
-aws sts assume-role-with-web-identity \
-  --role-arn "$BEDROCK_ROLE_ARN" \
-  --role-session-name "instruqt-$(hostname -s)" \
-  --web-identity-token "$JWT" \
-  --duration-seconds 3600 \
-  --region us-east-1 \
-  --output json \
-| jq '{Version: 1,
-       AccessKeyId: .Credentials.AccessKeyId,
-       SecretAccessKey: .Credentials.SecretAccessKey,
-       SessionToken: .Credentials.SessionToken,
-       Expiration: .Credentials.Expiration}'
-SH
-chmod 755 /opt/ld/bin/bedrock-credential-process.sh
-
-cat > /root/.aws/config <<'INI'
-[profile BedrockProfile]
-region = us-east-1
-credential_process = /opt/ld/bin/bedrock-credential-process.sh
-INI
-chmod 600 /root/.aws/config
+say "Preparing ~/.aws (credentials are written at lab start)"
+# No credential_process. The GCP->AWS federation cannot work on an Instruqt
+# workstation — metadata.google.internal is unreachable, so the instance
+# identity token can never be fetched. track_scripts/setup-workstation writes a
+# BedrockProfile from the AWS_* Instruqt secrets instead. See DECISIONS.md.
+mkdir -p /root/.aws
 
 say "Exporting the Bedrock env for plain shells too"
 # settings.json above is what Claude Code itself reads. These copies exist so

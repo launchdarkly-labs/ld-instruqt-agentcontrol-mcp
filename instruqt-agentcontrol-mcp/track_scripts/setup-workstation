@@ -70,30 +70,50 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Bedrock federation values.
+# Bedrock credentials.
 #
-# The role ARN arrives as an Instruqt secret rather than being baked into the
-# image or committed — the repo is public, and the ARN carries the AWS account
-# id. Written before the bootstrap below so the credential_process has it on the
-# first call, and rewritten on every start so a re-baked image never carries a
-# stale value.
+# We use the static AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY Instruqt secrets,
+# written into a boto3 profile named BedrockProfile because that is the profile
+# name app/server.py and Claude Code both ask for.
 #
-# The audience is the accounts.google.com:oaud claim in the role's trust policy.
-# It is not a secret, so it has a default.
+# The GCP->AWS federation this repo documents does NOT work on an Instruqt
+# workstation: the credential_process has to fetch a GCE instance identity token
+# from metadata.google.internal, and that endpoint is unreachable here —
+# `curl: (28) Operation timed out after 5002 milliseconds with 0 bytes received`,
+# verified in a live lab 2026-08-14. No role ARN, audience, or trust-policy
+# change can fix that, because the token can never be obtained in the first
+# place. See DECISIONS.md.
+#
+# Trade-off, stated plainly: these are long-lived keys on a box the learner has
+# a root shell on, so a learner can read them. Scope the IAM user to Bedrock
+# invoke on the workshop's inference profiles and nothing else, and treat the
+# keys as rotatable. That is a real downgrade from short-lived federated
+# credentials — it is also the only thing that works.
 # ---------------------------------------------------------------------------
-# Both values are identifiers, not credentials, so they live here rather than in
-# an Instruqt secret. The role can only be assumed by the GCP service account
-# pinned in its trust policy (accounts.google.com:sub), so publishing the ARN
-# grants nobody anything. An env var still wins if one is set, which is how you
-# point a lab at a different account without editing this file.
-LD_BEDROCK_ROLE_ARN_DEFAULT="arn:aws:iam::955116512041:role/RoleForAccessFromInstruqt"
-cat > /etc/bedrock-federation.env <<EOF
-export BEDROCK_ROLE_ARN="${BEDROCK_ROLE_ARN:-$LD_BEDROCK_ROLE_ARN_DEFAULT}"
-export BEDROCK_JWT_AUDIENCE="${BEDROCK_JWT_AUDIENCE:-instruqt-agentcontrol}"
+mkdir -p /root/.aws
+
+if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+    cat > /root/.aws/credentials <<EOF
+[BedrockProfile]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
 EOF
-chmod 600 /etc/bedrock-federation.env
-. /etc/bedrock-federation.env
-echo "Bedrock role: ${BEDROCK_ROLE_ARN}"
+    chmod 600 /root/.aws/credentials
+
+    # Deliberately no credential_process here. If the image baked one, this
+    # overwrite removes it — a credential_process in config takes precedence
+    # over a credentials file, so leaving it would keep the broken path.
+    cat > /root/.aws/config <<EOF
+[profile BedrockProfile]
+region = ${AWS_REGION:-us-east-1}
+EOF
+    chmod 600 /root/.aws/config
+    echo "BedrockProfile written from the static AWS secrets."
+else
+    echo "WARNING: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are not set." >&2
+    echo "         Bedrock will not work, so Claude Code has no model and Otto" >&2
+    echo "         cannot answer. Everything else still runs." >&2
+fi
 
 # ---------------------------------------------------------------------------
 # Self-heal the tool layer.
