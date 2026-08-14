@@ -471,3 +471,39 @@ Verified after: `list-projects` returns exactly one, `get-project` on another pr
 - **`toggle-agentcontrol-config` is broken for Configs**: it sends `turnFlagOn`, which the AgentControl targeting endpoint rejects with "invalid instruction 'turnFlagOn'". Only `updateFallthroughVariationOrRollout` works. Every assignment therefore says "set the default rule" rather than "turn it on" — keep it that way.
 
 **Still unverified:** whether an agent reliably produces the exact keys from these prompts. That needs Claude Code driving the server, not raw JSON-RPC, and it's Phase 2 work.
+
+---
+
+## Platform traps found by actually running the track (2026-08-14)
+
+Everything here was found by `instruqt track test` or a live lab, not by reading docs. Each one presented as something other than what it was.
+
+**`machine_type` is not a field in `config.yml` version 3.** Both `instruqt track validate` and `push` accept it silently as an unknown key. The VM then has no size and the track fails to provision with only "Unable to start track, please try again." Removing it surfaces the real schema error: `virtualmachines: cpus: cannot be blank; memory: cannot be blank`. Size VMs with `cpus` and `memory`. Note the upstream reference track carries a `machine_type` line and no size, so it has the same latent problem.
+
+**The operator's LaunchDarkly secret is a service token, and service tokens cannot create personal tokens.** `POST /api/v2/tokens` creates a *personal* token unless you pass `serviceToken: true`. The error is a bare 403, which reads exactly like a permissions problem — I asserted "Writer, not Admin" twice on that basis while the token was in fact Admin. The response body said `Service tokens cannot create personal tokens` the whole time. A service token is also the right type here: not tied to a member, so it doesn't inherit a member's role and doesn't break when someone leaves.
+
+**Lead with the API's response body in error handling, not your interpretation of the status code.** The 403 branch printed my hypothesis and dropped the body. That cost several wrong turns. Print what the service said first, then your guess.
+
+**`/bin/sh` is dash on Ubuntu, and dash's builtin `echo` interprets backslash escapes.** `echo "$JSON" | jq` converts escaped `\n` inside JSON strings into real newlines, and jq fails with `Invalid string: control characters from U+0000 through U+001F must be escaped`. Always `printf '%s' "$JSON" | jq`. This lay dormant until challenge 01's prompt became multi-line: with a single-line prompt there were no escapes to mangle. `bash -c 'echo "a\nb"'` prints one line; `dash -c` prints two.
+
+**LaunchDarkly reports a JSON flag's `kind` as `multivariate`, not `json`.** The variation *values* are what make it JSON. A check asserting `kind == "json"` fails on every correctly built flag.
+
+**A judge's `evaluationMetricKey` must start with `$ld:ai:judge:`.** A bare metric name is rejected with 400. It is returned at the top level of `GET /ai-configs/{key}` (verified), so a check can assert it directly.
+
+**Pin `LD-API-Version` on every call.** Requests without the header inherit whatever version the operator's token pins — the team's pins `20240415`, which predates AgentControl. Only 2 of 12 call sites were pinned; the unpinned `ai-configs` calls would have returned the wrong shape or failed for reasons that look nothing like a version problem. AgentControl endpoints need `beta`.
+
+---
+
+## Checks must assert behaviour, not file contents (2026-08-14)
+
+**Decision:** Every challenge's `check-workstation` exercises the running app, not just the LaunchDarkly API and a `grep` of `server.py`.
+
+**What prompted it:** a learner whose Bedrock credentials were missing got **"Success! Click next to start the next challenge"** on challenge 01 — the chapter whose stated goal is "Otto says his first words." The check confirmed the Config existed and the right code was on disk. Otto could not reach a model at all. The learner would have carried a broken Otto into challenge 02 with no signal.
+
+**Now:** ch01 POSTs to `/chat` and reads the reply; ch02 requires a brand-voice score in the service log; ch03 requires a logged gate decision and non-default thresholds.
+
+**A detail that matters:** the failure messages distinguish *"you haven't finished"* from *"this is a lab credentials problem, tell your instructor."* Those need opposite responses from the learner, and a check that conflates them sends people to debug something they cannot fix.
+
+**ch02 deliberately reads the log rather than the response.** Judge failures are swallowed so a broken judge never poisons a customer's chat — which means Otto replies normally and the response body cannot reveal the failure. The log is the only honest signal. That is a general lesson: when the app is designed to fail open, the check has to look where the failure is actually recorded.
+
+**Cost:** each Check press makes real model calls. Accepted. A green check should mean the chapter works.
