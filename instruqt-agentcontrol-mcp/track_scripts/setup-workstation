@@ -34,12 +34,28 @@ echo "export LD_SDK_KEY=${LD_SDK_KEY}" >> ~/.bashrc
 #   1. app-side REST calls from server.py
 #   2. bearer auth for the LaunchDarkly MCP server, which the learner drives
 #      from Claude Code (see the .mcp.json write below)
-# Blast radius is bounded by the project scope; the project is destroyed
-# at cleanup.
+# The project is destroyed and this token revoked at cleanup.
 #
-# Because the token reaches exactly one project, every prompt in this track
-# can say "my project" and the MCP server resolves it. The learner never
-# types a project key.
+# The inline role below looks fussy. Every part of it was established
+# empirically, because the API rejects the obvious formulations:
+#
+#   * `proj/<key>:*` does NOT parse. There is no "everything under a project"
+#     wildcard; each resource kind needs its own specifier.
+#   * Each STATEMENT may only reference one kind of resource — mixing
+#     `proj/<key>` and `proj/<key>:env/*` in one statement is a 400. Hence one
+#     statement per kind.
+#   * Flags, AgentControl configs, and segments are children of an ENVIRONMENT,
+#     not of the project: `proj/<key>:env/*:flag/*`, not `proj/<key>:flag/*`.
+#   * The AgentControl config kind is spelled `aiconfig`, all lowercase.
+#     Without it, creating a Config returns 403 and challenge 01 is impossible.
+#   * `ai-model-config` is documented but the parser rejects it, so it's
+#     omitted. Model configs still resolve.
+#
+# The final `deny` is what actually contains the token. Allow statements only
+# grant; they don't restrict. Without this deny, the token can list every
+# project in the account and read their SDK keys — verified. It also makes
+# challenge 00's "you should see exactly one project" true, which is what lets
+# every prompt in the track say "my project" instead of naming a key.
 LD_TOKEN_JSON=$(curl -fsS -X POST \
   "https://app.launchdarkly.com/api/v2/tokens" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
@@ -47,7 +63,23 @@ LD_TOKEN_JSON=$(curl -fsS -X POST \
   --data-raw "$(jq -n \
     --arg name "Lab token: ${LD_PROJECT_KEY}" \
     --arg proj "${LD_PROJECT_KEY}" \
-    '{name: $name, inlineRole: [{effect: "allow", actions: ["*"], resources: [("proj/" + $proj), ("proj/" + $proj + ":*")]}]}')")
+    '{
+       name: $name,
+       inlineRole: ((
+         [
+           "proj/\($proj)",
+           "proj/\($proj):env/*",
+           "proj/\($proj):env/*:flag/*",
+           "proj/\($proj):env/*:aiconfig/*",
+           "proj/\($proj):env/*:segment/*",
+           "proj/\($proj):metric/*",
+           "proj/\($proj):prompt-snippet/*"
+         ]
+         | map({effect: "allow", actions: ["*"], resources: [.]})
+       ) + [
+         {effect: "deny", actions: ["viewProject"], notResources: ["proj/\($proj)"]}
+       ])
+     }')")
 LD_API_TOKEN=$(echo "$LD_TOKEN_JSON" | jq -r .token)
 # Stash the token id so cleanup can revoke it. Without this every lab run
 # leaks a live token that outlives the sandbox.

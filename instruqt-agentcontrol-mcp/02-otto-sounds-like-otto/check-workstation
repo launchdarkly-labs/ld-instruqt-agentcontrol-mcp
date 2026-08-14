@@ -29,6 +29,17 @@ if [ "$(echo "$JUDGE" | jq -r '.key // "null"')" != "otto-brand-voice-judge" ]; 
   exit 1
 fi
 
+# The API requires the $ld:ai:judge: prefix on a judge's evaluationMetricKey,
+# so an agent that supplies a bare name gets a 400 and creates nothing. If the
+# config exists at all this has already passed, but assert it so a partially
+# created judge fails with a useful message rather than a confusing one.
+EVAL_KEY=$(echo "$JUDGE" | jq -r '.evaluationMetricKey // ""')
+case "$EVAL_KEY" in
+  '$ld:ai:judge:'*) : ;;
+  *) fail-message "The judge's evaluation metric key is \`${EVAL_KEY}\`. LaunchDarkly requires it to start with \`\$ld:ai:judge:\` — ask Claude Code to set it to \`\$ld:ai:judge:otto-brand-voice-score\`."
+     exit 1 ;;
+esac
+
 JUDGE_MODE=$(echo "$JUDGE" | jq -r '.mode // ""')
 if [ "$JUDGE_MODE" != "judge" ]; then
   fail-message "**otto-brand-voice-judge** exists but its mode is \`${JUDGE_MODE}\`, not judge. Mode is fixed at creation, so ask Claude Code to delete it and recreate it in judge mode."

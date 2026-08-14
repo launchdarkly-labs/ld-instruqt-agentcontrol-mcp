@@ -48,7 +48,7 @@ Here's the spec:
 |---|---|
 | Judge config key | `otto-brand-voice-judge` |
 | Mode | Judge |
-| Evaluation metric | `otto-brand-voice-score` |
+| Evaluation metric | `$ld:ai:judge:otto-brand-voice-score` |
 | Variation key | `default` |
 | Model | `anthropic.claude-haiku-4-5-20251001-v1:0` on Bedrock |
 | Attached to | `otto-assistant` / `otto-born`, sampling 100% |
@@ -57,7 +57,7 @@ Here's the spec:
 Back in your `claude` session in the [Code Editor](#tab-2) tab:
 
 ```
-In my LaunchDarkly project, create an AgentControl config named "Otto Brand Voice Judge" with key otto-brand-voice-judge in judge mode, with evaluation metric key otto-brand-voice-score.
+In my LaunchDarkly project, create an AgentControl config named "Otto Brand Voice Judge" with key otto-brand-voice-judge in judge mode, with evaluation metric key $ld:ai:judge:otto-brand-voice-score.
 
 Give it one variation named "Default" with key default, using the Bedrock model anthropic.claude-haiku-4-5-20251001-v1:0, and this system message:
 

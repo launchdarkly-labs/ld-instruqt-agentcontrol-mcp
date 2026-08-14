@@ -50,10 +50,11 @@ resource "launchdarkly_ai_config" "brand_voice_judge" {
   project_key = var.project_key
   key         = "otto-brand-voice-judge"
   name        = "Otto Brand Voice Judge"
-  # Bare metric name. LaunchDarkly surfaces the judge's own metric as
-  # $ld:ai:judge:otto-brand-voice-score; the custom metric below, which the
-  # app emits directly, is the plain otto-brand-voice-score. See DECISIONS.md.
-  evaluation_metric_key = "otto-brand-voice-score"
+  # The `$ld:ai:judge:` prefix is REQUIRED — the API rejects a bare metric name
+  # with "evaluationMetricKey must start with \"$ld:ai:judge:\"". Verified
+  # against a live account. This is the judge's own metric, distinct from the
+  # plain otto-brand-voice-score custom metric the app emits directly.
+  evaluation_metric_key = "$ld:ai:judge:otto-brand-voice-score"
   description           = "Scores Otto's responses 0.0-1.0 for adherence to ToggleWear's brand voice. Drives otto-brand-voice-score, which challenge 03's review gate reads."
   mode                  = "judge"
   tags                  = ["instruqt", "agentcontrol-mcp"]

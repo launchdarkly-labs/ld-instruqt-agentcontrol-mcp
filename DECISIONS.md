@@ -432,3 +432,42 @@ A refresh at track setup was rejected: a 1-hour maximum session against a lab th
 Recovery guidance previously lived only in `fail-message` strings, which a learner sees only after failing. One section they can reach at any time is better and keeps the fail-messages short.
 
 **Rejected:** deliberately under-specifying a prompt so the learner must catch the agent. Staging a failure requires determinism we don't have — if the agent gets it right, the beat evaporates and the learner is left wondering what they missed.
+
+---
+
+## Spike results: the scoped token, corrected (2026-08-14)
+
+**Ran against a live trial account.** Everything below is verified, not inferred. Three tokens minted and revoked, a throwaway project created and deleted.
+
+**Bearer-header auth against the hosted MCP server works.** `POST https://mcp.launchdarkly.com/mcp/launchdarkly` with `Authorization: Bearer <token>` returns a normal `initialize` result and an `Mcp-Session-Id`, and `tools/list` returns **120 tools** including every one this track needs. The risk that this path is unsupported is retired for now; it remains undocumented, so the fallback note stands.
+
+**The inline role in `setup-workstation` was broken and would have failed the lab at startup.** `proj/<key>:*` is not a valid resource specifier — the API returns 400 "Error parsing resource specifier". Since the script runs under `set -euo pipefail` with `curl -fsS`, the whole track-level setup would have aborted. Corrected form, all of it established by probing:
+
+- There is no "everything under a project" wildcard. Each resource kind needs its own specifier.
+- **One kind per statement.** Mixing `proj/<key>` and `proj/<key>:env/*` in a single statement is 400: "Resource specifiers in a single statement must represent the same kind of resource."
+- Flags, AgentControl configs, and segments are children of an **environment**: `proj/<key>:env/*:flag/*`, not `proj/<key>:flag/*`.
+- The AgentControl kind is spelled **`aiconfig`**, lowercase. Without it, creating a Config is 403 and challenge 01 is impossible. `aiConfig`, `ai-config`, `agentConfig` are all rejected by the parser.
+- `ai-model-config` is documented but the parser rejects it. Omitted; model configs still resolve.
+- `prompt-snippet` and `metric` are project-level children.
+
+**Allow statements do not restrict — a deny is required, and its absence was a data-exposure bug.** With allows only, the token could `list-projects` and see *every* project in the account, and `get-project` on an unrelated project returned its **SDK keys**. In the 729-project account this workshop runs in, that is a serious leak from a token handed to every learner. Fixed with the containment statement the sibling AWS workshop uses:
+
+```json
+{"effect": "deny", "actions": ["viewProject"], "notResources": ["proj/<key>"]}
+```
+
+Verified after: `list-projects` returns exactly one, `get-project` on another project is 403. That also makes challenge 00's "you should see exactly one project" true — it was false before, which would have undermined the "just say *my project*" convention the whole track relies on.
+
+**`evaluationMetricKey` must carry the `$ld:ai:judge:` prefix.** The API rejects a bare name outright: `evaluationMetricKey must start with "$ld:ai:judge:"`. This reverses the earlier "bare metric name" decision above, which was wrong. Fixed in `terraform/challenge-02/main.tf`, the challenge-02 prompt and spec table, and asserted in that chapter's check.
+
+**Verified working with the corrected scoped token:** creating a completion-mode Config; creating a variation (stores `modelConfigKey` exactly as the check asserts); creating a judge-mode Config; creating a JSON flag with two object variations; creating a custom numeric metric; attaching a judge via `PATCH .../variations/<key>` with `judgeConfiguration`; and setting the AgentControl fallthrough via the semantic-patch `updateFallthroughVariationOrRollout` instruction — which is exactly what `terraform/challenge-02` already does.
+
+**MCP tool quirks worth knowing, none blocking.** These affect the agent's job rather than ours, and an agent will iterate past them, but they explain retries a learner may see:
+
+- Most AgentControl tools take `env`, not `environmentKey`.
+- `create-agentcontrol-config-variation` requires **both** `modelName` and `modelConfigKey`.
+- `create-metric` takes `measureType` (`count`/`occurrence`/`value`), not `isNumeric`.
+- `update-agentcontrol-config-rollout` matches a variation by **name**, not key.
+- **`toggle-agentcontrol-config` is broken for Configs**: it sends `turnFlagOn`, which the AgentControl targeting endpoint rejects with "invalid instruction 'turnFlagOn'". Only `updateFallthroughVariationOrRollout` works. Every assignment therefore says "set the default rule" rather than "turn it on" — keep it that way.
+
+**Still unverified:** whether an agent reliably produces the exact keys from these prompts. That needs Claude Code driving the server, not raw JSON-RPC, and it's Phase 2 work.
