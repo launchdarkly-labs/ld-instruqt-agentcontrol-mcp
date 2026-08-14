@@ -53,9 +53,18 @@ This replaced a real gap: nothing in this repo previously wrote `~/.aws` at all,
 **Two things you must do before baking:**
 
 1. Fill in `/etc/bedrock-federation.env` with `BEDROCK_ROLE_ARN` (from `terraform output role_arn` in `gcp-federation/`) and `BEDROCK_JWT_AUDIENCE` (the `gcp_aud` value passed to that module). The credential process fails closed without them.
-2. Add `bedrock:ListInferenceProfiles` and `bedrock:GetInferenceProfile` to the policy in `gcp-federation/aws-instruqt-role.tf`. Without them Claude Code can't resolve inference profiles and applies the `us.` prefix blind. Sonnet 4.6 is already in that policy's resource list, so the model pin itself needs no change.
+2. ~~Add `bedrock:ListInferenceProfiles` and `bedrock:GetInferenceProfile`~~ — **done 2026-08-14.** Applied to the live `RoleForAccessFromInstruqt` and reflected in `gcp-federation/aws-instruqt-role.tf`. Sonnet 4.6 was already in the resource list, so the model pin needed no change.
 
-**Still unverified, and it's the most likely thing to fail:** the IAM trust policy pins `accounts.google.com:sub` to a specific GCP service account. If the bake VM and the runtime Instruqt sandbox run under different service accounts, the exchange succeeds during your bake test and fails at lab time with an opaque `AccessDenied`. **Test it on a real sandbox**, and have the test print the decoded JWT's `sub` so a mismatch is a one-line diagnosis.
+Note that `gcp-federation/` has **no Terraform state**, so the `.tf` is documentation of intent rather than something you can `apply` — the role predates it and a plain apply would collide. Changes go in via `aws iam put-role-policy` and get mirrored into the `.tf` by hand.
+
+**Largely de-risked as of 2026-08-14.** The role exists and its `RoleLastUsed` was 2026-08-07 in `us-east-1`, so something has been completing this exchange successfully and recently — the Instruqt sandboxes do run under the pinned service account. The values you need:
+
+```sh
+export BEDROCK_ROLE_ARN="arn:aws:iam::<account>:role/RoleForAccessFromInstruqt"
+export BEDROCK_JWT_AUDIENCE="instruqt-agentcontrol"
+```
+
+The audience is the `accounts.google.com:oaud` claim in the trust policy; the account id and pinned `sub` are in the live role (deliberately not committed here, since this repo is public). What remains unverified is only whether *our* bake produces a VM in that same pool — `check-image.sh` prints the decoded JWT's `sub` on failure so a mismatch is a one-line diagnosis.
 
 ## When to re-bake
 

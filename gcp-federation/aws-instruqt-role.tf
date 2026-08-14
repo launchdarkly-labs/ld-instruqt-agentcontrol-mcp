@@ -99,6 +99,38 @@ data "aws_iam_policy_document" "bedrock" {
       "arn:aws:bedrock:*::foundation-model/amazon.nova-pro-v1:0",
     ]
   }
+
+  # Claude Code resolves inference profiles at startup. Without these two it
+  # cannot, so it applies the `us.` prefix blind and a missing profile surfaces
+  # as an opaque 400 on the learner's first prompt rather than at startup.
+  # Verified missing from the live role on 2026-08-14.
+  #
+  # List operations are not resource-scopable, hence "*". Get is narrowed to
+  # this account's profiles.
+  statement {
+    sid    = "ResolveInferenceProfiles"
+    effect = "Allow"
+
+    actions = [
+      "bedrock:ListInferenceProfiles",
+    ]
+
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "GetInferenceProfiles"
+    effect = "Allow"
+
+    actions = [
+      "bedrock:GetInferenceProfile",
+    ]
+
+    resources = [
+      "arn:aws:bedrock:*:${var.account_id}:inference-profile/*",
+      "arn:aws:bedrock:*:${var.account_id}:application-inference-profile/*",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "bedrock" {
