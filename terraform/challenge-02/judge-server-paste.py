@@ -3,7 +3,7 @@
     # it as an otto-brand-voice-score metric event, and return it.
     #
     # Errors are swallowed and return None — a judge failure should not poison a
-    # customer's chat. Challenge 03 decides what None means.
+    # customer's chat. The next challenge decides what None means.
     try:
         bv_ctx = Context.builder(req.session_id).set("tier", req.user_tier).build()
         bv_cfg = ai_client.judge_config(

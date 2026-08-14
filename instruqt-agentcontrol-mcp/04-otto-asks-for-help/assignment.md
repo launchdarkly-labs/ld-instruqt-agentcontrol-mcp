@@ -100,7 +100,7 @@ def gate_response(
     """Decide what the customer sees. Returns (text_to_send, decision).
 
     `decision` is one of "ship", "hold", or "suppress".
-    Challenge 03 replaces this body.
+    The review-gate chapter replaces this body.
     """
     # ─── Challenge 03 review gate: replace this body ─────────────────────────
     return assistant_text, "ship"

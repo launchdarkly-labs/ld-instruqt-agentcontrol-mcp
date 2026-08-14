@@ -117,7 +117,7 @@ def score_response(
 ) -> Optional[float]:
     """Grade Otto's answer. Returns a score in 0.0-1.0, or None if not graded.
 
-    Challenge 02 replaces this body.
+    The judge chapter replaces this body.
     """
     # ─── Challenge 02 judge: replace this body ───────────────────────────────
     return None
@@ -131,7 +131,7 @@ def score_response(
     # it as an otto-brand-voice-score metric event, and return it.
     #
     # Errors are swallowed and return None — a judge failure should not poison a
-    # customer's chat. Challenge 03 decides what None means.
+    # customer's chat. The next challenge decides what None means.
     try:
         bv_ctx = Context.builder(req.session_id).set("tier", req.user_tier).build()
         bv_cfg = ai_client.judge_config(

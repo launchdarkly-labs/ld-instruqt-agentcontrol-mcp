@@ -28,9 +28,9 @@ enhanced_loading: null
 
 Otto started as a placeholder line in `server.py`. From there:
 
-- **Challenge 01** — born. One prompt to Claude Code produced his Config, his variation, and a targeting rule, and a few lines of SDK code gave him his first words.
-- **Challenge 02** — graded. A custom judge in judge mode now scores every one of his answers against ToggleWear's brand voice.
-- **Challenge 03** — governed. High scores ship, middling scores wait for a human, low scores never reach a customer — with the thresholds in a flag you retuned live.
+- **Otto is Born** — One prompt to Claude Code produced his Config, his variation, and a targeting rule, and a few lines of SDK code gave him his first words.
+- **Otto Sounds Like Otto** — A custom judge in judge mode now scores every one of his answers against ToggleWear's brand voice.
+- **Otto Asks for Help** — High scores ship, middling scores wait for a human, low scores never reach a customer — with the thresholds in a flag you retuned live.
 
 Two things are worth taking away, and neither is about shopping assistants.
 
@@ -46,7 +46,7 @@ You attached the brand-voice judge to Otto's variation, and then you also pasted
 
 Things this track deliberately left out, each a reasonable next step:
 
-- **Prompt snippets** — one definition of "on-brand" shared by Otto's prompt and his judge's criteria, instead of the duplicate you saw in challenge 02.
+- **Prompt snippets** — one definition of "on-brand" shared by Otto's prompt and his judge's criteria, instead of the duplicate you saw in the judge chapter.
 - **Guarded rollouts** — roll a new model out behind the brand-voice metric and let LaunchDarkly revert it automatically when scores drop.
 - **Experiments** — compare two Otto variations on live traffic instead of eyeballing a chart.
 - **Offline evaluations** — grade a candidate prompt against a golden dataset before it ever meets a customer.

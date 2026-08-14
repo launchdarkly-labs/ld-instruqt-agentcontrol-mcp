@@ -1,6 +1,6 @@
 ---
 slug: meet-togglewear
-id: x586d5owsnje
+id: sueugtnwvj4d
 type: challenge
 title: Welcome to ToggleWear
 teaser: Meet ToggleWear, meet Otto-to-be, and connect your coding agent to LaunchDarkly.
@@ -11,16 +11,16 @@ notes:
     grade him, and decide what happens when the grade comes back shaky. His name is
     going to be Otto. You'll build him by asking, not by clicking.
 tabs:
-- id: dtt0m9so54cs
+- id: cxolrfdqvcqe
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: gxjjcud6z21k
+- id: yxorswxxav8c
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: hyc743ixfqwc
+- id: z5wqwbtxssee
   title: Code Editor
   type: service
   hostname: workstation

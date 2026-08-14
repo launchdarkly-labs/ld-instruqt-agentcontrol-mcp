@@ -160,7 +160,7 @@ def score_response(
 ) -> Optional[float]:
     """Grade Otto's answer. Returns a score in 0.0-1.0, or None if not graded.
 
-    Challenge 02 replaces this body.
+    The judge chapter replaces this body.
     """
     # ─── Challenge 02 judge: replace this body ───────────────────────────────
     return None
@@ -175,7 +175,7 @@ def gate_response(
     """Decide what the customer sees. Returns (text_to_send, decision).
 
     `decision` is one of "ship", "hold", or "suppress".
-    Challenge 03 replaces this body.
+    The review-gate chapter replaces this body.
     """
     # ─── Challenge 03 review gate: replace this body ─────────────────────────
     return assistant_text, "ship"

@@ -14,11 +14,19 @@ Four challenges, ~1 hour self-paced:
 
 | Dir | Type | Beat |
 |---|---|---|
-| `00-welcome` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
-| `01-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. Then a `server.py` paste wires Otto to Bedrock. |
-| `02-otto-sounds-like-otto` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. A second paste invokes it. |
-| `03-otto-asks-for-help` | challenge | One prompt creates the `otto-review-thresholds` JSON flag. A third paste gates responses into ship / hold-for-human / suppress, and the learner retunes the band live. |
-| `04-wrap-up` | quiz | Recap and one question. |
+| `01-meet-togglewear` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
+| `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. Then a `server.py` paste wires Otto to Bedrock. |
+| `03-otto-sounds-like-otto` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. A second paste invokes it. |
+| `04-otto-asks-for-help` | challenge | One prompt creates the `otto-review-thresholds` JSON flag. A third paste gates responses into ship / hold-for-human / suppress, and the learner retunes the band live. |
+| `05-wrap-up` | quiz | Recap and one question. |
+
+### Two numbering schemes, deliberately
+
+**Directory index** is presentation order only: `01`..`05`.
+
+**Terraform modules and code markers** are numbered by *substantive* chapter, and do not shift: `terraform/challenge-01` is Otto's Config, `challenge-02` the judge, `challenge-03` the review gate. The `server.py` markers (`Challenge 01 paste block`, `Challenge 02 judge: replace this body`, `Challenge 03 review gate: replace this body`) match that scheme, because patch scripts and checks match on those exact strings.
+
+Learner-facing prose names chapters rather than numbering them, so a reorder can't make it wrong.
 
 **Lecture content lives in slides, not in the tracks.** Don't embed conceptual exposition in `assignment.md` beyond what a self-paced learner needs to make sense of each step.
 
