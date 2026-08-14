@@ -27,9 +27,13 @@ if [ "$(echo "$FLAG" | jq -r '.key // "null"')" != "otto-review-thresholds" ]; t
   exit 1
 fi
 
+# LaunchDarkly reports a JSON flag's kind as "multivariate", not "json" — the
+# variation *values* are what make it JSON. Verified against the live API.
+# Asserting kind=="json" here would fail 100% of the time, so the real check is
+# the variation-shape assertion below.
 KIND=$(echo "$FLAG" | jq -r '.kind // ""')
-if [ "$KIND" != "json" ]; then
-  fail-message "**otto-review-thresholds** is a \`${KIND}\` flag, not a JSON one. The gate reads both thresholds out of a single JSON value, so ask Claude Code to recreate it as a JSON flag."
+if [ "$KIND" != "multivariate" ] && [ "$KIND" != "json" ]; then
+  fail-message "**otto-review-thresholds** is a \`${KIND}\` flag. The gate reads both thresholds out of a single JSON value, so ask Claude Code to recreate it as a JSON flag with two variations."
   exit 1
 fi
 
