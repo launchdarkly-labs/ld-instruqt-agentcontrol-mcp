@@ -73,7 +73,23 @@ The audience is the `accounts.google.com:oaud` claim in the trust policy; the ac
 - `CLAUDE_CODE_VERSION` or `CLAUDE_BEDROCK_MODEL` changes. Treat a Claude Code version bump as a change needing a full sandbox test, not a one-line edit — recent releases have changed both the Bedrock default model and how project MCP servers get approved.
 - Any new apt tool.
 
-**Source-of-truth note:** `setup-workstation` does *not* `git pull` at lab start, so any change to `instruqt-agentcontrol-mcp/` or `terraform/challenge-NN/` *also* requires a re-bake.
+**Content changes do NOT require a re-bake.** `track_scripts/setup-workstation` refreshes the repo checkout at lab start: it shallow-clones `REPO_REF` to a temp dir and swaps it in, carrying `app/.venv`, `app/.env`, and `app/.mcp.json` across so the venv isn't rebuilt and this lab's credentials survive. So edits to assignments, terraform modules, `server.py`, or the frontend just need a push and a lab restart.
+
+Pin `REPO_REF` to a commit SHA for a delivery you want reproducible — on `main`, a mid-session push changes what a running lab serves.
+
+Re-bake only when the **tools** change (the list above).
+
+## Testing without baking
+
+`bootstrap-live.sh` installs just the tool half — Claude Code, the AWS CLI, the `.claude` pre-seed, the shell env, and the `credential_process` — into a **running** lab. Combined with the content refresh above, that means you can validate the whole track on a stale image before committing to a bake:
+
+1. Start a lab, open the workstation terminal, `sudo -i`
+2. `export BEDROCK_ROLE_ARN="arn:aws:iam::<account>:role/RoleForAccessFromInstruqt"`
+3. Paste `bootstrap-live.sh` (or curl it from the repo)
+4. It substitutes this lab's live `LD_API_TOKEN` into the MCP config and smoke-tests STS, Bedrock, and the MCP server
+5. Run `claude`, work the four challenges
+
+It is deliberately **not** a substitute for baking — every learner would pay minutes of npm and pip at lab start. Bake once the loop is proven, and treat the bake as a formality rather than a debugging session.
 
 ## Paths the per-challenge scripts assume exist post-bake
 

@@ -7,6 +7,86 @@ until [ -f /opt/instruqt/bootstrap/host-bootstrap-completed ]; do
     sleep 1
 done
 
+# ---------------------------------------------------------------------------
+# Refresh the repo checkout to the pinned ref.
+#
+# The image bakes a git clone, so without this every edit to an assignment, a
+# terraform module, or server.py needs a full re-bake. That is a brutal loop for
+# content work. Refreshing here means a bake is only required when the *tools*
+# on the image change (Claude Code, the AWS CLI, systemd units, the venv).
+#
+# REPO_REF is deliberately a branch during development. Pin it to a commit SHA
+# for a delivery you want reproducible — otherwise a mid-session push to main
+# changes what a running lab is serving.
+#
+# Failure here is non-fatal on purpose: if the network or the ref is bad we log
+# it and continue with whatever the image baked, rather than killing the lab.
+# ---------------------------------------------------------------------------
+REPO_URL="https://github.com/launchdarkly-labs/ld-instruqt-agentcontrol-mcp.git"
+REPO_REF="main"
+REPO_DIR=/opt/ld/ai-configs-intro
+
+refresh_repo() {
+    # Clone to a temp dir and swap, rather than fetch-and-reset in place. Two
+    # reasons: an image baked from a *different* repo can't be fast-forwarded to
+    # this one, and a swap is atomic enough that a mid-clone failure leaves the
+    # working checkout untouched.
+    #
+    # app/.venv is carried across the swap deliberately — it is built at bake
+    # time and takes minutes to recreate, and togglewear.service dies without
+    # it. .env and .mcp.json are carried because they hold this lab's live
+    # credentials, written later in this script.
+    local tmp="/opt/ld/.repo-incoming"
+    rm -rf "$tmp"
+    git clone --depth 1 --branch "${REPO_REF}" "${REPO_URL}" "$tmp" || return 1
+
+    if [ -d "${REPO_DIR}" ]; then
+        for keep in app/.venv app/.env app/.mcp.json; do
+            if [ -e "${REPO_DIR}/${keep}" ]; then
+                mkdir -p "$(dirname "$tmp/$keep")"
+                mv "${REPO_DIR}/${keep}" "$tmp/$keep"
+            fi
+        done
+        rm -rf "${REPO_DIR}.old"
+        mv "${REPO_DIR}" "${REPO_DIR}.old"
+    fi
+    mv "$tmp" "${REPO_DIR}"
+    rm -rf "${REPO_DIR}.old"
+    # Authoring docs are the answer key; the image build strips them and a fresh
+    # fetch brings them back. Strip again. See DECISIONS.md.
+    rm -f "${REPO_DIR}"/CLAUDE.md "${REPO_DIR}"/DECISIONS.md "${REPO_DIR}"/PHASES.md \
+          "${REPO_DIR}"/NARRATIVE.md "${REPO_DIR}"/OPERATOR-CHECKLIST-mcp.md
+    # terraform init for anything the fetch added or changed.
+    for ch in student-bootstrap challenge-01 challenge-02 challenge-03; do
+        [ -d "${REPO_DIR}/terraform/${ch}" ] || continue
+        (cd "${REPO_DIR}/terraform/${ch}" && terraform init -input=false -upgrade=false >/dev/null)
+    done
+}
+
+if refresh_repo; then
+    echo "Repo refreshed to ${REPO_REF} ($(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null))"
+else
+    echo "WARNING: repo refresh failed; continuing with the image's baked checkout" >&2
+fi
+
+# The steps below and cleanup-workstation both cd to this path. Point it at the
+# module in the refreshed repo, unconditionally.
+#
+# Three cases to survive: it may be absent (image baked before the symlink
+# existed), a dangling symlink (repo dir was swapped), or a real directory
+# holding a stale copy of the module. The last one is why this isn't a bare
+# `ln -sfn` — linking onto an existing directory silently creates the link
+# *inside* it, and then terraform runs against the stale copy.
+TF_LINK=/opt/ld/terraform-ld-student
+TF_TARGET="${REPO_DIR}/terraform/student-bootstrap"
+if [ -d "$TF_TARGET" ]; then
+    [ -L "$TF_LINK" ] && rm -f "$TF_LINK"
+    [ -d "$TF_LINK" ] && rm -rf "$TF_LINK"
+    ln -sfn "$TF_TARGET" "$TF_LINK"
+else
+    echo "WARNING: ${TF_TARGET} missing; leaving ${TF_LINK} as-is" >&2
+fi
+
 cd /opt/ld/terraform-ld-student
 echo "sandbox_id = \"${_SANDBOX_ID}\"" > terraform.tfvars
 terraform apply -auto-approve

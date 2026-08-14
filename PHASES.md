@@ -48,9 +48,11 @@ Also fill in `/etc/bedrock-federation.env` with the role ARN and JWT audience fr
 
 ---
 
-## Phase 1: Bake and prove the image
+## Phase 1: Prove it in a live lab, then bake
 
-`vm-image/build-image.sh` already installs and pre-seeds Claude Code. Point `REPO_URL` at this repo, bake, and run the verification block in `vm-image/README.md`.
+Don't bake first. `track_scripts/setup-workstation` refreshes repo content at lab start, so only the *tools* need an image — and `vm-image/bootstrap-live.sh` installs those into a running lab. Start a lab on the existing image, export `BEDROCK_ROLE_ARN`, paste that script, and you're testing the real chapters in minutes. Iterate there; content edits need only a push and a lab restart.
+
+Bake once the loop works. `vm-image/build-image.sh` installs and pre-seeds everything; `vm-image/check-image.sh` gates it with ~30 assertions.
 
 The step that matters most can't be scripted: launch `claude` interactively and confirm **zero** prompts. If one appears, diff `/root/.claude.json` and fold the missing key back into the heredoc. A learner who hits a trust dialog in challenge 00 has no way forward.
 
