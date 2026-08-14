@@ -1,15 +1,15 @@
 ---
 slug: wrap-up
-id: vogortvwt2uj
+id: hnylkffksunn
 type: quiz
 title: Wrap-Up
 teaser: Otto is built, graded, and governed. So are you.
 notes:
 - type: text
   contents: You started with a placeholder line in server.py and ended with an AI
-    assistant that grades its own answers and knows when to hand one to a human — and
-    you built almost all of it by asking, not clicking. One last question, then you're
-    done.
+    assistant that grades its own answers and knows when to hand one to a human —
+    and you built almost all of it by asking, not clicking. One last question, then
+    you're done.
 answers:
 - Attaching a judge to a variation makes LaunchDarkly run it automatically, so no
   application code is needed.

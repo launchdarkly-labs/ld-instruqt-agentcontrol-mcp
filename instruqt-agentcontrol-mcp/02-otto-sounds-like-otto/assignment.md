@@ -1,10 +1,10 @@
 ---
 slug: otto-sounds-like-otto
-id: t8mrxjhijx2n
+id: axfzylfsadps
 type: challenge
 title: Otto Sounds Like Otto
-teaser: Ask for a custom judge that grades every one of Otto's answers against
-  ToggleWear's brand voice.
+teaser: Ask for a custom judge that grades every one of Otto's answers against ToggleWear's
+  brand voice.
 notes:
 - type: text
   contents: Otto works, but nobody is checking whether he's any good. In this challenge
@@ -13,16 +13,16 @@ notes:
     him to sound. Then you'll paste a small block into the server so every response
     gets graded, and watch the scores arrive.
 tabs:
-- id: w45dipgjw6pv
+- id: za4bjsaxx6yf
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: k5dt8nl8xbuq
+- id: iey7hefmxyok
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: q5l8krtgq3xd
+- id: lswvu4jo1huu
   title: Code Editor
   type: service
   hostname: workstation

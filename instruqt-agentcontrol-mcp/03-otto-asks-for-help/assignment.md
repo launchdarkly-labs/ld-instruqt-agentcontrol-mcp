@@ -1,39 +1,38 @@
 ---
 slug: otto-asks-for-help
-id: 5alnxyvuahcs
+id: nullxuvqcvax
 type: challenge
 title: Otto Asks for Help
-teaser: Ship Otto's confident answers, hold his borderline ones for a human, and
-  suppress the bad ones — with the thresholds living in LaunchDarkly.
+teaser: Ship Otto's confident answers, hold his borderline ones for a human, and suppress
+  the bad ones — with the thresholds living in LaunchDarkly.
 notes:
 - type: text
-  contents: >-
-    A judge score is only worth what you do with it. In this challenge you'll
-    put Otto's answers through a three-way gate: high scores go straight to the
-    customer, middling scores get held for a human to approve or fix, and low scores
-    never leave the building. The thresholds live in a LaunchDarkly flag, so you can
-    retune how cautious Otto is without redeploying anything.
+  contents: 'A judge score is only worth what you do with it. In this challenge you''ll
+    put Otto''s answers through a three-way gate: high scores go straight to the customer,
+    middling scores get held for a human to approve or fix, and low scores never leave
+    the building. The thresholds live in a LaunchDarkly flag, so you can retune how
+    cautious Otto is without redeploying anything.'
 tabs:
-- id: d234ty0d498l
+- id: ysu6x0nqxlji
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: 4b8v60m5d6gk
+- id: utyv2qnadkoc
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: 1gsbd7bmfar4
+- id: 5sire75mgqxg
   title: Code Editor
   type: service
   hostname: workstation
   port: 8080
-- id: 1mx3qp2n4dy9
+- id: 45egy5vlatni
   title: Staff Review
   type: service
   hostname: workstation
-  port: 3000
   path: /review
+  port: 3000
 difficulty: intermediate
 timelimit: 1500
 enhanced_loading: null

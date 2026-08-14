@@ -1,19 +1,17 @@
 slug: ld-agentcontrol-mcp
-id: 3rryhtvk9jvp
+id: 4yzeqxwrjvna
 title: Govern an AI Agent with AgentControl and MCP
-teaser: >-
-  Build an AI assistant, grade it with a judge, and hold its shakiest answers
+teaser: Build an AI assistant, grade it with a judge, and hold its shakiest answers
   for a human — driving LaunchDarkly entirely from your coding agent.
-description: >-
-  AgentControl lets you treat prompts, models, and quality gates as runtime
-  configuration instead of hardcoded values. In this track you'll build Otto — the
+description: 'AgentControl lets you treat prompts, models, and quality gates as runtime
+  configuration instead of hardcoded values. In this track you''ll build Otto — the
   shopping assistant for ToggleWear, a fictional online retailer of LaunchDarkly-branded
-  apparel. You won't click through the LaunchDarkly UI to do it. Instead you'll connect
-  Claude Code to the LaunchDarkly MCP server and ask for what you want in plain
-  language: a Config for Otto, a custom judge that scores whether he sounds on-brand,
-  and a review gate that ships his confident answers, holds the borderline ones for a
-  human, and suppresses the bad ones. By the end Otto is live, graded, and governed —
-  and you've done it without touching deployment.
+  apparel. You won''t click through the LaunchDarkly UI to do it. Instead you''ll
+  connect Claude Code to the LaunchDarkly MCP server and ask for what you want in
+  plain language: a Config for Otto, a custom judge that scores whether he sounds
+  on-brand, and a review gate that ships his confident answers, holds the borderline
+  ones for a human, and suppresses the bad ones. By the end Otto is live, graded,
+  and governed — and you''ve done it without touching deployment.'
 icon: https://launchdarkly.com/favicon-dark-mode.png
 tags:
 - bedrock
@@ -23,6 +21,7 @@ tags:
 owner: launchdarkly
 developers:
 - kcochran@launchdarkly.com
+- sattensil@launchdarkly.com
 show_timer: true
 idle_timeout: 1200
 timelimit: 5400
@@ -38,4 +37,5 @@ lab_config:
   hideStopButton: false
   default_layout: AssignmentRight
   default_layout_sidebar_size: 25
+checksum: "14405194049143078391"
 enhanced_loading: false
