@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ToggleWear — Staff review</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="staff">
+
+<header class="site-header">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">◐</span>
+    <span class="brand-name">ToggleWear</span>
+  </div>
+  <nav class="primary-nav" aria-label="Primary">
+    <a href="/">Storefront</a>
+  </nav>
+  <div class="staff-badge">Staff view</div>
+</header>
+
+<main>
+  <section class="review-panel" aria-label="Staff review queue">
+    <div class="review-head">
+      <h1 class="review-title">Review queue</h1>
+      <p class="review-sub">
+        Otto wasn't confident enough in these to send them. You are the human in
+        the loop: approve as-is, edit and approve, or reject. Whatever you decide
+        is what the customer sees.
+      </p>
+      <p id="review-others" class="review-others"></p>
+    </div>
+    <p id="review-empty" class="review-empty">
+      Nothing waiting. Ask Otto something in the ToggleWear tab — when his answer
+      lands in the review band, it shows up here.
+    </p>
+    <div id="review-list" class="review-list" hidden></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <small>&copy; ToggleWear. A fictional shop for a real LaunchDarkly workshop.</small>
+</footer>
+
+<script src="/static/review.js" defer></script>
+</body>
+</html>

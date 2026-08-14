@@ -43,9 +43,6 @@
         })
 
     assistant_text = _extract_text(response)
-    with _state_lock:
-        _history[req.session_id].append(LDMessage(role="user", content=req.message))
-        _history[req.session_id].append(LDMessage(role="assistant", content=assistant_text))
 
     usage = response.get("usage") or {}
     metrics = response.get("metrics") or {}
@@ -54,5 +51,3 @@
         req.session_id, req.user_tier, turn, model_id,
         usage.get("inputTokens"), usage.get("outputTokens"), metrics.get("latencyMs"),
     )
-
-    # ─── Challenge 07 judge injects below this marker ──────────────────────

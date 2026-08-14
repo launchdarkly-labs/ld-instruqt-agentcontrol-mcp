@@ -187,6 +187,28 @@ function initChatForm() {
   });
 }
 
+// ---------- Reviewer decisions coming back (Challenge 03) ----------
+//
+// When the gate holds a response, the customer sees a placeholder and a human
+// decides in the Staff Review tab. This drains whatever they decided and drops
+// it into the transcript, so an approval appears without a page refresh.
+// A no-op until Challenge 03's gate starts holding anything.
+
+const UPDATES_POLL_MS = 3000;
+
+async function pollUpdates() {
+  try {
+    const res = await fetch(`/review/updates?session_id=${encodeURIComponent(getSessionId())}`);
+    if (!res.ok) return;
+    const { messages } = await res.json();
+    (messages || []).forEach((text) => appendBubble('otto', text));
+  } catch (err) {
+    // The endpoint exists from the start, so a failure here is a real error
+    // rather than a not-yet-built challenge. Log and keep polling.
+    console.warn('updates poll error', err);
+  }
+}
+
 // ---------- Boot ----------
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -195,4 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initOttoPanel();
   initChatForm();
   appendBubble('system', "Hi — I'm Otto. Ask me anything about ToggleWear.");
+  pollUpdates();
+  setInterval(pollUpdates, UPDATES_POLL_MS);
 });

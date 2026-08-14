@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# Validates the review gate.
+#
+#   1. otto-review-thresholds exists and is a JSON flag.
+#   2. At least one variation carries both an `auto` and a `review` number,
+#      with auto > review (a band the wrong way round silently never holds).
+#   3. The flag is on in `test`.
+#   4. server.py contains the gate and enqueues held responses.
+#
+# Variation names aren't asserted — the agent may name them anything.
+
+API="https://app.launchdarkly.com/api/v2"
+
+i=0
+while [ $i -lt 5 ]; do
+  FLAG=$(curl -fsS -X GET \
+    "${API}/flags/${LD_PROJECT_KEY}/otto-review-thresholds?env=test" \
+    -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" 2>/dev/null)
+  [ "$(echo "$FLAG" | jq -r '.key // "null"')" = "otto-review-thresholds" ] && break
+  i=$((i + 1))
+  sleep 2
+done
+
+if [ "$(echo "$FLAG" | jq -r '.key // "null"')" != "otto-review-thresholds" ]; then
+  fail-message "No flag with key **otto-review-thresholds** exists yet. Ask Claude Code for it using the prompt under **Ask for the thresholds flag**."
+  exit 1
+fi
+
+KIND=$(echo "$FLAG" | jq -r '.kind // ""')
+if [ "$KIND" != "json" ]; then
+  fail-message "**otto-review-thresholds** is a \`${KIND}\` flag, not a JSON one. The gate reads both thresholds out of a single JSON value, so ask Claude Code to recreate it as a JSON flag."
+  exit 1
+fi
+
+# A usable variation has both numbers, and auto must sit above review.
+VALID=$(echo "$FLAG" | jq '[.variations[]?.value
+  | select(type=="object")
+  | select((.auto|type)=="number" and (.review|type)=="number")
+  | select(.auto > .review)] | length')
+
+if [ "${VALID:-0}" -lt 1 ]; then
+  fail-message "No variation of **otto-review-thresholds** has both an \`auto\` and a \`review\` number with auto above review. Ask Claude Code to set the Balanced variation to {\"auto\": 0.8, \"review\": 0.5}."
+  exit 1
+fi
+
+ON=$(echo "$FLAG" | jq -r '.environments.test.on // false')
+if [ "$ON" != "true" ]; then
+  fail-message "**otto-review-thresholds** is off in the Test environment. Ask Claude Code to turn it on in Test and serve the Balanced variation."
+  exit 1
+fi
+
+SERVER_PY=/opt/ld/ai-configs-intro/app/server.py
+
+if grep -q 'Challenge 03 review gate: replace this body' "$SERVER_PY"; then
+  fail-message "\`gate_response()\` still has its placeholder body, so every answer ships ungraded. Replace the marker comment and the \`return assistant_text, \"ship\"\` below it with the gate block from the assignment."
+  exit 1
+fi
+
+if ! grep -q 'REVIEW_FLAG_KEY' "$SERVER_PY"; then
+  fail-message "Your gate doesn't read the thresholds flag. Make sure the pasted block calls \`ld_client.variation(REVIEW_FLAG_KEY, ...)\` rather than hardcoding the numbers."
+  exit 1
+fi
+
+if ! grep -q '_enqueue_review' "$SERVER_PY"; then
+  fail-message "The gate isn't holding anything for review. Make sure the pasted block calls \`_enqueue_review\` in the hold branch."
+  exit 1
+fi
+
+exit 0

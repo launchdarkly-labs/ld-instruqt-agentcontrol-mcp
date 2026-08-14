@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "LaunchDarkly": {
+      "type": "http",
+      "url": "https://mcp.launchdarkly.com/mcp/launchdarkly",
+      "headers": {
+        "Authorization": "Bearer __LD_API_TOKEN__"
+      }
+    }
+  }
+}

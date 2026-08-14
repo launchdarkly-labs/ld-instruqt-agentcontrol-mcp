@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Per-challenge setup for ch02 (brand-voice judge).
+# Just initializes Terraform; the learner does the lab through the LD UI
+# and the code-paste step in their editor. Solve handles the apply.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-02
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+
+# Make sure background traffic is still flowing so the new judge has
+# something to grade as soon as the learner attaches it.
+if ! pgrep -f realchat_traffic.py > /dev/null; then
+  nohup /opt/ld/ai-configs-intro/app/.venv/bin/python3 \
+    /opt/ld/ai-configs-intro/traffic-generator/realchat_traffic.py \
+    > /var/log/togglewear-realchat.log 2>&1 &
+fi
+
+exit 0

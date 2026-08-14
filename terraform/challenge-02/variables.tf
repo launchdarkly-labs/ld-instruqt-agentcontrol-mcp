@@ -1,4 +1,4 @@
 variable "project_key" {
-  description = "LaunchDarkly project key for this student's lab."
+  description = "Per-student LaunchDarkly project key created by terraform/student-bootstrap."
   type        = string
 }

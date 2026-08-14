@@ -22,19 +22,15 @@ Each challenge is a beat in Otto's story. The titles and one-line beats:
 
 | # | Title | Beat |
 |---|---|---|
-| 00 | Welcome to ToggleWear | The shop. The problem. Meet Otto-to-be. |
-| 01 | Otto is born | First config. First prompt. Otto says hello for the first time. |
-| 02 | Give Otto a personality | Marketing says Otto sounds like a robot. Warm him up. |
-| 03 | Otto on-brand at scale | Otto's prompt is getting long. Factor out reusable brand voice. |
-| 04 | Quiz: configs & snippets | Pause and consolidate. |
-| 05 | Otto for everyone | Free shoppers and premium shoppers want different things. Give them different Ottos. |
-| 06 | How is Otto doing? | Now that Otto is in production, measure him. |
-| 07 | Trust but verify | Otto needs to try a new model. But what if it goes wrong? |
-| 08 | Wrap-up | Otto is grown. So are you. |
+| 00 | Welcome to ToggleWear | The shop. The problem. Meet Otto-to-be, and meet the agent you'll build him with. |
+| 01 | Otto is born | First Config, first prompt, first words. Asked for, not clicked. |
+| 02 | Otto sounds like Otto | A judge grades every answer against the brand voice. Otto is being watched. |
+| 03 | Otto asks for help | Otto learns to hand his shaky answers to a human instead of guessing. |
+| 04 | Wrap-up | Otto is graded and governed. So are you. |
 
 The narrative is light-touch — it lives in section intros and in transitions between challenges. The bulk of each `assignment.md` is still directive prose. But the arc gives the track a center of gravity.
 
----
+There's a second thread running under Otto's, and it's worth keeping visible: the learner is not clicking through a UI. They're describing what they want to an agent. The track should never make a fuss about that, but it should never obscure it either — the payoff line in `04-wrap-up` is that the resources are ordinary and the judgement calls were still the learner's.
 
 ## Voice for assignment.md prose
 
@@ -102,97 +98,74 @@ Each product needs:
 
 **Role:** ToggleWear's AI shopping assistant.
 
-**Personality (target end-state after challenge 02):** Warm, helpful, a little playful. Not over-eager. Confident about products and policies. Honest when he doesn't know something. Brief by default — answers questions, doesn't over-explain.
+**The voice ToggleWear wants:** Warm, helpful, a little playful. Not over-eager. Confident about products and policies. Honest when he doesn't know something. Brief by default — answers questions, doesn't over-explain.
 
-**Personality at challenge 01 (the "born" state):** Functional but robotic. Answers correctly, no warmth. The "before" version that the learner improves in challenge 02. The prompt at this stage is something like:
+**The voice Otto actually has:** Functional but robotic. He knows the catalog, the sizes, and the policies — his challenge-01 prompt carries all of it — and he has been told nothing whatsoever about tone. The prompt opens:
 
-> You are a customer service assistant for ToggleWear, an online retailer. Answer questions from customers about products and store policies. Be accurate and concise.
+> You are a customer service assistant for ToggleWear, an online retailer of LaunchDarkly-branded apparel. Answer questions from customers about products and store policies. Be accurate and concise.
 
-That prompt is intentionally bland. It works, but it has no character. Challenge 02 has the learner rewrite it.
+...followed by the product list, sizing, and policies. The canonical text lives in `terraform/challenge-01/main.tf` as `local.otto_born_prompt`; the challenge-01 assignment's prompt block must match it.
 
-**Personality at challenge 02 (after warm-up):** Same role, but with voice. The prompt the learner writes (or pastes) becomes something like:
+He is competent and cold, on purpose, and that gap never closes. Otto is never given a warm prompt in this track.
 
-> You are Otto, the shopping assistant at ToggleWear — an online shop for LaunchDarkly-branded apparel. You're warm, helpful, and a little playful. You know the products, you're honest when you don't know something, and you keep answers short unless someone asks for more. Help customers find the right item, answer questions about sizing and care, and point them in the right direction when they're not sure what they want.
+Giving him the catalog matters as much as withholding the tone. An Otto who can't answer "what material is the Rollout Tote?" scores low for being *unhelpful*, which pushes him below challenge 03's suppress threshold and starves the review queue. An Otto who answers it flatly scores mid-band, which is exactly where the chapter needs him — and it makes "edit and approve" real work rather than rubber-stamping an apology.
 
-That's the target state for challenge 02's check script to validate against (with some flexibility — regex match on key phrases like "Otto", "warm", "helpful").
-
----
-
-## Snippets for challenge 03
-
-The learner extracts two snippets from Otto's prompt:
-
-**`brand_voice`** — captures the personality bits:
-
-> You are Otto. You're warm, helpful, and a little playful. You keep answers short by default and you're honest when you don't know something.
-
-**`safety_rules`** — captures guardrails:
-
-> Don't make up prices, sizes, or policies. If you don't know, say so and suggest the customer check the product page or contact support. Don't discuss topics outside of ToggleWear and the products we sell.
-
-After extraction, Otto's main prompt becomes thinner — something like:
-
-> {{brand_voice}}
->
-> You work at ToggleWear, an online shop for LaunchDarkly-branded apparel. Help customers find products, answer questions about sizing and care, and guide them when they're not sure what they want.
->
-> {{safety_rules}}
-
-The exact snippet-reference syntax depends on AgentControl's snippets feature — verify the actual templating syntax during Phase 4.
+This is worth being explicit about, because it's easy to "fix" by accident. Otto stays bland so that the judge in challenge 02 has something real to complain about, and so that challenge 03's middle band actually gets traffic. An Otto who scored 0.95 on everything would make both of those chapters demos of nothing. If someone later adds a prompt-iteration chapter, the review gate needs retuning to compensate.
 
 ---
 
-## Variations for challenge 05
+## The brand-voice judge (challenge 02)
 
-**Free tier (default):** Haiku model. The "Otto on-brand" prompt from challenge 03. Brief, friendly, helpful.
+**Judge config key:** `otto-brand-voice-judge`
 
-**Premium tier:** Sonnet model. Same `brand_voice` and `safety_rules` snippets, but with an augmented system prompt that gives Otto extra context — e.g. access to more detailed product knowledge, willingness to give longer-form recommendations, more personalized tone:
+**Judge model:** Claude Haiku 4.5 (cheap, fast, fine for scoring)
 
-> {{brand_voice}}
->
-> You work at ToggleWear and you're talking to a premium customer. Take a little more time with them. Offer thoughtful recommendations, mention complementary items when relevant, and share interesting product details (materials, care, the story behind a design). You can be a bit warmer and more conversational.
->
-> {{safety_rules}}
-
-The targeting rule routes contexts with `tier: "premium"` to the Sonnet variation. Everyone else gets Haiku.
-
----
-
-## The judge for challenge 07
-
-**Judge config name:** "Otto Response Judge" (suggested)
-
-**Judge model:** Claude Haiku (cheap, fast, fine for scoring)
+**Scoring scale:** 0.0-1.0. See `DECISIONS.md` for why floats rather than 1-5.
 
 **Judge prompt:**
 
-> You are evaluating a response from Otto, the shopping assistant at ToggleWear (an online retailer of LaunchDarkly-branded apparel). Otto's brand voice is: warm, helpful, a little playful, honest, concise. Otto helps customers with products, sizing, and store-related questions only.
+> You are evaluating whether a response from Otto, ToggleWear's shopping assistant, adheres to the brand voice we want him to use.
 >
-> Score the following response on a scale of 1 to 5:
-> - 5: Perfectly on-brand. Warm, helpful, concise, on-topic.
-> - 4: Mostly on-brand with minor issues.
-> - 3: Acceptable but lacking warmth or has small voice issues.
-> - 2: Off-brand: too robotic, off-topic, or unhelpful.
-> - 1: Significantly off-brand: rude, wrong-topic, or contradicts ToggleWear's voice entirely.
+> The brand voice is:
 >
-> Respond with ONLY a single digit from 1 to 5. No explanation, no other text.
+> Otto is warm, helpful, and a little playful. He keeps answers short by default and he's honest when he doesn't know something.
+>
+> Score the response on a scale of 0.0 to 1.0:
+> - 1.0: Strongly on-brand. Warm, helpful, a little playful, honest, concise.
+> - 0.7: Mostly on-brand with minor issues.
+> - 0.4: Lacking warmth or has noticeable voice issues.
+> - 0.0: Off-brand. Robotic, off-topic, or contradicts the voice entirely.
+>
+> Respond with ONLY a number between 0.0 and 1.0. No other text.
 >
 > Response to evaluate:
 > {{response}}
 
-The judge's output is parsed by the Python server as an integer 1-5 and emitted as a metric value.
+The brand-voice paragraph is stated inline here and inline in `terraform/challenge-02/main.tf`. Those two copies must stay in sync. An earlier version of this workshop factored it into a `brand-voice` prompt snippet so one definition drove both Otto's prompt and his grading criteria; snippets are out of scope now, and `04-wrap-up` names the duplication honestly as a reason to go learn about them.
 
-**The bad Nova Pro prompt** (deliberately off-brand, set up by challenge 07's Terraform):
+Otto's challenge-01 prompt tells him to be "accurate and concise" and says nothing about warmth, so he scores in the middle of this range on purpose. The gap is what makes challenge 03 have something to do.
 
-> You are a customer service representative. Please assist customers with their inquiries in a professional and formal manner. Always greet the customer formally, provide thorough explanations, and conclude each response with a formal sign-off. Maintain a corporate tone at all times.
+## The review gate (challenge 03)
 
-That prompt makes Nova Pro produce stiff, formal, overlong responses — drifting from Otto's warm/playful/concise voice. The judge will score these in the 2-3 range consistently, pulling the rollout's metric below threshold and triggering rollback.
+**Flag key:** `otto-review-thresholds`, JSON.
 
----
+| Variation | Value | Effect |
+|---|---|---|
+| Balanced | `{"auto": 0.8, "review": 0.5}` | The default. Most answers ship; a few get held. |
+| Cautious | `{"auto": 0.95, "review": 0.7}` | Most answers get held. Used for the retune-live moment. |
+
+**Copy the customer sees** — keep these exact strings in sync with `app/server.py`:
+
+- Held for review: *"One moment — I'm having a colleague double-check this before I send it."*
+- Suppressed: *"I'd rather not guess at that one. Our support team can give you a proper answer — you can reach them from the Support link at the top of the page."*
+
+The held message is deliberately in Otto's voice rather than a system notice. Otto asking a colleague reads as a shop with staff in it; "Response withheld pending moderation" reads as a content filter. The first is the story we want.
+
+**The reviewer** is the learner, wearing a staff hat. There's no separate persona and no login — the review queue simply appears on the storefront page. Don't invent a named human reviewer; the point is the role, not a character.
 
 ## Wrap-up / Otto's ending
 
-In the wrap-up, briefly review Otto's arc — he was born plain, got a voice, got reusable on-brand pieces, got tier-aware variations, got measured, and got a guardian (the judge). The takeaway: AgentControl lets you treat AI behavior the way LaunchDarkly already lets you treat features — controllable, observable, safe to change.
+In the wrap-up, briefly review Otto's arc — he was born plain, got graded by a judge you wrote, and learned to hand his shaky answers to a human. The takeaway: AgentControl lets you treat AI behavior the way LaunchDarkly already lets you treat features — controllable, observable, safe to change — and the MCP server means you can do all of it from wherever you already work.
 
 End on Otto's voice — a closing line *as Otto* would be on-theme. Something like:
 
@@ -206,7 +179,10 @@ Use that, or something better. The point is: end with a wink rather than a corpo
 
 - Otto's name. Never "the assistant," "the bot," or "the chatbot" in narrative copy. Just "Otto." (In technical contexts — "the chat widget" or "the chatbot UI" — that's fine.)
 - ToggleWear is one word, capitalized as shown.
-- The user-tier values in code are `free` and `premium` (lowercase). In UI copy: "Free user" and "Premium user."
-- Config keys (lowercase-hyphenated): `otto-assistant`, `otto-response-judge`.
-- Snippet keys: `brand-voice`, `safety-rules`.
-- Metric key for the judge: `otto-quality-score` (or similar — verify naming conventions for Config metrics in Phase 7).
+- The user-tier values in code are `free` and `premium` (lowercase). In UI copy: "Free user" and "Premium user." The tier dropdown still exists in the storefront and is passed as a context attribute, but nothing in this track targets on it.
+- Config keys (lowercase-hyphenated): `otto-assistant`, `otto-brand-voice-judge`.
+- Variation keys: `otto-born`, `default` (the judge's).
+- Flag key: `otto-review-thresholds`.
+- Metric keys: `otto-brand-voice-score` (the judge's score), `otto-review-outcome` (which band each response landed in), `otto-review-decision` (what the human decided).
+- "Claude Code" is the agent's name. Not "the AI," "the assistant" (that's Otto), or "Claude."
+- "the MCP server" or "the LaunchDarkly MCP server," never "MCP" alone as a noun for the server.

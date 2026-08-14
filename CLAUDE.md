@@ -1,287 +1,210 @@
 # CLAUDE.md
 
-This file is the operational spec for Claude Code working on this project. Read it before doing anything else. When in doubt about *why* a decision was made, see `DECISIONS.md`. To know *what phase* of work we're in, see `PHASES.md`. For the story and voice used in learner-facing prose, see `NARRATIVE.md`.
+This file is the operational spec for Claude Code working on this project. Read it before doing anything else. When in doubt about *why* a decision was made, see `DECISIONS.md`. For the story and voice used in learner-facing prose, see `NARRATIVE.md`. For the build sequence, see `PHASES.md`.
+
+> **Note:** this is authoring documentation, not learner material — it describes how the labs are built and is effectively the answer key. `vm-image/build-image.sh` therefore *deletes* this file, `DECISIONS.md`, `PHASES.md`, `NARRATIVE.md`, and the operator checklist from the VM clone after cloning. A permissions denylist was the first attempt and was wrong: it only blocks the `Read` tool and fails open if a key name changes. `terraform/` and the track directory stay on disk because setup and solve scripts need them, and those keep deny entries.
 
 ## What we're building
 
-A three-track **Instruqt workshop** teaching LaunchDarkly's **AgentControl** product through hands-on labs. The workshop introduces AgentControl to two audiences:
+A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product through hands-on labs, aimed at developers evaluating LaunchDarkly and at existing customers expanding into AI use cases. Learners are assumed to already understand LaunchDarkly fundamentals (flags, contexts, environments); this workshop does **not** re-teach those.
 
-1. Developers evaluating LaunchDarkly
-2. Existing LaunchDarkly customers (developers) expanding into AI use cases
+The distinguishing premise: **the learner drives LaunchDarkly through the hosted MCP server, not the UI.** Claude Code runs on the workstation, already connected, and the learner creates Configs, judges, and flags by describing what they want in plain language. The LaunchDarkly UI is used for *looking at* what was built and for reading scores, not for building.
 
-Learners are assumed to already understand LaunchDarkly fundamentals (flags, contexts, environments). This workshop does **not** re-teach those.
+Four challenges, ~1 hour self-paced:
 
-**Three sibling tracks**, each ~2h, each mapping 1:1 to a lesson in the AgentControl cert:
+| Dir | Type | Beat |
+|---|---|---|
+| `00-welcome` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
+| `01-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. Then a `server.py` paste wires Otto to Bedrock. |
+| `02-otto-sounds-like-otto` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. A second paste invokes it. |
+| `03-otto-asks-for-help` | challenge | One prompt creates the `otto-review-thresholds` JSON flag. A third paste gates responses into ship / hold-for-human / suppress, and the learner retunes the band live. |
+| `04-wrap-up` | quiz | Recap and one question. |
 
-- **Build (L1)** — `instruqt-build/`. Otto's lifecycle from first Config to monitoring. The original track; near-final.
-- **Evaluate (L2)** — `instruqt-evaluate/`. Judges, experiments, guarded rollout, adaptive switching. Scope pending.
-- **Coordinate (L3)** — `instruqt-coordinate/`. Multi-agent Concierge team with Otto as the brand-voice rewriter. Scope pending (needs a Phase 0 spike first).
-
-The three tracks share a single VM image and the `app/`, `terraform/student-bootstrap/`, `traffic-generator/`, and `vm-image/` directories. Each track's `setup-workstation` runs prior-track solve scripts to materialize starting state.
-
-**Per-track format:** roughly 6-8 substantive hands-on labs plus a welcome, 1-2 quiz interstitials, and a wrap-up. Designed to run in ~2 hours each with a presenter delivering slide-based lecture between labs, or ~1 hour self-paced.
-
-**Lecture content lives in slides, not in the tracks.** Do not embed conceptual exposition in `assignment.md` files beyond what a self-paced learner needs to make sense of each step.
+**Lecture content lives in slides, not in the tracks.** Don't embed conceptual exposition in `assignment.md` beyond what a self-paced learner needs to make sense of each step.
 
 ## The reference track
 
-Each of our three tracks mirrors the structure and conventions of an existing LaunchDarkly Instruqt track: the "01-release" basics track at `launchdarkly-labs/launchdarkly-workshops/launchdarkly-basics/instruqt/01-release`. If you can read it (the source is in the repo or available from the project owner), do so before scaffolding. Otherwise, follow the conventions documented in this file — they were extracted directly from that track.
+This track mirrors the structure and conventions of an existing LaunchDarkly Instruqt track: the "01-release" basics track at `launchdarkly-labs/launchdarkly-workshops/launchdarkly-basics/instruqt/01-release`. If you can read it, do so before scaffolding. Otherwise follow the conventions documented here — they were extracted directly from it.
 
 ## Repository layout
 
 ```
 <repo-root>/
-├── CLAUDE.md                    # this file
-├── DECISIONS.md                 # why decisions were made
-├── PHASES.md                    # historical build sequence for Track 1 (Build) only
-├── NARRATIVE.md                 # Otto's story + voice guide (Build); Concierge cast for Coordinate
-├── instruqt-build/              # Track 1 — Build (L1). Near-final.
-│   ├── track.yml
+├── CLAUDE.md                       # this file
+├── DECISIONS.md                    # why decisions were made
+├── PHASES.md                       # build sequence
+├── NARRATIVE.md                    # Otto's story + voice guide
+├── OPERATOR-CHECKLIST-mcp.md       # pre-delivery checklist
+├── instruqt-agentcontrol-mcp/      # the track
+│   ├── track.yml                   # slug ld-agentcontrol-mcp
 │   ├── config.yml
-│   ├── track_scripts/
-│   │   ├── setup-workstation
-│   │   └── cleanup-workstation
-│   ├── 00-welcome/
-│   ├── 01-otto-is-born/
-│   ├── 02-give-otto-personality/
-│   ├── 03-otto-on-brand/
-│   ├── 04-quiz-configs-and-snippets/
-│   ├── 05-otto-for-everyone/
-│   ├── 06-how-is-otto-doing/
-│   ├── 07-wrap-up/
-│   └── assets/                  # images referenced from assignment.md
-├── instruqt-evaluate/           # Track 2 — Evaluate (L2). Scope pending. See README inside.
-├── instruqt-coordinate/         # Track 3 — Coordinate (L3). Scope pending (Phase 0 spike first).
-├── app/                         # shared ToggleWear app, baked into the single VM image
-│   ├── server.py                # FastAPI server (also serves static frontend)
-│   ├── static/
-│   │   ├── index.html
-│   │   ├── app.js
-│   │   └── style.css
+│   ├── track_scripts/{setup,cleanup}-workstation
+│   ├── 00-welcome/ … 04-wrap-up/
+│   └── assets/                     # images referenced from assignment.md
+├── app/                            # ToggleWear app, baked into the VM image
+│   ├── server.py                   # FastAPI server + review queue + static
+│   ├── static/{index.html,app.js,style.css,images/}
 │   ├── requirements.txt
-│   └── .env.example
-├── terraform/                   # Terraform modules for per-challenge solve scripts
-│   ├── student-bootstrap/       # project + member + base resources (root setup)
-│   ├── challenge-01/
-│   ├── challenge-02/
-│   ├── challenge-03/
-│   ├── challenge-05/
-│   └── challenge-06/
-├── gcp-federation/              # AWS IAM role + GCP OIDC trust for federated Bedrock creds
-├── traffic-generator/           # scripts run by per-challenge setup
-│   └── generate_traffic.py
-└── vm-image/                    # inputs for baking the single shared VM image
-    ├── README.md                # build instructions for the operator
-    └── build-image.sh
+│   ├── .env.example
+│   └── .mcp.json.example           # rendered to .mcp.json at lab start
+├── terraform/
+│   ├── student-bootstrap/          # LD project + test env (track setup)
+│   ├── challenge-01/               # Otto's Config + SDK paste
+│   ├── challenge-02/               # brand-voice judge + metric + attachment
+│   └── challenge-03/               # thresholds flag + review-gate paste
+├── gcp-federation/                 # AWS IAM role + GCP OIDC trust for Bedrock
+├── traffic-generator/              # background traffic so scores populate
+└── vm-image/                       # inputs for baking the VM image
 ```
-
-The `terraform/challenge-NN/` directories will get sibling additions when Evaluate and Coordinate are scoped (e.g. `terraform/evaluate-NN/`, `terraform/coordinate-NN/`). For now they cover Build's challenges only.
 
 ## Instruqt conventions (extracted from the reference track)
 
-These are non-negotiable unless explicitly overridden in `DECISIONS.md`.
+Non-negotiable unless explicitly overridden in `DECISIONS.md`.
 
 ### File pairs: `.remote` mirrors
 
-Every challenge has files like `assignment.md`, `setup-workstation`, `check-workstation`, `solve-workstation`. Each has a `.remote` sibling (`assignment.md.remote`, etc.).
-
-**The `.remote` files are auto-generated by the Instruqt CLI on publish. Author only the non-`.remote` version. Do not create `.remote` files yourself.** They will appear in published copies but should not be committed by Claude Code.
+Every challenge has `assignment.md`, `setup-workstation`, `check-workstation`, `solve-workstation`, each with a `.remote` sibling. **The `.remote` files are auto-generated by the Instruqt CLI on publish. Author only the non-`.remote` version.** They're gitignored.
 
 ### Challenge folder structure
 
-Each challenge folder contains:
 - `assignment.md` — learner-facing instructions, front-matter YAML at top
-- `setup-workstation` — shell script, runs when the challenge starts
-- `check-workstation` — shell script, runs when learner clicks "Check"; exits non-zero with `fail-message` to indicate failure
-- `solve-workstation` — shell script, runs if learner clicks "Skip"; must leave the workstation in the same state a successful learner would
+- `setup-workstation` — runs when the challenge starts
+- `check-workstation` — runs on **Check**; exits non-zero with `fail-message` on failure
+- `solve-workstation` — runs on **Skip**; must leave the workstation in the state a successful learner would
 
-Quiz challenges have only `assignment.md` (no scripts).
+Quiz challenges have only `assignment.md` plus `exit 0` script stubs.
 
 ### `assignment.md` front-matter
 
+Three tabs on every challenge, in this order, so tab indices are stable:
+
 ```yaml
----
-slug: kebab-case-slug
-id: <12-char random alphanumeric>
-type: challenge          # or "quiz"
-title: Human Title
-teaser: One-sentence summary
-notes:
-- type: text
-  contents: One-paragraph framing the learner sees before starting.
 tabs:
-- id: <12-char random>
-  title: LaunchDarkly
-  type: browser
-  hostname: launchdarkly
-- id: <12-char random>
-  title: ToggleWear
-  type: service
-  hostname: workstation
-  port: 3000
-- id: <12-char random>
-  title: Code Editor
-  type: service
-  hostname: workstation
-  port: 8080
-difficulty: basic
-timelimit: 600           # seconds; 900-1200 for code-touching labs
-enhanced_loading: null
----
+- id: <12-char random>   # LaunchDarkly, type: browser, hostname: launchdarkly
+- id: <12-char random>   # ToggleWear, type: service, hostname: workstation, port: 3000
+- id: <12-char random>   # Code Editor, type: service, hostname: workstation, port: 8080
 ```
 
-Use the three-tab layout above for every challenge. Tab IDs are random 12-character alphanumeric strings; generate fresh ones per challenge.
+Challenge and tab ids are random 12-character alphanumeric strings; generate fresh ones per challenge. Reference tabs by index: `[LaunchDarkly](#tab-0)`, `[ToggleWear](#tab-1)`, `[Code Editor](#tab-2)`.
+
+**Exception:** `03-otto-asks-for-help` adds a fourth tab, "Staff Review" (`#tab-3`), pointing at the app's `/review` page. Indices 0-2 are unchanged, so no existing reference moves. See the reviewer-surface entry in `DECISIONS.md` for why the review queue is its own page rather than a panel on the storefront.
 
 ### `assignment.md` body voice
 
-- Short directive prose. Numbered click-by-click steps.
-- Exact text the learner types or pastes goes in fenced code blocks.
-- Reasoning lives in section intros, not mid-step.
-- Sections delimited by `# Heading` (H1).
-- Reference tabs by index: `[Code Editor](#tab-2)`, `[LaunchDarkly](#tab-0)`, `[ToggleWear](#tab-1)`. Tab indices are 0-based and match the order in front-matter.
-- See `NARRATIVE.md` for tone and the Otto storyline.
+Short directive prose. Exact text the learner types or pastes goes in fenced code blocks. Reasoning lives in section intros, not mid-step. Sections delimited by `# Heading`. See `NARRATIVE.md` for tone.
 
-### Setup scripts
+### Writing MCP prompts for learners
 
-Setup scripts run as root on the workstation. Typical patterns:
+This is the part with no precedent in the reference track.
 
-```sh
-#!/bin/sh
-# clone or pull a per-challenge Terraform module
-cd /opt/ld
-git clone <repo> 2>/dev/null || true
-cd <challenge-tf-dir>
-echo "project_key = \"${LD_PROJECT_KEY}\"" >> terraform.tfvars
-terraform init
-exit 0
-```
-
-Setup scripts do **not** apply Terraform — `solve-workstation` does. Setup may pre-create supporting infrastructure (e.g. a judge config), generate traffic data, or seed state the learner needs to find pre-built.
+- **One copy-paste block per chapter**, preceded by a spec table so the learner can see what they're asking for before they ask.
+- **Name every key explicitly** in the prompt. Downstream challenges and `check-workstation` depend on `otto-assistant`, `otto-born`, `otto-brand-voice-judge`, `otto-review-thresholds`. Tell the learner the keys matter and what to do if the agent picks something else.
+- **Never name MCP tools.** The learner writes intent; tool selection is the agent's job. Tool names also change between server versions.
+- **Say "my project," never a project key.** The lab token is scoped to exactly one project, so the agent resolves it. This is what lets identical prompt text work for every learner.
+- **Don't assume the agent gets it right.** Every prompt-driven step needs a `check-workstation` assertion, and the assertion must be loose about what the agent gets to choose freely.
+- **Follow every build prompt with a read-back prompt** asking the agent to describe what it created. It teaches the verification habit, gives the learner something to do while the agent works, and is the only place in the track where a resource's structure is described rather than merely asserted by a green check. Recovery guidance lives in `00-welcome`'s "When the agent gets it wrong" section rather than being duplicated per chapter.
 
 ### Check scripts
 
-Check scripts validate the learner's work by hitting the LaunchDarkly API with `curl` and `jq`. They use `fail-message "..."` to give the learner specific guidance when something is wrong, then `exit 1`. Exit `0` for success.
+Check scripts hit the LaunchDarkly REST API with `curl` and `jq`, use `fail-message "..."` for specific guidance, then `exit 1`. Exit `0` for success. Two rules specific to this track:
 
-Reference the existing track's `check-workstation` files for the idiom. Examples:
+- **Assert on keys, modes, and model families — not on display names or prompt wording.** An agent will reword a rubric and rename a variation. The keys are what the app and the next chapter depend on.
+- **Retry briefly.** A learner can click Check while the agent's last write is still settling. The existing checks loop five times with a 2-second sleep.
 
-```sh
-FLAG_DATA=$(curl -s -X GET \
-  "https://app.launchdarkly.com/api/v2/flags/${LD_PROJECT_KEY}/<flag-key>" \
-  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
-
-if [ -z "$FLAG_DATA" ] || [ "$(echo $FLAG_DATA | jq -r .key)" = "null" ]; then
-  fail-message "The Config has not been created. Please follow the steps to create it."
-  exit 1
-fi
-```
-
-For AgentControl specifically, use the AgentControl API endpoints — verify current endpoint shape in the LaunchDarkly API docs before writing checks. **Do not invent endpoints.**
+`fail-message` text should tell the learner what to ask the agent for, not which button to click.
 
 ### Solve scripts
 
-Solve scripts apply the per-challenge Terraform module to materialize the resources the learner would have created. Keep them dead-simple:
+Solve applies the per-challenge Terraform module, then any `patch-server.py`, then restarts the service. Solve deliberately does **not** go through MCP — the operator's escape hatch must not depend on an LLM.
 
-```sh
-#!/bin/sh
-cd /opt/ld/instruqt-aiconfigs-solve/challenge-NN
-terraform apply -auto-approve
-exit 0
-```
+### The `server.py` paste blocks
+
+Three pastes, but only the first is an inline block:
+
+1. **Challenge 01** replaces the marked stub inside `/chat`.
+2. **Challenge 02** replaces the body of `score_response(req, assistant_text, model_id) -> Optional[float]`.
+3. **Challenge 03** replaces the body of `gate_response(req, assistant_text, score, model_id) -> tuple[str, str]`.
+
+`/chat` calls both functions in order and then `_remember(session_id, user_message, final_text)`, so history always records the text the customer actually received.
+
+Data flows through arguments and returns, deliberately. An earlier version had all three pastes as inline fragments sharing locals, and it shipped two coupling bugs that were invisible from inside the block being edited. If you add a step, give it a signature — do not reach for a shared local.
+
+Each `patch-server.py` is idempotent via a `SIGNATURE` string, and the two function patches verify the expected stub `return` sits directly below the marker before touching the file. **Changing a marker or a stub return means changing it in `server.py`, the paste file, the patch script, and the assignment together.** After any change, compose all three and check the result parses — and check the *un*patched file still runs, since the stubs are what a learner who skips a chapter falls back to.
 
 ### `track.yml` and `config.yml`
 
-`config.yml` declares the virtual browser (the LaunchDarkly IdP simulator lambda), the VM, and required secrets. We need `LAUNCHDARKLY_ACCESS_TOKEN`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY`.
+`config.yml` declares the virtual browser (the LaunchDarkly IdP simulator lambda), the VM, and the required secrets: `LAUNCHDARKLY_ACCESS_TOKEN`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
 
-There are **three credential pathways** in the workshop, deliberately separated by security boundary. Don't conflate them.
+`track.yml` uses `default_layout: AssignmentRight` and `default_layout_sidebar_size: 25` to match the reference. Do not carry a `checksum` over from another track; the CLI regenerates it.
+
+### Credential pathways
+
+Four, deliberately separated by security boundary. Don't conflate them.
 
 **AWS:**
 
-- **Static `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (Instruqt secrets)**: for VM-side infrastructure that runs in a context the participant never reaches (image-bake-time setup, operator-side terraform, etc.). These never get written into the participant's shell or `~/.aws/credentials`.
-- **Federated `BedrockProfile` (see `gcp-federation/`)**: short-lived AWS credentials obtained at image-bake time by exchanging a GCP-issued JWT for an STS session. Stored as a boto3 profile that the participant-visible ToggleWear app uses for Bedrock calls. Safe to expose because the credentials are scoped + ephemeral.
+- **Static `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (Instruqt secrets)** — for VM-side infrastructure the participant never reaches. Never written into the participant's shell or `~/.aws/credentials`. Note that nothing currently consumes these; see the warning below.
+- **`BedrockProfile`** — the boto3 profile the ToggleWear app and Claude Code both use for Bedrock. **Read the warning in `vm-image/README.md` before trusting this.** Nothing in this repo writes `~/.aws/config` or `~/.aws/credentials`, and the federated STS session it's documented to hold has a 1-hour lifetime, so it cannot survive from bake to lab time. This is unresolved and predates the MCP work.
 
 **LaunchDarkly:**
 
-- **`LAUNCHDARKLY_ACCESS_TOKEN` (Instruqt secret)** — the operator's master API token. Available in the environment of `setup-workstation` / `check-workstation` / `solve-workstation` scripts and Terraform `local-exec` blocks. **Never** written into `app/.env` or otherwise persisted where the participant's app or shell can read it.
-- **`LD_API_TOKEN` (minted per lab session)** — a scoped LaunchDarkly API token created at track-level `setup-workstation` time by exchanging the operator token via `POST /api/v2/tokens`. Its inline role restricts it to resources under the participant's project (`proj/<key>` and `proj/<key>:*`). Sed'd into `app/.env` so `togglewear.service` can read it for runtime REST calls (built-in judge discovery in Evaluate ch02, adaptive-switching targeting flips in ch08). Safe to expose because the blast radius is limited to a sandbox project that's destroyed at cleanup.
-
-Runtime code in `app/` and `traffic-generator/` reads only `LD_API_TOKEN` (via `os.environ`). Anywhere you see `LAUNCHDARKLY_ACCESS_TOKEN` referenced, it should be in operator-context code (setup/check/solve scripts, terraform local-exec, or CLI-invoked python helpers spawned by those scripts).
-
-`track.yml` declares slug, ID, title, teaser, description, owner, time limit (7200 = 2hr), and lab config. Use `default_layout: AssignmentRight` and `default_layout_sidebar_size: 25` to match the reference.
+- **`LAUNCHDARKLY_ACCESS_TOKEN` (Instruqt secret)** — the operator's master token. Available to `setup-workstation` / `check-workstation` / `solve-workstation` and Terraform `local-exec`. **Never** written into `app/.env` or anywhere the participant's app or shell can read it.
+- **`LD_API_TOKEN` (minted per lab session)** — a scoped token created at track setup via `POST /api/v2/tokens`, with an inline role restricted to `proj/<key>` and `proj/<key>:*`. It does double duty: `app/.env` for the app's REST calls, and the bearer for the MCP server in `app/.mcp.json` and `/root/.claude.json`. Safe to expose because the blast radius is one sandbox project that's destroyed at cleanup, and the token itself is revoked by `cleanup-workstation`.
 
 ### Track-level setup script
 
-The track-level `track_scripts/setup-workstation` runs once when the lab starts. It:
-
-1. Applies `terraform/student-bootstrap/` to create the LD project (and any base resources)
-2. Pulls SDK key, client key, project key from the LD API
-3. Writes them to `~/.profile`, `~/.bashrc`, and the app's `.env`
-4. Restarts the ToggleWear service
-
-Mirror the reference track's `setup-workstation` line-for-line for the bootstrap mechanics; substitute the app path and service name.
+`track_scripts/setup-workstation` runs once at lab start as root. It applies `terraform/student-bootstrap/`, pulls the SDK/client/project keys, mints `LD_API_TOKEN`, writes them into `~/.profile`, `~/.bashrc`, and `app/.env`, renders `app/.mcp.json` and patches the token into `/root/.claude.json`, then stop/starts `togglewear` (`restart` only sends SIGHUP, which the app doesn't handle, so env vars wouldn't refresh).
 
 ## Tech stack — pinned versions
 
-When implementing, **verify the latest stable version** of each before pinning. Do not assume training-data knowledge of version numbers is current.
+When implementing, **verify the latest stable version** before pinning. Don't assume training-data knowledge is current.
 
-- **Python** 3.11 (or 3.12 if the VM image base allows)
-- **FastAPI** + **uvicorn** for the server
-- **boto3** for Bedrock
-- **launchdarkly-server-sdk** (Python)
-- **launchdarkly-server-sdk-ai** (Python AgentControl SDK; package name `ldai`)
-- **Vanilla JavaScript** for the frontend — no React, no Vue, no build step
-- **Terraform** with `launchdarkly/launchdarkly` provider — verify provider version supports Config resources before writing modules; if it doesn't, note this in `PHASES.md` Phase 1 and fall back to the REST API via `null_resource` + `local-exec curl`
-
-Pin versions in `requirements.txt` and `terraform { required_providers { ... } }` blocks.
+- **Python** 3.12 (Ubuntu 24.04 system python)
+- **FastAPI** + **uvicorn**, **boto3** for Bedrock
+- **launchdarkly-server-sdk**, **launchdarkly-server-sdk-ai** (package `ldai`)
+- **Vanilla JavaScript** for the frontend — no framework, no build step
+- **Terraform** with `launchdarkly/launchdarkly` — features the provider doesn't cover (Config targeting, judge attachment, prompt snippets) go through `null_resource` + `local-exec curl` with the semantic-patch content type
+- **Claude Code**, pinned in `vm-image/build-image.sh`. Treat a version bump as a change requiring a full sandbox test.
 
 ## Out of scope
 
-Things this track must **not** do:
-
-- Re-teach LaunchDarkly basics (flags, contexts, environments). Assume mastery.
-- Cover agent-mode Configs (tool use, multi-step reasoning). Deferred to a future 200-level track.
-- Include any code or assets from the legacy Toggle Outfitters / `talkin-ship-workshop-app`. Fresh codebase.
-- Include lecture content. Presenters deliver lecture via slides.
-- Implement a cart, checkout, authentication, or any commerce functionality beyond the product display and chat widget.
-- Use direct Anthropic API, OpenAI API, or any non-Bedrock LLM provider.
+- Re-teaching LaunchDarkly basics. Assume mastery.
+- Prompt snippets, guarded rollouts, experiments, offline evaluations, agent-mode Configs, agent graphs, targeting by user attribute. Each is named in `04-wrap-up` as a next step; none is taught.
+- Lecture content. Presenters deliver that via slides.
+- A cart, checkout, or authentication in ToggleWear.
+- Any non-Bedrock LLM provider for the app.
 
 ## Things Claude Code does not own
 
-- **The VM image build itself.** Claude Code produces the *inputs* (Dockerfile/Packer config, app source, install scripts, systemd unit files) in `vm-image/`. A human (you or an LD platform engineer) actually bakes the image and registers it with Instruqt.
-- **AWS account provisioning and Bedrock model access.** A human ensures the AWS IAM user (whose keys are stored as Instruqt secrets) has Bedrock access to Haiku, Sonnet (cross-region inference profile), and Nova Pro in the chosen region.
-- **The LaunchDarkly IdP simulator lambda.** Already exists; URL is in the reference track's `config.yml`. We point at the same lambda.
+- **The VM image build.** We produce the *inputs* in `vm-image/`. A human bakes the image and registers it with Instruqt.
+- **AWS account provisioning and Bedrock model access**, including the IAM changes flagged in `vm-image/README.md`.
+- **The LaunchDarkly IdP simulator lambda.** Already exists; URL is in `config.yml`.
 - **Publishing to Instruqt.** Done via the Instruqt CLI by a human.
-
-Document all handoff points clearly in `vm-image/README.md`.
 
 ## Working agreement with the human operator
 
-- **Work one phase at a time.** Read `PHASES.md`. Pick the current phase. Complete it. Stop. Wait for review before starting the next phase.
-- **When a decision arises that isn't in `DECISIONS.md`, ask the operator.** Do not invent product/UX/architectural decisions silently. Add the answer to `DECISIONS.md` when you proceed.
-- **Verify, don't assume.** Before writing code that calls a specific API, library, or product feature, web-search the current docs. AgentControl is a relatively new product; API shapes and SDK ergonomics may have changed since this file was written.
-- **Don't ship the `.remote` files.** Authoring them creates publishing conflicts.
-- **Don't reformat the reference track's conventions for "consistency."** Even if a pattern looks suboptimal, match it. The reference track lands well with learners; deviation has a cost.
+- **Work one phase at a time.** Read `PHASES.md`, complete the current phase, stop for review.
+- **When a decision arises that isn't in `DECISIONS.md`, ask.** Don't invent product/UX/architectural decisions silently. Record the answer when you proceed.
+- **Verify, don't assume.** Before writing code against a specific API, SDK, or product feature, check current docs. AgentControl and the MCP server both move.
+- **Don't ship `.remote` files.**
+- **Don't reformat the reference track's conventions for "consistency."**
 
 ## UI instructions in assignment.md are drafts pending operator verification
 
-Claude Code cannot drive a browser and cannot click through the LaunchDarkly UI to verify flows. UI-specific instructions in `assignment.md` files (button labels, menu paths, step ordering, dialog field names) are **drafts based on reading the public LaunchDarkly docs**, not verified facts. The operator will walk through each flow with the draft open and mark corrections during phase review.
+Claude Code cannot drive a browser. UI-specific instructions in `assignment.md` (button labels, menu paths, dialog field names) are **drafts based on reading the public docs**, not verified facts.
 
-What this means for Claude Code's behavior:
+- Base them on current docs and mirror the reference track's voice. Be specific — the operator needs concrete drafts to verify, not hedges.
+- **Do not invent UI elements.** If the docs don't make a step clear, write your best draft and add a `<!-- VERIFY: ... -->` comment saying what to confirm. The operator resolves and removes these.
+- **Do not generate screenshots.** Reference filenames in `instruqt-agentcontrol-mcp/assets/` that the operator will populate.
+- **API-driven checks are not UI-driven.** Write `check-workstation` scripts confidently from the API docs.
 
-- When writing click-by-click steps, base them on the current LaunchDarkly AgentControl docs (web-search to confirm) and mirror the reference track's voice. Be specific (bold button labels, numbered steps) — the operator needs concrete drafts to verify against, not vague hedges.
-- **Do not invent UI elements.** If the docs don't make a step clear, write the step as best you can and add a `<!-- VERIFY: <what to check> -->` HTML comment in the `assignment.md` flagging what the operator should confirm. The operator will resolve and remove these during review.
-- **Do not generate screenshots.** Any image references in `assignment.md` should point to filenames in the corresponding track's `assets/` directory (e.g. `instruqt-build/assets/`) that the operator will populate with real screenshots after verifying the flow. Use placeholder filenames like `assets/ch01-create-config.png` and list expected screenshots in the phase's deliverables.
-- **API-driven checks are not UI-driven.** `check-workstation` scripts hit the REST API and don't depend on UI flow accuracy. Authoritative API docs are reliable; write checks confidently from them.
-- When an assignment step is genuinely uncertain (the docs don't cover it, or the feature is too new for stable docs), surface the uncertainty to the operator in the phase summary rather than writing a confident-sounding guess.
+This track shifts most of the risk from UI drift to agent behavior. The MCP prompt blocks need the same treatment as UI steps: they're drafts until someone has watched an agent execute them.
 
-The result: every `assignment.md` lands on the operator's desk as a *first draft* with verification markers, not a finished file. The operator does one click-through per challenge, corrects the draft, captures screenshots, and removes the markers.
+## Definition of done
 
-## Definition of done for the project
-
-The track is done when:
-
-1. A presenter can deliver the 2-hour version with slide breaks and have every lab complete successfully.
-2. A self-paced learner can complete all labs in ~1 hour following only `assignment.md` prose.
-3. Every challenge's `solve-workstation` produces the correct end-state.
-4. Every challenge's `check-workstation` correctly passes valid completions and fails common mistakes with helpful `fail-message` output.
-5. The VM image build inputs in `vm-image/` produce a working image when followed by a human operator.
-6. `DECISIONS.md` records every meaningful decision; `NARRATIVE.md` keeps Otto's voice consistent across all 9 challenges.
+1. A presenter can deliver the full version with slide breaks and have every lab complete successfully.
+2. A self-paced learner can finish in ~1 hour following only `assignment.md`.
+3. Every `solve-workstation` produces the correct end state, without MCP.
+4. Every `check-workstation` passes valid completions — including ones where the agent made reasonable different choices — and fails common mistakes with helpful `fail-message` output.
+5. `vm-image/` produces a working image, and `claude` starts with zero prompts on it.
+6. `DECISIONS.md` records every meaningful decision; `NARRATIVE.md` keeps Otto's voice consistent.

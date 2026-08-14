@@ -1,0 +1,99 @@
+#!/bin/bash
+
+set -euo pipefail
+
+until [ -f /opt/instruqt/bootstrap/host-bootstrap-completed ]; do
+    echo "Waiting for instruqt bootstrap to complete"
+    sleep 1
+done
+
+cd /opt/ld/terraform-ld-student
+echo "sandbox_id = \"${_SANDBOX_ID}\"" > terraform.tfvars
+terraform apply -auto-approve
+export LD_PROJECT_KEY="$(terraform output -json | jq -r '.students.value[0].project_key')"
+echo "" >> ~/.profile
+echo "export LD_PROJECT_KEY=\"$LD_PROJECT_KEY\"" >> ~/.profile
+echo "" >> ~/.bashrc
+echo "export LD_PROJECT_KEY=\"$LD_PROJECT_KEY\"" >> ~/.bashrc
+
+export LD_CLIENT_KEY=$(curl -s -X GET \
+  'https://app.launchdarkly.com/api/v2/projects/'${LD_PROJECT_KEY}'/environments/test' \
+  -H 'Authorization: '${LAUNCHDARKLY_ACCESS_TOKEN}'' | jq -r ._id)
+echo "export LD_CLIENT_KEY=${LD_CLIENT_KEY}" >> ~/.profile
+echo "export LD_CLIENT_KEY=${LD_CLIENT_KEY}" >> ~/.bashrc
+
+export LD_SDK_KEY=$(curl -s -X GET \
+  'https://app.launchdarkly.com/api/v2/projects/'${LD_PROJECT_KEY}'/environments/test' \
+  -H 'Authorization: '${LAUNCHDARKLY_ACCESS_TOKEN}'' | jq -r .apiKey)
+echo "export LD_SDK_KEY=${LD_SDK_KEY}" >> ~/.profile
+echo "export LD_SDK_KEY=${LD_SDK_KEY}" >> ~/.bashrc
+
+# Mint a scoped API token restricted to this project only. The operator's
+# LAUNCHDARKLY_ACCESS_TOKEN stays out of the participant's env; this
+# per-lab token does double duty:
+#   1. app-side REST calls from server.py
+#   2. bearer auth for the LaunchDarkly MCP server, which the learner drives
+#      from Claude Code (see the .mcp.json write below)
+# Blast radius is bounded by the project scope; the project is destroyed
+# at cleanup.
+#
+# Because the token reaches exactly one project, every prompt in this track
+# can say "my project" and the MCP server resolves it. The learner never
+# types a project key.
+LD_TOKEN_JSON=$(curl -fsS -X POST \
+  "https://app.launchdarkly.com/api/v2/tokens" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  --data-raw "$(jq -n \
+    --arg name "Lab token: ${LD_PROJECT_KEY}" \
+    --arg proj "${LD_PROJECT_KEY}" \
+    '{name: $name, inlineRole: [{effect: "allow", actions: ["*"], resources: [("proj/" + $proj), ("proj/" + $proj + ":*")]}]}')")
+LD_API_TOKEN=$(echo "$LD_TOKEN_JSON" | jq -r .token)
+# Stash the token id so cleanup can revoke it. Without this every lab run
+# leaks a live token that outlives the sandbox.
+echo "$LD_TOKEN_JSON" | jq -r ._id > /opt/ld/.lab-token-id
+
+APP_ENV=/opt/ld/ai-configs-intro/app/.env
+sed -i 's|^LD_SDK_KEY=.*|LD_SDK_KEY='"${LD_SDK_KEY}"'|g' "$APP_ENV"
+sed -i 's|^LD_CLIENT_KEY=.*|LD_CLIENT_KEY='"${LD_CLIENT_KEY}"'|g' "$APP_ENV"
+sed -i 's|^LD_PROJECT_KEY=.*|LD_PROJECT_KEY='"${LD_PROJECT_KEY}"'|g' "$APP_ENV"
+sed -i 's|^LD_API_TOKEN=.*|LD_API_TOKEN='"${LD_API_TOKEN}"'|g' "$APP_ENV"
+sed -i 's|^AWS_REGION=.*|AWS_REGION='"${AWS_REGION}"'|g' "$APP_ENV"
+
+# ---------------------------------------------------------------------------
+# Point Claude Code at the LaunchDarkly MCP server.
+#
+# The token is written literally rather than as ${LD_API_TOKEN}. code-server
+# runs from systemd as root and does not inherit the exports we appended to
+# ~/.bashrc above, so an interpolated reference would resolve to an empty
+# string in the learner's terminal.
+#
+# .mcp.json lives in the directory code-server opens as its workspace, which
+# is also the cwd a learner lands in when they run `claude`.
+# ---------------------------------------------------------------------------
+APP_DIR=/opt/ld/ai-configs-intro/app
+
+# Always regenerate from the template. Never sed -i the rendered file: a second
+# run would find no placeholder and silently leave a stale token behind.
+sed -e "s|__LD_API_TOKEN__|${LD_API_TOKEN}|g" \
+    "${APP_DIR}/.mcp.json.example" > "${APP_DIR}/.mcp.json"
+chmod 600 "${APP_DIR}/.mcp.json"
+
+# The authoritative registration is the user-scope one in ~/.claude.json, baked
+# with the same placeholder. A user-scope server needs no project approval, so
+# it works from any directory and can't get stuck pending. Rewrite via jq so a
+# malformed edit can't brick Claude Code.
+CLAUDE_STATE=/root/.claude.json
+if [ -f "$CLAUDE_STATE" ]; then
+    TMP_STATE=$(mktemp)
+    jq --arg tok "Bearer ${LD_API_TOKEN}" \
+       '.mcpServers.LaunchDarkly.headers.Authorization = $tok' \
+       "$CLAUDE_STATE" > "$TMP_STATE" && mv "$TMP_STATE" "$CLAUDE_STATE"
+    chmod 600 "$CLAUDE_STATE"
+fi
+
+# First stop, then start the service. "restart" simply sends a "SIGHUP"
+# which the app doesn't handle, so the new env vars aren't picked up until
+# we do a full stop/start.
+service togglewear stop
+service togglewear start

@@ -1,70 +1,57 @@
-# End-state for Challenge 03 — "Otto on-brand at scale".
+# End-state for Challenge 03 — "Otto Asks for Help".
 #
-# Creates two prompt snippets (brand-voice, safety-rules) via REST and updates
-# otto-born to reference them. Prompt snippets aren't yet exposed by the
-# Terraform provider, so this is all null_resource + curl.
+# Creates the JSON flag that holds the review gate's score bands, and turns it
+# on in `test`. The thresholds live in LaunchDarkly rather than in server.py so
+# the band can be retuned while the app is running — that's the whole point of
+# the challenge.
 #
-locals {
-  brand_voice_text  = "You are Otto. You're warm, helpful, and a little playful. You keep answers short by default and you're honest when you don't know something."
-  safety_rules_text = "Don't make up prices, sizes, or policies. If you don't know, say so and suggest the customer check the product page or contact support. Don't discuss topics outside of ToggleWear and the products we sell."
+# Resources:
+#   * launchdarkly_feature_flag  - otto-review-thresholds (JSON, 2 variations)
+#   * null_resource              - turn targeting on in `test`
+#
+# The gate logic itself is applied by patch-server.py, not from here.
 
-  refactored_prompt = <<-PROMPT
-    {{snippet.brand-voice#1}}
+resource "launchdarkly_feature_flag" "review_thresholds" {
+  project_key = var.project_key
+  key         = "otto-review-thresholds"
+  name        = "Otto Review Thresholds"
+  description = "Score bands for the human review gate. At or above `auto`, Otto's answer ships. Between `review` and `auto`, it's held for a human. Below `review`, it's suppressed."
 
-    You work at ToggleWear, an online shop for LaunchDarkly-branded apparel. Help customers find products, answer questions about sizing and care, and guide them when they're not sure what they want.
+  variation_type = "json"
 
-    {{snippet.safety-rules#1}}
-  PROMPT
-}
-
-resource "null_resource" "create_brand_voice_snippet" {
-  triggers = { text_hash = sha256(local.brand_voice_text) }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      curl -fsS -X POST \
-        'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/prompt-snippets' \
-        -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
-        -H 'Content-Type: application/json' \
-        --data-raw "$(jq -n --arg t "${local.brand_voice_text}" \
-          '{key:"brand-voice", name:"Brand voice", text:$t, tags:["instruqt"]}')" \
-        || echo "(snippet may already exist — continuing)"
-    EOT
+  variations {
+    name  = "Balanced"
+    value = jsonencode({ auto = 0.8, review = 0.5 })
   }
-}
 
-resource "null_resource" "create_safety_rules_snippet" {
-  triggers = { text_hash = sha256(local.safety_rules_text) }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      curl -fsS -X POST \
-        'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/prompt-snippets' \
-        -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
-        -H 'Content-Type: application/json' \
-        --data-raw "$(jq -n --arg t "${local.safety_rules_text}" \
-          '{key:"safety-rules", name:"Safety rules", text:$t, tags:["instruqt"]}')" \
-        || echo "(snippet may already exist — continuing)"
-    EOT
+  variations {
+    name  = "Cautious"
+    value = jsonencode({ auto = 0.95, review = 0.7 })
   }
+
+  defaults {
+    on_variation  = 0
+    off_variation = 0
+  }
+
+  tags = ["instruqt", "agentcontrol-mcp"]
 }
 
-resource "null_resource" "update_variation_prompt" {
-  depends_on = [
-    null_resource.create_brand_voice_snippet,
-    null_resource.create_safety_rules_snippet,
-  ]
-
-  triggers = { prompt_hash = sha256(local.refactored_prompt) }
+# A flag defaults to off, and an off flag serves off_variation — which is the
+# same Balanced value here, so the gate still works. Turn it on anyway so the
+# learner sees a live flag rather than one that only appears to work.
+resource "null_resource" "enable_review_thresholds" {
+  triggers = {
+    flag_key = launchdarkly_feature_flag.review_thresholds.key
+  }
 
   provisioner "local-exec" {
     command = <<-EOT
       curl -fsS -X PATCH \
-        'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/otto-assistant/variations/otto-born' \
+        'https://app.launchdarkly.com/api/v2/flags/${var.project_key}/${launchdarkly_feature_flag.review_thresholds.key}' \
         -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
-        -H 'Content-Type: application/json' \
-        --data-raw "$(jq -n --arg c "${trimspace(local.refactored_prompt)}" \
-          '{messages: [{role: "system", content: $c}]}')"
+        -H 'Content-Type: application/json; domain-model=launchdarkly.semanticpatch' \
+        --data-raw '{"environmentKey":"test","instructions":[{"kind":"turnFlagOn"}]}'
     EOT
   }
 }

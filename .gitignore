@@ -142,6 +142,11 @@ instruqt-jwt.json
 # Local Claude Code project state (settings, skills, session memory)
 .claude/
 
+# Rendered MCP config. track_scripts/setup-workstation writes this from
+# app/.mcp.json.example with a live LaunchDarkly token substituted in.
+.mcp.json
+!.mcp.json.example
+
 # Ad-hoc scratch files used during smoke testing; may contain real tokens
 # or other credentials mid-experiment. Do not commit.
 test.json

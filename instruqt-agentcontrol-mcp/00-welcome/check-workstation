@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# Layered so a failure names the culprit instead of "MCP doesn't work".
+# Nothing here spends model tokens.
+#
+set -uo pipefail
+
+APP_DIR=/opt/ld/ai-configs-intro/app
+MCP_JSON="${APP_DIR}/.mcp.json"
+
+LD_API_TOKEN=$(grep '^LD_API_TOKEN=' "${APP_DIR}/.env" | cut -d= -f2-)
+LD_PROJECT_KEY=$(grep '^LD_PROJECT_KEY=' "${APP_DIR}/.env" | cut -d= -f2-)
+
+# 1. The MCP config exists and is valid JSON with the server named exactly
+#    "LaunchDarkly" (the permission allowlist keys off that name) and an
+#    explicit transport type (a url without a type is a hard config error).
+if [ ! -f "$MCP_JSON" ]; then
+  fail-message "The LaunchDarkly MCP config is missing. This is a lab setup problem, not something you did. Tell your instructor."
+  exit 1
+fi
+
+if ! jq -e '.mcpServers.LaunchDarkly.type == "http"' "$MCP_JSON" >/dev/null 2>&1; then
+  fail-message "The LaunchDarkly MCP config is malformed. This is a lab setup problem, not something you did. Tell your instructor."
+  exit 1
+fi
+
+if jq -r '.mcpServers.LaunchDarkly.headers.Authorization' "$MCP_JSON" | grep -q '__LD_API_TOKEN__'; then
+  fail-message "The MCP config still has a placeholder token in it. This is a lab setup problem. Tell your instructor."
+  exit 1
+fi
+
+# 2. Claude Code is installed and can see the server. `claude mcp list` is the
+#    strict reader: unlike `claude -p`, it surfaces pending-approval state, so
+#    it catches a trust-seeding problem that a real prompt would mask.
+if ! command -v claude >/dev/null 2>&1; then
+  fail-message "Claude Code isn't installed on this workstation. Tell your instructor."
+  exit 1
+fi
+
+MCP_LIST=$(cd "$APP_DIR" && claude mcp list 2>&1)
+
+if ! echo "$MCP_LIST" | grep -q 'LaunchDarkly'; then
+  fail-message "Claude Code doesn't have the LaunchDarkly MCP server registered. Tell your instructor."
+  exit 1
+fi
+
+if echo "$MCP_LIST" | grep -qi 'pending approval'; then
+  fail-message "The LaunchDarkly MCP server is waiting for approval. Tell your instructor."
+  exit 1
+fi
+
+# 3. The token actually works against the REST API. Isolates a bad token from a
+#    bad MCP server.
+if ! curl -fsS \
+  -H "Authorization: ${LD_API_TOKEN}" \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}" >/dev/null 2>&1; then
+  fail-message "Your lab's LaunchDarkly credentials were rejected. Tell your instructor."
+  exit 1
+fi
+
+# 4. The hosted MCP server accepts the bearer header and advertises the tools
+#    this track needs. This is the assertion that actually proves the path the
+#    learner just used.
+MCP_TOOLS=$(curl -fsS -X POST 'https://mcp.launchdarkly.com/mcp/launchdarkly' \
+  -H "Authorization: Bearer ${LD_API_TOKEN}" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' 2>&1) || MCP_TOOLS=""
+
+if ! echo "$MCP_TOOLS" | grep -q 'create-agentcontrol-config'; then
+  fail-message "The LaunchDarkly MCP server didn't respond with the tools this track needs. Tell your instructor."
+  exit 1
+fi
+
+exit 0

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Apply the review-gate end-state: the otto-review-thresholds flag, turned on
+# in test and serving Balanced, plus the server.py gate patch.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-03
+terraform apply -auto-approve
+
+python3 /opt/ld/ai-configs-intro/terraform/challenge-03/patch-server.py
+service togglewear restart
+
+exit 0

@@ -8,23 +8,21 @@ Format: one decision per section, dated, with options considered and reason for 
 
 ## Track scope and audience
 
-**Decision:** Six substantive hands-on labs (plus welcome, two quizzes, wrap-up = nine challenges total) covering: Config creation, prompt iteration, prompt snippets, variations & targeting, monitoring, and guarded rollout.
+**Decision:** Three substantive hands-on labs (plus welcome and wrap-up = five challenges total) covering Config creation, a custom judge, and a human-in-the-loop review gate — all driven through the LaunchDarkly MCP server.
 
 **Audience:** Developers — both LaunchDarkly evaluators and existing LD customers expanding into AI use cases. Assumes LD fundamentals are known.
 
-**Rationale:** This is a 100-level introduction to AgentControl. The six concepts above are the product's core surface area minus agents (deferred). Targeting developers rather than mixed audiences lets us assume technical literacy and skip foundational LD content.
+**Rationale:** This is a 100-level introduction to AgentControl that answers "what does this look like in my workflow" rather than touring the feature list. Targeting developers rather than mixed audiences lets us assume technical literacy and skip foundational LD content.
 
-**Options considered:**
-- *Comprehensive intro covering everything including agents.* Rejected: too much for 2 hours; agent configs deserve their own 200-level track.
-- *Narrow focus on a single concept (e.g. "swap models without redeploying").* Rejected: doesn't give a complete enough picture for evaluators to understand the product.
+**Superseded:** an earlier version of this decision specified six labs across nine challenges, and later three sibling tracks totalling thirty. See "Scope cut to one track" at the bottom of this file for why that was narrowed and what it cost.
 
 ---
 
 ## Track length and cadence
 
-**Decision:** 2-hour presenter-led format with slide-based lecture interleaved between labs; same content runs ~1 hour self-paced. 6 labs + 2 quizzes + welcome + wrap-up = 9 total Instruqt challenges.
+**Decision:** ~1 hour self-paced; presenter-led delivery interleaves slide-based lecture between labs. 3 labs + welcome + wrap-up quiz = 5 total Instruqt challenges. `track.yml` allows 5400s.
 
-**Rationale:** Matches the reference track's pattern and the requested delivery profile. Quizzes serve as natural break points for presenters and as mental consolidation for self-paced learners.
+**Rationale:** Matches the reference track's pattern. The wrap-up quiz serves as consolidation for self-paced learners and a natural closing beat for presenters.
 
 ---
 
@@ -54,7 +52,7 @@ Format: one decision per section, dated, with options considered and reason for 
 
 ## LLM provider: AWS Bedrock
 
-**Decision:** AWS Bedrock is the sole LLM provider. Models used: Claude Haiku (default Otto), Claude Sonnet (premium Otto), Amazon Nova Pro (cross-vendor variation in the guarded-rollout challenge).
+**Decision:** AWS Bedrock is the sole LLM provider. Models used: Claude Haiku 4.5 for Otto and for the brand-voice judge. (Earlier versions of this workshop also used Sonnet for a premium variation and Nova Pro for a guarded-rollout regression; both chapters are out of scope now, and `app/server.py`'s `BEDROCK_MODEL_IDS` map still carries the rows.)
 
 **Rationale:**
 - Single AWS account with IAM-controlled access means easier credential management for Instruqt's secrets system.
@@ -88,21 +86,6 @@ Format: one decision per section, dated, with options considered and reason for 
 
 ---
 
-## User-tier dropdown in the header
-
-**Decision:** A header dropdown ("Logged in as: Free user / Premium user") that updates the LD context client-side and triggers re-evaluation server-side.
-
-**Rationale:**
-- Targeting in challenge 5 needs a way for the learner to flip user contexts.
-- A dropdown looks polished on a presenter's screen and tells the targeting story visibly.
-- Hardcoded URL params would work but feel hacky for a demo meant to impress.
-
-**Options considered:**
-- *Query parameter (`?user=premium`).* Rejected as too unpolished for presenter demos.
-- *A full mock login flow.* Rejected: adds scope for no learning value.
-
----
-
 ## Cost protection: configurable turn cap per session
 
 **Decision:** Python server enforces a turn cap per chat session, configurable via env var. Default to a value generous enough to complete the track comfortably. When exceeded, Otto returns a graceful "demo limit reached" message instead of calling Bedrock.
@@ -115,33 +98,11 @@ Format: one decision per section, dated, with options considered and reason for 
 
 ## Cost protection at the model level
 
-**Decision:** Use the cheapest viable model (Haiku) as the default; reserve Sonnet for premium-tier targeting; Nova Pro appears only in challenge 7's pre-built scenario. Traffic generator (challenge 6) sends short messages to keep token counts low.
+**Decision:** Haiku 4.5 everywhere — Otto, the brand-voice judge, and Claude Code. The traffic generator sends short messages to keep token counts low.
 
-**Rationale:** Stacking architectural choices for cost control: cheap default model + tight turn cap + short generated traffic. Cumulative protection against bill surprises.
+**Rationale:** Stacking architectural choices for cost control: cheapest viable model + tight turn cap + short generated traffic.
 
----
-
-## Challenge 7: judge + guarded rollout, all pre-built
-
-**Decision:** Challenge 7's setup script creates *everything*: the Nova Pro variation with a deliberately-poor prompt, a second Config that acts as a "judge" scoring responses for brand-voice adherence, a metric wired to the judge's output, and the guarded rollout configuration. The learner observes the rollout proceed and watches the auto-rollback fire. A sabotage script is included for presenters to trigger the rollback dramatically on demand.
-
-**Rationale:**
-- Teaching the judge pattern from scratch would consume the entire 2-hour budget on its own. Pre-building keeps the learner focused on the *outcome* (guarded rollouts protect AI quality) not the mechanics.
-- The bad prompt regression is *organic* — the judge legitimately catches a quality problem, not a contrived flag flip. This makes the demo feel real.
-- A sabotage trigger lets presenters force the rollback within a class timeframe instead of waiting for organic traffic to accumulate.
-
-**Options considered:**
-- *Learner builds the judge.* Rejected: too much for one lab.
-- *Skip guarded rollouts entirely, end on monitoring.* Rejected: guarded rollouts are the strongest "wow" moment for AI use cases specifically, and they're the natural narrative ending — "now you can trust the system to protect itself."
-- *Simulate the regression rather than serve a real bad prompt.* Rejected: serving real bad responses through the live model is more impressive and only marginally more complex to set up.
-
----
-
-## Challenge 6: traffic generator runs automatically in setup
-
-**Decision:** Challenge 6's `setup-workstation` runs the traffic generator script automatically. The learner arrives at a populated monitoring view, no manual step required.
-
-**Rationale:** The lesson is "use monitoring to understand AI behavior," not "run a script." Surfacing populated data immediately lets the learner spend their lab time on observation and interpretation.
+**Caveat added 2026-08-14:** the turn cap protects Otto and does nothing about Claude Code, which is by far the larger consumer — the LaunchDarkly MCP server's tool block alone ships on every request. An AWS Budgets alarm on the workshop account is the only real ceiling. See "Claude Code as the MCP client".
 
 ---
 
@@ -240,7 +201,7 @@ This decision is enforced in `CLAUDE.md` ("UI instructions in assignment.md are 
 
 **Decision:** Each challenge has its own `terraform/challenge-NN/` module with its own state. Modules use:
 
-- `launchdarkly_*` resources for NEW resources introduced by that challenge (e.g. challenge-01 creates the Haiku model_config, the Config, and the first variation; challenge-05 creates the Sonnet variation; challenge-07 creates Nova Pro model_config, the Stiff variation, the judge config, and the metric).
+- `launchdarkly_*` resources for NEW resources introduced by that challenge (e.g. challenge-01 creates the Haiku model_config, the Config, and the first variation; challenge-02 creates the judge config, its variation, and the score metric; challenge-03 creates the thresholds flag).
 - `null_resource` + `local-exec curl` for: updates to resources owned by earlier challenges' modules (which Terraform can't touch from a different module without `terraform import`), and for resources the provider doesn't yet expose (snippets, Config targeting rules, guarded rollouts, Config `evaluationMetricKey`).
 
 **Rationale:** Each challenge's solve must produce the END STATE of that challenge regardless of whether prior challenges were completed in code or skipped. Terraform's per-module state model doesn't share resources across modules, so updates to "already-managed" resources need to go through either `terraform import` (operationally heavy) or REST API (lightweight). REST via `null_resource` won.
@@ -253,7 +214,11 @@ This decision is enforced in `CLAUDE.md` ("UI instructions in assignment.md are 
 
 **Decision:** `server.py` ships from the VM image in a BEFORE state: imports/init/helpers/turn-cap pre-wired, but `/chat`'s body is a clearly-marked stub block returning a canned "not wired yet" response. Challenge 01 has the learner replace the stub with ~30 lines of Config + Bedrock eval logic. The solve script applies the same paste programmatically using a Python script that finds the markers and substitutes the block.
 
-A second marker (`# ─── Challenge 07 judge injects below this marker ──────`) sits at the bottom of the post-Challenge-01 code. Challenge 07's setup script finds it and injects the judge integration block.
+**Amended 2026-08-14 — challenges 02 and 03 replace function bodies, not inline fragments.** The chained-inline-fragment version shipped two coupling bugs: the gate read a `brand_voice_score` local that the judge block bound only inside a `try`, and it rewrote `assistant_text` after the Bedrock block had already written the original into `_history`, so Otto remembered answers the customer never saw. Neither was visible from inside the block being edited, because three fragments sharing mutable locals is a contract with no signature.
+
+`server.py` now ships two stubs — `score_response(req, assistant_text, model_id) -> Optional[float]` and `gate_response(req, assistant_text, score, model_id) -> tuple[str, str]` — and `/chat` calls them in order, then `_remember()`. Each patch script replaces one function body, verifying the expected stub `return` is directly below the marker before touching anything. Data flows through arguments and returns, so a future block cannot silently desynchronize state it has no access to. The stub defaults (`None`, and `(assistant_text, "ship")`) mean the app is correct at every stage: un-wired behaves exactly like pre-challenge-02 Otto rather than raising.
+
+Challenge 01 still replaces an inline block, because it genuinely is the handler body.
 
 **Rationale:** Two-step staged code injection keeps each challenge's setup self-contained while making it possible for later challenges to extend the same file. Pure Python `find/replace` on stable comment markers is more robust than line-number-based patching and survives the learner doing the paste manually vs. via solve.
 
@@ -261,41 +226,9 @@ A second marker (`# ─── Challenge 07 judge injects below this marker ─�
 
 ---
 
-## Config snippet-reference syntax — RESOLVED 2026-05-28
-
-**Original decision (2026-04):** Phase 4 / Challenge 03 introduced prompt snippets via REST (the Terraform provider doesn't expose them yet). The reference syntax for embedding a snippet in a variation message wasn't documented anywhere findable at authoring time. The placeholder `{{ldsnippet.<key>}}` was used throughout, with `<!-- VERIFY -->` markers in the assignment and Terraform calling it out.
-
-**Resolution (2026-05-28, Phase 0 of Track 2 / Evaluate scoping):** Confirmed via the official LD docs at `https://launchdarkly.com/docs/home/agentcontrol/snippets`. The literal syntax is:
-
-```
-{{snippet.<key>#<version>}}
-```
-
-Version-pinned. Whether omitting the version resolves to "latest" is not documented in the canonical example; the safe convention is to pin (the example uses `#version-number` explicitly). For Build, the snippets are created at version 1 by `terraform/challenge-03/main.tf`'s REST POST, so all references pin to `#1`.
-
-**Hotfix applied:** Replaced placeholders in `terraform/challenge-03/main.tf`, `terraform/challenge-05/main.tf`, and `instruqt-build/03-otto-on-brand/assignment.md` (challenge 05's assignment.md doesn't quote the literal markup — the learner gets it inserted via the UI's **Load snippet** button). VERIFY comments in the two .tf files removed.
-
-**Side benefit:** Evaluate's brand-voice judge prompt now has a clean reference convention (`{{snippet.brand-voice#1}}`) baked into the scope before authoring starts.
-
----
-
-## Guarded rollout configured by the learner, not pre-built
-
-**Decision:** Phase 7's setup pre-builds everything *except* the guarded rollout itself: the Nova Pro Stiff variation, the judge Config + metric, the server-side judge integration, and a low-rate background traffic generator. The learner configures the guarded rollout in the LD UI as the lab's actionable centerpiece.
-
-**Rationale:** Two reasons. First, LaunchDarkly's REST API for starting a guarded rollout was not publicly documented at authoring time. Second, configuring the rollout in the UI *is* the most important learning moment of the track — making the learner do it themselves reinforces the workshop's main lesson.
-
-**Update (2026-05-29, Phase 0 of Track 2 / Evaluate):** The REST surface IS now documented — `start-guarded-rollout` is a published LD MCP tool with `testVariationId`, `controlVariationId`, `stages` (rolloutWeight + monitoringWindowMilliseconds), and `metrics` (with `regressionThreshold` and `onRegression: {notify, rollback}`). The first part of the rationale is obsolete. The second part — keeping the rollout learner-driven for pedagogical reasons — still stands. Evaluate's ch07 (which lifts this challenge from Build) continues to have the learner start the rollout in the UI; the API existence just gives presenters a scripted fallback rather than forcing a UI-only path.
-
-**Side script:** `traffic-generator/sabotage.py` exists as a presenter escape hatch — emits low judge scores directly via `ld_client.track()` to force a regression detection when organic background traffic is too slow.
-
-**Side benefit:** Makes the lab demonstrably "real" — the learner can see the rollback fire from their own configuration, not from a pre-built one that magically works.
-
----
-
 ## Judge invocation: SDK eval + manual Bedrock call
 
-**Decision:** The judge integration in `server.py` (added by Challenge 07's setup patch) calls `ai_client.judge_config(...)` to evaluate the `otto-response-judge` Config (which interpolates the `{{response}}` template variable with Otto's answer), then calls `bedrock.converse()` manually with the resulting model and messages. The 1-5 score is parsed from the response text and emitted via raw `ld_client.track("otto-quality-score", ...)` rather than `tracker.track_judge_result(...)`.
+**Decision:** The judge integration in `server.py` (added by Challenge 02's paste) calls `ai_client.judge_config(...)` to evaluate the `otto-brand-voice-judge` Config (which interpolates the `{{response}}` template variable with Otto's answer), then calls `bedrock.converse()` manually with the resulting model and messages. The 0.0-1.0 score is parsed from the response text and emitted via raw `ld_client.track("otto-brand-voice-score", ...)` rather than `tracker.track_judge_result(...)`.
 
 **Rationale:** The `ldai` SDK supports a higher-level judge flow via `create_judge()` + `judge.evaluate()`, but it relies on an AI Provider plugin system (langchain, openai). There's no `ldai_bedrock` provider as of authoring. Writing a custom provider was scoped out. Manual Bedrock invocation works fine and stays transparent to the workshop's audience — the code reads exactly like the regular Otto eval.
 
@@ -307,41 +240,7 @@ Version-pinned. Whether omitting the version resolves to "latest" is not documen
 
 **Rationale:** Real Bedrock calls would make 120 sessions take ~10 minutes and cost real money per learner. The monitoring view only consumes the LD-side metric events, so skipping Bedrock costs nothing in terms of what the lab shows. Weights are tuned so Sonnet looks visibly better than Haiku in the dashboard, and Nova Pro Stiff looks worse — the comparison is what matters, not the absolute numbers.
 
-**Side benefit:** Same generator works as a sabotage tool — see `sabotage.py`, which is just the metric-emission path without the eval boilerplate.
-
----
-
-## Workshop splits into three sibling Instruqt tracks (2026-05-28)
-
-**Decision:** What was originally one 9-challenge Instruqt track becomes **three sibling tracks** that each map 1:1 to a lesson in the AgentControl cert:
-
-- **Build (L1)** — `instruqt-build/`. The original track, near-final. Otto's lifecycle from first Config to monitoring.
-- **Evaluate (L2)** — `instruqt-evaluate/`. Golden datasets, built-in judges, custom judges, prompt experiments, guarded rollout (the former `07-trust-but-verify` lifts here and rewires to consume the brand-voice judge introduced earlier in L2), adaptive switching.
-- **Coordinate (L3)** — `instruqt-coordinate/`. Multi-agent **Concierge** team (Toggle → Curator | Tailor | Tracker → Otto → customer). Otto's character survives as the brand-voice rewriter. Agent-mode Configs, agent graphs, SDK traversal with `reverse_traverse` + `graph_key`, per-agent guarded rollout, self-healing.
-
-All three tracks live in this repo and share a **single VM image**. Each track's track-level `setup-workstation` runs prior-track solve scripts to materialize the starting state, so a learner can land in any track and arrive at a known good baseline.
-
-**Rationale:**
-
-- One mega-track at 22 challenges would be ~6h self-paced and far past the 2h presenter budget that the original track was designed for. Three ~2h tracks let learners pick a level and finish it in one sitting, and they map cleanly to the cert lessons.
-- The cert (Lessons 1-3) was being rewritten to mirror this content 1:1; explicit per-track artifacts give the cert team something concrete to reference per lesson rather than asking them to slice across one big track.
-- The existing Build track stays self-contained for evaluators who only want the basics — no scope-creep from adding eval/multi-agent content in front of them.
-
-**Trade-offs accepted:**
-
-- A learner starting Evaluate or Coordinate cold pays a small startup delay while prior-track solves materialize their workspace. Acceptable for the simplicity of one image.
-- The `terraform/challenge-NN/` directory naming is Build-centric; Evaluate and Coordinate will get sibling directory conventions (e.g. `terraform/evaluate-NN/`, `terraform/coordinate-NN/`) when authored. The original `terraform/challenge-NN/` won't be renamed — it stays as Build's record.
-
-**Concierge cast naming:**
-
-The L3 cast is a deliberate naming pattern: customer-facing agents get personal names (**Toggle** the triage receptionist, **Otto** the brand-voice rewriter), back-of-house specialists get functional role names (**Curator**, **Tailor**, **Tracker**). Mirrors how a real concierge team feels and makes the graph topology readable from the names alone. Otto's character is preserved by giving him a role inside the team rather than retiring him or creating a parallel "Concierge Otto."
-
-**Why not refactor Otto into agent mode in L3 instead:**
-
-AgentControl Configs are mode-permanent — once created in `completion` mode, a Config can't be converted to `agent` mode. Option A (deprecate Otto, replace with an agent-mode version) was rejected because:
-1. It breaks Build/L1's "Otto is grown" wrap-up arc retroactively.
-2. It tries to evade the mode-permanence rule rather than teach it.
-3. The Concierge-team framing turns mode-permanence into a teachable moment (here's why we built a new system instead of upgrading Otto's Config in place).
+**Note:** a companion `sabotage.py` existed to force guarded-rollback demos by emitting low scores. It was deleted with the guarded-rollout chapter.
 
 ---
 
@@ -354,38 +253,182 @@ AgentControl Configs are mode-permanent — once created in `completion` mode, a
 - Float scoring gives the LLM judge more resolution to express degrees of correctness ("borderline" = 0.5) without retraining learners on what a "3" means versus a "4".
 - The threshold values for guarded rollouts and adaptive switching are simpler in 0.0–1.0 ("watch for the mean dropping below 0.5") than they would be in 1–5 ("below 3.0").
 
-**Side effect:** The legacy `traffic-generator/background_traffic.py` and `sabotage.py` were updated during Phase 6 of `PHASES-evaluate.md` to emit floats instead of ints, and to use the new `otto-brand-voice-score` metric key instead of the legacy `otto-quality-score`.
+**Side effect:** `traffic-generator/background_traffic.py` emits floats rather than ints, against the `otto-brand-voice-score` metric key.
+
+**Later consequence:** the 0.0-1.0 scale is what makes challenge 03's three-band review gate readable. `{"auto": 0.8, "review": 0.5}` is legible at a glance in a way that thresholds on a 1-5 integer scale would not be.
 
 ---
 
-## Snippet-as-data: snippets hold structured content, not just voice (2026-06-01)
+---
 
-**Decision:** Evaluate Challenge 04 puts the ToggleWear product catalog inside a `product-catalog` snippet. The claim-accuracy judge's prompt references it via `{{snippet.product-catalog#1}}` so the same catalog text drives the judge's ground truth. Adding or changing a product means editing one snippet.
+## Scope cut to one track: config, judge, human-in-the-loop (2026-08-14)
 
-**Rationale:**
-- The LD snippets docs frame snippets as "tone, formatting, or governance language" — voice-flavored. Using a snippet for *data* (a structured product list) is a stretch of the apparent design intent but works in practice; the snippet is just text inserted into a prompt at evaluation time.
-- The "one source of truth for the catalog" property is valuable beyond the lab: in production, adding a product becomes a single-snippet edit rather than coordinated changes across multiple prompt variations and grading configs.
-- This pattern composes with the brand-voice snippet's reuse in ch03 — both demonstrate that a snippet drives both "what Otto says" *and* "what we measure" if you reference it from both sides.
+**Decision:** The three-track workshop (Build / Evaluate / Coordinate, 30 challenges) is replaced by a single four-challenge track in `instruqt-agentcontrol-mcp/`. New slug `ld-agentcontrol-mcp` and a new track id; the old `ld-agentcontrol-build` track and its siblings are deleted rather than archived.
 
-**Trade-offs accepted:**
-- Catalog content lives in two places — the snippet (for the judge's ground truth) and the app's `static/index.html` (for the actual storefront display). They could drift. For the workshop's ~30-row catalog this is acceptable; a production app would derive both from a single source.
+**Rationale:** The three tracks were breadth-first — every AgentControl feature got a chapter. What was missing was a short, sharp answer to "what does this look like in my workflow." Four chapters that go deep on one path beat thirty that tour the product.
+
+**What went, and where it's acknowledged:** prompt snippets, targeting by user attribute, prompt experiments, guarded rollouts, offline evaluations against datasets, adaptive switching, and the whole multi-agent Coordinate arc. Each is named in `04-wrap-up` as a next step, so a learner leaves knowing what exists rather than believing the product is smaller than it is.
+
+**Cost:** git history is the only record of the deleted tracks. Anyone reviving Evaluate or Coordinate starts from `git log`, not from a branch.
 
 ---
 
-## Three safety nets, three timescales (2026-06-01)
+## MCP server replaces the LaunchDarkly UI as the build interface (2026-08-14)
 
-**Decision:** Evaluate teaches three distinct AI-safety mechanisms across challenges 06–08, framed by the timescale at which they react:
-
-| Timescale | Mechanism | Challenge |
-|---|---|---|
-| Release time | Guarded rollout (LD watches a metric while ramping; rolls back on regression) | ch07 |
-| Request time (between requests) | In-app adaptive loop (rolling window + REST PATCH on the targeting rule) | ch08 |
-| Per request (synchronous) | Self-healing judge-then-regenerate | Coordinate / Track 3 |
+**Decision:** Every resource the learner creates — Config, variation, targeting rule, judge, judge attachment, metric, flag — is created by prompting Claude Code against the hosted LaunchDarkly MCP server at `https://mcp.launchdarkly.com/mcp/launchdarkly`. The LaunchDarkly UI is used only for inspecting results and reading Monitoring charts.
 
 **Rationale:**
-- These three mechanisms are easy to conflate. Naming the timescale makes the distinction concrete. The wrap-up quiz tests the release-vs-between-requests boundary directly.
-- The adaptive-switching pattern in ch08 isn't a packaged LD feature — it's an application-level loop the operator wires using documented SDK + REST primitives. Teaching it explicitly closes a real gap: learners often try to use guarded rollouts as request-time controllers, which doesn't work.
-- Self-healing belongs in Coordinate (L3) because the per-request fallback shape requires the judge to be invoked synchronously inside the request handler — natural fit with the agent-graph rewriter node where a brand-voice check before sending the response is the obvious wiring.
+- It's how a growing number of developers actually work, and a workshop that only teaches clicking teaches a workflow the audience is leaving.
+- It removes the workshop's single largest maintenance cost. Click-by-click UI instructions rot on every UI change, and `CLAUDE.md` had a whole section admitting they ship unverified. Prompts describing intent are far more stable.
+- The resources produced are indistinguishable from clicked ones, which is itself the lesson: the MCP server is another interface onto the same product, not a parallel one.
 
-**Trade-offs accepted:**
-- The lab introduces three distinct in-app generators (`realchat_traffic.py`, `experiment_traffic.py`, `background_traffic.py`) to drive each mechanism's lab — each setup-workstation swaps to the right one for the challenge. Slight operational complexity in exchange for each lab having appropriate signal characteristics.
+**Precedent:** the AWS SDLC workshop at `aws-sldc-v2` does exactly this with Kiro CLI, including the "your token reaches one project, so just say *my project*" framing that we adopted verbatim in spirit.
+
+**Cost, and it's real:** an LLM is non-deterministic and `check-workstation` is not. Every check had to be loosened to assert on keys, modes, and model families rather than display names or prompt wording, and each retries briefly to avoid racing the agent's last write. Prompts also have to name every key explicitly, because downstream chapters and the app depend on them.
+
+**Options considered:**
+- *Teach both, UI and MCP.* Rejected: doubles chapter length and the comparison isn't interesting enough to pay for.
+- *Keep UI instructions, mention MCP in the wrap-up.* Rejected: that's the version that already existed.
+
+---
+
+## Claude Code as the MCP client, running on Bedrock (2026-08-14)
+
+**Decision:** Claude Code is installed on the VM image at a pinned version and run from the code-server terminal in the existing "Code Editor" tab. It authenticates to a model via Bedrock (`CLAUDE_CODE_USE_BEDROCK=1`), reusing `AWS_PROFILE=BedrockProfile`, with `ANTHROPIC_MODEL` pinned to a Haiku 4.5 inference profile.
+
+**Rationale:**
+- No new credential type. `DECISIONS.md` already committed to Bedrock as the sole LLM provider, and an `ANTHROPIC_API_KEY` Instruqt secret would have been a fifth credential pathway.
+- The code-server tab already exists in the three-tab layout, so config-building and `server.py` editing happen side by side without a new tab.
+- `ANTHROPIC_MODEL` must be pinned. Claude Code's Bedrock default is now Opus 5, which is neither in the IAM allowlist nor priced for a workshop, and an unpinned session fails on the learner's first prompt rather than at startup.
+
+**Consequences to watch:**
+- Claude Code is a much heavier Bedrock consumer than Otto. `LD_CHAT_TURN_LIMIT` caps the app's spend and does nothing here; an AWS Budgets alarm on the workshop account is the only real ceiling.
+- The machine type went from `n1-standard-2` to `n1-standard-4`. Claude Code alone wants 4 GB, and the box already runs code-server, uvicorn, and the traffic generator.
+- `terminal.integrated.sendKeybindingsToShell` is set in code-server's settings, because xterm.js otherwise swallows Escape and Shift+Enter, which the Claude Code TUI needs.
+
+---
+
+## MCP auth: bearer header with the scoped lab token, not OAuth (2026-08-14)
+
+**Decision:** `app/.mcp.json` and the user-scope entry in `/root/.claude.json` both carry `Authorization: Bearer <LD_API_TOKEN>`, rendered at lab start from committed templates with a `__LD_API_TOKEN__` placeholder. The learner performs no MCP setup and sees no OAuth flow.
+
+**Rationale:** OAuth in an Instruqt sandbox means a browser round-trip and a real LaunchDarkly login inside a VM whose LD access is a simulator lambda. It would be the most fragile step in the track, and it would be step one. Header auth makes the connection a fact of the environment.
+
+**Known risk, stated plainly:** LaunchDarkly's hosted-MCP documentation describes OAuth only and tells you to remove token env vars. Header auth against the hosted URL is undocumented — our evidence is that the AWS workshop does it and it works. If it's ever tightened, `.mcp.json` header auth does **not** fall back to OAuth; the server just fails to connect. `00-welcome/check-workstation` therefore asserts it directly with a raw `tools/list` curl, so the failure surfaces at setup with an operator-actionable message rather than as a confused learner. The documented fallback is the local `npx @launchdarkly/mcp-server` stdio server with `--api-key`.
+
+**Sub-decision — the server is registered at user scope.** A project `.mcp.json` approved only by the repo's own `.claude/settings.json` stays pending approval in an untrusted folder, so the authoritative registration lives in `/root/.claude.json`. `app/.mcp.json` is still written, as the visible teaching artifact.
+
+**Sub-decision — the token is written literally, not as `${LD_API_TOKEN}`.** code-server runs from systemd as root and does not inherit the exports appended to `~/.bashrc`. An unset variable with no default doesn't fail loudly: the config still loads and the literal string `${LD_API_TOKEN}` is sent as the bearer.
+
+**Accepted exposure:** the learner can read the token. code-server is `--auth none` and everything runs as root. The blast radius is one sandbox project, and `cleanup-workstation` now revokes the token by id — which the old script couldn't do, because it discarded the `._id` at mint time and leaked a live token on every lab run.
+
+---
+
+## Judge attachment is declarative; the app does the invoking (2026-08-14)
+
+**Decision:** The learner attaches `otto-brand-voice-judge` to the `otto-born` variation with a 25% sampling rate **and** pastes a block into `server.py` that invokes the judge itself. The assignment says outright that attachment does not cause the judge to fire.
+
+**Rationale:** `ldai` 0.20.1 can run attached judges only through a provider plugin, and there is no Bedrock provider. Attachment is what populates the Judges panel and records the sampling rate in LaunchDarkly; the paste block is what actually calls the model. Pretending the attachment is sufficient would leave the learner unable to explain why their code exists — so `04-wrap-up`'s quiz question is exactly this.
+
+**Sampling is 100%, not 25% (amended 2026-08-14).** The first draft attached at 25% while the app's judge call graded every response, so the declared rate was decorative — a detail a sharp learner would catch. Honouring the rate would have been worse: with only a quarter of responses scored, challenge 03's gate would ship the rest ungraded via its fail-open branch, teaching that a review gate mostly doesn't apply. Both the attachment and the code are now 100%, and the assignment says why: sampling is a real cost lever, and this lab needs a score on every answer.
+
+**Alternative rejected:** switching the app to an `ldai`-supported provider (openai or langchain) to get automatic evaluation. That would break the Bedrock-only decision and rewrite `server.py`'s Bedrock path for a pedagogical convenience.
+
+---
+
+## Review thresholds live in a JSON flag, not in code (2026-08-14)
+
+**Decision:** The review gate's two thresholds are one JSON flag value, `otto-review-thresholds`, serving `{"auto": 0.8, "review": 0.5}`. `server.py` reads the flag on every turn with `REVIEW_DEFAULTS` as the fallback.
+
+**Rationale:**
+- One JSON value rather than two numeric flags: a threshold change is one atomic edit, and two flags can disagree with each other in a way that silently disables the middle band.
+- Nobody guesses these numbers right the first time. Putting them in LaunchDarkly turns "we picked the wrong band" from a deploy into a click, and gives the chapter its payoff — the learner switches to `Cautious` and watches routing change with no restart.
+- It applies the flag pattern to a governance decision rather than a feature, which is the more interesting version of the same story.
+
+**Sub-decision — a missing judge score ships rather than holds.** The judge is a second model call inside the customer's request. When it fails, the code serves Otto's answer ungraded. Making a customer wait on a human because our judge timed out is the worse outcome, and a hold that nobody is staffed to clear is just a dropped response. This is a defensible choice rather than an obviously correct one, and the assignment says so and tells the learner to reread that branch.
+
+**Sub-decision — the review queue is in memory.** It shares `_turns` and `_history`'s fate: a lab-length lifetime, lost on restart, capped at `REVIEW_QUEUE_LIMIT` entries. A durable queue would be honest engineering and pure distraction.
+
+---
+
+## `evaluationMetricKey` convention: bare metric name (2026-08-14)
+
+**Decision:** A judge Config's `evaluation_metric_key` is the bare name (`otto-brand-voice-score`), not the prefixed form (`$ld:ai:judge:otto-brand-voice-judge`). LaunchDarkly applies the `$ld:ai:judge:` prefix itself.
+
+**Rationale:** The repo previously carried both spellings — `terraform/evaluate-03` set the prefixed form while `evaluate-07`'s check expected the bare one, and the resource that would have reconciled them was commented out. Nothing set it, so a check asserted a state no code path produced. One convention, written down, and the dead commented block deleted rather than carried forward.
+
+**Note:** the judge's own metric surfaces as `$ld:ai:judge:otto-brand-voice-score`, while the custom metric the app emits directly is the plain `otto-brand-voice-score`. Those are two different things that read almost identically in the UI. The learner is pointed at the custom one.
+
+---
+
+## Otto knows the catalog; he just has no manners (2026-08-14)
+
+**Decision:** Otto's challenge-01 system prompt includes the eight products, sizes, and store policies. It still says nothing about tone.
+
+**Rationale:** The first draft gave him two bland sentences and no product data, then asked a brand-voice judge to grade his answers to questions like "what material is the Rollout Tote?". He could only decline, and a rubric that scores declining-to-help low would have pushed most responses *below* challenge 03's suppress threshold — so the review queue, which is that chapter's entire point, would have starved while the storefront looked broken.
+
+Competent-but-cold is the artifact the track actually needs. The judge's complaint becomes purely about voice, which is what it's named for. And "approve with an edit" becomes meaningful work — warming up a correct answer — rather than rubber-stamping an apology.
+
+**Do not "improve" this prompt.** Otto never gets the warm version in this track. The gap between what he says and how ToggleWear wants him to say it is what challenges 02 and 03 are built on; closing it empties both. `terraform/challenge-01/main.tf` carries this warning inline.
+
+**Related rubric fix:** the judge's scale listed "honest when you don't know something" as a 1.0 trait while an answer consisting entirely of not knowing is obviously not a 1.0. That contradiction left every borderline score to the model's mood. The rubric now scores cold-but-correct at 0.4, declining-to-help at 0.2, and says explicitly to judge tone rather than correctness.
+
+**Still unvalidated:** the actual score distribution. `{auto: 0.8, review: 0.5}` are reasoned guesses. Measure them in Phase 4 and move the numbers in `terraform/challenge-03/main.tf`, the assignment, and `NARRATIVE.md` together.
+
+---
+
+## The reviewer gets its own surface (2026-08-14)
+
+**Decision:** The review queue is a separate page at `/review`, opened as a fourth Instruqt tab ("Staff Review") in challenge 03 only. It is not a panel on the storefront.
+
+**Rationale:** The chapter's one idea is that a different person, with different authority, sees a response before the customer does. Two tabs make that structural — you change context by changing tabs, which is what actually happens in a support org. A panel below the product grid says "same person, same screen, same authority" and undercuts the thing being taught. It also replaced the role switch with a scroll.
+
+**Cost:** it breaks the "three tabs on every challenge so indices are stable" convention in `CLAUDE.md`, which is now amended to "three tabs, plus a fourth on challenge 03". Indices 0-2 are unchanged, so no existing `#tab-N` reference moved. The poll loop was factored out of `app.js` into `review.js` rather than duplicated; the storefront keeps only the half that drains a reviewer's decision into the chat transcript.
+
+**Open:** whether an Instruqt service tab honours a `path:` key to deep-link `/review`. A `VERIFY` marker sits on that line, and the storefront has a "Staff review" nav link as the fallback.
+
+---
+
+## The queue is scoped to the learner's session (2026-08-14)
+
+**Decision:** `GET /review/queue` takes a `session_id` and returns only that session's held responses, plus a count of the rest.
+
+**Rationale:** `realchat_traffic.py` drives `/chat` every 2-4 seconds for the whole lab with a fresh session per request, and all of it flows through the gate. An unscoped queue buries the learner's own held response under bot items within a minute and evicts it at the 50-item cap. The count of other sessions keeps the queue reading as a real one — a reviewer's queue with exactly one item in it looks staged — without making the learner hunt.
+
+**Consequence:** the learner only ever adjudicates their own responses, so the role separation is a role-play rather than a real division. Accepted: the alternative was a queue where the demo doesn't work.
+
+---
+
+## Authoring docs are deleted from the VM clone (2026-08-14)
+
+**Decision:** `vm-image/build-image.sh` deletes `CLAUDE.md`, `DECISIONS.md`, `PHASES.md`, `NARRATIVE.md`, and `OPERATOR-CHECKLIST-mcp.md` from `/opt/ld/ai-configs-intro` after cloning.
+
+**Rationale:** Claude Code auto-loads `CLAUDE.md` from the repository root into every session. These files describe how the labs are built, including the exact resources each challenge expects — they are the answer key, and they'd also burn several thousand tokens on every request.
+
+A `permissions.deny` entry was the first attempt and is the wrong tool: it only blocks the `Read` tool, leaves the files on disk for any other access path, and fails open if a key name changes. Deleting them is unconditional. `terraform/` and the track directory stay on disk because setup and solve scripts need them, and those keep their deny entries.
+
+---
+
+## Bedrock credentials resolve on demand via credential_process (2026-08-14)
+
+**Decision:** `/root/.aws/config` defines `BedrockProfile` with a `credential_process` that exchanges the GCE instance identity token for an STS session at resolution time. `/opt/ld/bin/bedrock-credential-process.sh` does the exchange; role ARN and JWT audience come from `/etc/bedrock-federation.env`, filled in from `gcp-federation/` outputs before baking.
+
+**Rationale:** Nothing in this repo previously wrote `~/.aws` at all, while `app/server.py` and now Claude Code both ask for a profile named `BedrockProfile`. The federated session the repo documents lasts an hour, so a credential baked at image time is dead before the image is even saved — meaning either undocumented long-lived IAM keys were being hand-written at bake, or Bedrock calls were failing. `credential_process` resolves on demand, honours `Expiration` so boto3 and Claude Code both refresh, and serves boto3, the AWS CLI, and Claude Code from one mechanism with one failure mode to test.
+
+A refresh at track setup was rejected: a 1-hour maximum session against a lab that can run three hours dies mid-lab, probably during the most expensive chapter.
+
+**The AWS CLI is now installed at bake**, because the credential process shells out to `aws sts assume-role-with-web-identity`.
+
+**Unverified and it matters:** the IAM trust policy pins `accounts.google.com:sub` to a specific GCP service account. If the bake VM and the runtime sandbox run under different service accounts, this succeeds in testing and fails at lab time with an opaque `AccessDenied`. Must be tested on a real Instruqt sandbox. The `--max-time 5` on the metadata call is not optional: Claude Code aborts the whole credential chain after 60 seconds, and a hung metadata call presents as a broken model rather than a broken credential.
+
+---
+
+## Every prompt-driven step gets a read-back (2026-08-14)
+
+**Decision:** Each chapter follows its build prompt with a verification prompt asking the agent to describe what it created, and `00-welcome` carries a "When the agent gets it wrong" section covering the four failures that actually happen.
+
+**Rationale:** An agent reports success from its own intent, not from re-reading the result. Checking its work is the skill that transfers to the learner's real job, and it's the only point in the track where a Config's structure is described in plain language rather than merely asserted by a green check — which matters, because the failure mode of a prompt-driven workshop is teaching "type wish, get check mark."
+
+Recovery guidance previously lived only in `fail-message` strings, which a learner sees only after failing. One section they can reach at any time is better and keeps the fail-messages short.
+
+**Rejected:** deliberately under-specifying a prompt so the learner must catch the agent. Staging a failure requires determinism we don't have — if the agent gets it right, the beat evaporates and the learner is left wondering what they missed.

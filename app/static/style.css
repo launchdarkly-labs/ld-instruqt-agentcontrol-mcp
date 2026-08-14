@@ -378,6 +378,141 @@ aside.otto {
   text-align: right;
 }
 
+/* ---------- Staff review page ---------- */
+
+body.staff { background: #f4f2ee; }
+
+.staff-badge {
+  justify-self: end;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.review-others,
+.review-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.review-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Staff review queue ---------- */
+
+.review-panel {
+  margin: 2rem auto 6rem;
+  padding: 1.5rem 2rem 2rem;
+  max-width: 62rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.review-head { margin-bottom: 1.25rem; }
+
+.review-title {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.review-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.review-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.review-item {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.review-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.review-score {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.review-question {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+}
+
+.review-answer {
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.review-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.review-actions button {
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.review-approve {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.review-reject {
+  background: var(--surface);
+  color: var(--ink-soft);
+}
+
+.review-actions button:hover { filter: brightness(1.05); }
+.review-actions button:disabled { opacity: 0.5; cursor: progress; }
+
 /* ---------- Small screens ---------- */
 
 @media (max-width: 720px) {
@@ -391,4 +526,5 @@ aside.otto {
   .product-grid { padding: 1.5rem 1.25rem 6rem; gap: 1rem; }
   .otto { right: 1rem; bottom: 1rem; }
   .otto-panel { width: calc(100vw - 2rem); }
+  .review-panel { margin: 0 1.25rem 6rem; padding: 1.25rem; }
 }

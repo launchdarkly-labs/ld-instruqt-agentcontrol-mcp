@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# Apply the brand-voice judge end-state: judge Config + variation + metric
+# + evaluationMetricKey wiring + server.py patch. Restart togglewear so the
+# patched server.py takes effect.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-02
+terraform apply -auto-approve
+
+python3 /opt/ld/ai-configs-intro/terraform/challenge-02/patch-server.py
+service togglewear restart
+
+# Make sure realchat traffic is running so the judge starts firing.
+if ! pgrep -f realchat_traffic.py > /dev/null; then
+  nohup /opt/ld/ai-configs-intro/app/.venv/bin/python3 \
+    /opt/ld/ai-configs-intro/traffic-generator/realchat_traffic.py \
+    > /var/log/togglewear-realchat.log 2>&1 &
+fi
+
+exit 0
