@@ -95,4 +95,25 @@ if grep -q 'Challenge 02 judge: replace this body' /opt/ld/ai-configs-intro/app/
   exit 1
 fi
 
+# 6. The judge actually runs.
+#
+# Everything above proves the judge Config exists and the code is on disk. Ask
+# Otto something and confirm the app really invoked the judge and got a usable
+# score — otherwise this goes green while the judge silently fails on every
+# request and the Monitoring chart the assignment sends you to stays empty.
+curl -s --max-time 60 -o /dev/null -X POST 'http://localhost:3000/chat' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{"message":"What is your return policy?","user_tier":"free","session_id":"check-ch02"}'
+
+if journalctl -u togglewear --since '-2 min' 2>/dev/null | grep -q 'Brand-voice judge eval failed'; then
+  DETAIL=$(journalctl -u togglewear --since '-2 min' 2>/dev/null | grep -A3 'Brand-voice judge eval failed' | tail -3)
+  fail-message "The judge ran but threw an error, so no score was recorded. The app swallows judge failures on purpose, which is why Otto still replied. Details: ${DETAIL}"
+  exit 1
+fi
+
+if ! journalctl -u togglewear --since '-2 min' 2>/dev/null | grep -q 'brand-voice-judge session='; then
+  fail-message "Otto answered but the judge never produced a score. Confirm you replaced the body of \`score_response()\` (not just added to it), that the judge's targeting serves its Default variation, and that its prompt still ends with {{response}}."
+  exit 1
+fi
+
 exit 0

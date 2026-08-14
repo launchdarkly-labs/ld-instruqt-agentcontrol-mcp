@@ -76,4 +76,33 @@ if ! grep -q '_enqueue_review' "$SERVER_PY"; then
   exit 1
 fi
 
+# 5. The gate actually runs and decides.
+#
+# Without this the check goes green whenever the code merely mentions the flag.
+# Ask Otto something and confirm the gate logged a real decision for it.
+curl -s --max-time 60 -o /dev/null -X POST 'http://localhost:3000/chat' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{"message":"What is your return policy?","user_tier":"free","session_id":"check-ch03"}'
+
+GATE=$(journalctl -u togglewear --since '-2 min' 2>/dev/null | grep 'review-gate session=' | tail -1)
+
+if [ -z "$GATE" ]; then
+  fail-message "Otto answered but the gate never ran. Confirm you replaced the body of \`gate_response()\` — the marker comment and the \`return assistant_text, \"ship\"\` line — with the block from the assignment."
+  exit 1
+fi
+
+case "$GATE" in
+  *"decision=ship"*|*"decision=hold"*|*"decision=suppress"*) : ;;
+  *) fail-message "The gate ran but produced no recognisable decision. It should log one of ship, hold, or suppress. Saw: ${GATE}"
+     exit 1 ;;
+esac
+
+# A gate that read its thresholds from the flag logs them. Defaults mean the
+# flag lookup fell through, which usually means the flag is off or malformed.
+case "$GATE" in
+  *"auto=0.00"*|*"review=0.00"*)
+    fail-message "The gate ran but read no thresholds from the flag. Ask Claude Code to confirm otto-review-thresholds is on in Test and serving a variation whose value has numeric auto and review keys."
+    exit 1 ;;
+esac
+
 exit 0

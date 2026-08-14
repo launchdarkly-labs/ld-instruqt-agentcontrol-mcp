@@ -78,4 +78,38 @@ if ! grep -q 'ai_client.completion_config(OTTO_CONFIG_KEY' /opt/ld/ai-configs-in
   exit 1
 fi
 
+# 6. Otto actually answers.
+#
+# Everything above only proves the Config exists and the right code is on disk.
+# This chapter's stated goal is "Otto says his first words", so ask him. Without
+# this the check goes green while Bedrock is misconfigured and the learner is
+# told they succeeded at something visibly broken.
+#
+# Costs one real model call per Check press. That is the point.
+CHAT=$(curl -s --max-time 45 -X POST 'http://localhost:3000/chat' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{"message":"Got any t-shirts?","user_tier":"free","session_id":"check-workstation"}')
+
+if [ -z "$CHAT" ]; then
+  fail-message "The ToggleWear app didn't respond at all. In the terminal, run \`service togglewear restart\`, wait a few seconds, and press Check again."
+  exit 1
+fi
+
+REPLY=$(printf '%s' "$CHAT" | jq -r '.response // ""')
+
+case "$REPLY" in
+  *"isn't wired up yet"*)
+    fail-message "Otto is still returning the placeholder response, so the app is running code from before your paste. Save \`server.py\` and give it a few seconds to reload, then press Check again."
+    exit 1 ;;
+  *"isn't enabled"*)
+    fail-message "Otto's Config evaluated to disabled. Ask Claude Code to set the default rule in the Test environment to serve otto-born."
+    exit 1 ;;
+  *"can't reach his model"*|*"overwhelmed"*|*"invalid setting"*|*"unexpected error"*)
+    fail-message "Otto reached LaunchDarkly but could not call the model. This is a lab credentials problem, not something you did — tell your instructor. (Otto said: ${REPLY})"
+    exit 1 ;;
+  "")
+    fail-message "Otto returned an empty response. Check the app log with \`journalctl -u togglewear -n 50\`, or tell your instructor."
+    exit 1 ;;
+esac
+
 exit 0
