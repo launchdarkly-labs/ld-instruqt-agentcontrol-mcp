@@ -13,18 +13,13 @@ This directory contains the inputs for the Instruqt VM image used by the `instru
 
 ## Verification before you save the image
 
-The script prints these. They are not optional — three of them cover failure modes that are invisible until a learner hits them.
+Paste `check-image.sh` into the same VM after `build-image.sh` finishes. It runs ~30 assertions across the repo clone, the stripped authoring docs, services, the venv, the paste-block stubs, the Claude Code pre-seed, the Bedrock credential chain, and the shell environment — and each failure names the fix rather than just reporting red.
 
-```sh
-systemctl is-enabled togglewear code-server
-claude --version                                   # must match CLAUDE_CODE_VERSION
-jq -e .hasCompletedOnboarding /root/.claude.json
-aws sts get-caller-identity --profile BedrockProfile
-```
+It exits non-zero if anything is wrong, so it's safe to treat as a gate. One expected warning: the STS exchange may fail *on the bake VM* if that VM runs under a different GCP service account than the sandbox does. The script prints the JWT's `sub` so you can compare it against `gcp_sub` in the trust policy, and the real test is in a live lab.
 
-Then **one manual step that cannot be scripted:** launch `claude` once interactively and confirm there are **zero prompts** — no theme picker, no folder-trust dialog, no MCP approval. If any prompt appears, exit, diff `/root/.claude.json` against what the script wrote, and add the missing key to the heredoc in `build-image.sh`. A learner who hits a prompt in challenge 00 is stuck with no way forward.
+It finishes by printing **three manual steps that cannot be scripted:** launch `claude` once interactively and confirm there are **zero prompts** — no theme picker, no folder-trust dialog, no MCP approval. If any prompt appears, exit, diff `/root/.claude.json` against what the script wrote, and add the missing key to the heredoc in `build-image.sh`. A learner who hits a prompt in challenge 00 is stuck with no way forward.
 
-Finally, `rm -rf /root/.claude/projects` so learners don't inherit your session transcripts, and only then save the image.
+The most important is launching `claude` once interactively to confirm there are zero prompts. Then `rm -rf /root/.claude/projects` so learners don't inherit your session transcripts, and only then save the image.
 
 ## What the script installs
 
