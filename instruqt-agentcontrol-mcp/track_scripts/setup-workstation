@@ -149,6 +149,7 @@ LD_TOKEN_JSON=$(curl -sS -w '\n%{http_code}' -X POST \
     --arg proj "${LD_PROJECT_KEY}" \
     '{
        name: $name,
+       serviceToken: true,
        inlineRole: ((
          [
            "proj/\($proj)",
@@ -171,20 +172,12 @@ case "$LD_TOKEN_HTTP" in
   201|200) : ;;
   403)
     echo "" >&2
-    echo "FATAL: LAUNCHDARKLY_ACCESS_TOKEN cannot create API tokens (403)." >&2
-    echo "" >&2
-    echo "  This track mints a per-lab, project-scoped token at startup. Only an" >&2
-    echo "  ADMIN token can call POST /api/v2/tokens — a Writer token gets 403." >&2
-    echo "  The Terraform apply above succeeded because Writer is enough for that," >&2
-    echo "  which is why this is the first thing to fail." >&2
-    echo "" >&2
-    echo "  Fix: set the LAUNCHDARKLY_ACCESS_TOKEN Instruqt secret to an Admin token." >&2
-    echo "" >&2
+    echo "FATAL: could not mint the per-lab LaunchDarkly token (403)." >&2
     echo "  LaunchDarkly said: $(printf '%s' "$LD_TOKEN_JSON" | head -c 500)" >&2
     echo "" >&2
-    echo "  If the token IS Admin, the message above is the real reason. Common" >&2
-    echo "  causes: it is a personal token whose member is not an Admin, or the" >&2
-    echo "  account restricts creating tokens that carry an inline role." >&2
+    echo "  The operator token needs permission to create access tokens. Note that" >&2
+    echo "  a SERVICE token can only create other service tokens — which is why the" >&2
+    echo "  request above sets serviceToken: true. Do not remove that field." >&2
     echo "" >&2
     exit 1 ;;
   *)
