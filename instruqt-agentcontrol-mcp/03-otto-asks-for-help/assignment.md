@@ -1,6 +1,6 @@
 ---
 slug: otto-asks-for-help
-id: nullxuvqcvax
+id: oyl7cnyoc4uq
 type: challenge
 title: Otto Asks for Help
 teaser: Ship Otto's confident answers, hold his borderline ones for a human, and suppress
@@ -13,21 +13,21 @@ notes:
     the building. The thresholds live in a LaunchDarkly flag, so you can retune how
     cautious Otto is without redeploying anything.'
 tabs:
-- id: ysu6x0nqxlji
+- id: 7m4hnyaj4k8l
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: utyv2qnadkoc
+- id: xpusl1cvwlro
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: 5sire75mgqxg
+- id: bswkkmilyxrs
   title: Code Editor
   type: service
   hostname: workstation
   port: 8080
-- id: 45egy5vlatni
+- id: pbriyqddh9ml
   title: Staff Review
   type: service
   hostname: workstation

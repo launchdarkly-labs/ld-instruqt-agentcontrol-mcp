@@ -1,6 +1,6 @@
 ---
-slug: welcome
-id: brm96icoe8k8
+slug: meet-togglewear
+id: x586d5owsnje
 type: challenge
 title: Welcome to ToggleWear
 teaser: Meet ToggleWear, meet Otto-to-be, and connect your coding agent to LaunchDarkly.

@@ -81,16 +81,19 @@ fi
 # The audience is the accounts.google.com:oaud claim in the role's trust policy.
 # It is not a secret, so it has a default.
 # ---------------------------------------------------------------------------
+# Both values are identifiers, not credentials, so they live here rather than in
+# an Instruqt secret. The role can only be assumed by the GCP service account
+# pinned in its trust policy (accounts.google.com:sub), so publishing the ARN
+# grants nobody anything. An env var still wins if one is set, which is how you
+# point a lab at a different account without editing this file.
+LD_BEDROCK_ROLE_ARN_DEFAULT="arn:aws:iam::955116512041:role/RoleForAccessFromInstruqt"
 cat > /etc/bedrock-federation.env <<EOF
-export BEDROCK_ROLE_ARN="${BEDROCK_ROLE_ARN:-}"
+export BEDROCK_ROLE_ARN="${BEDROCK_ROLE_ARN:-$LD_BEDROCK_ROLE_ARN_DEFAULT}"
 export BEDROCK_JWT_AUDIENCE="${BEDROCK_JWT_AUDIENCE:-instruqt-agentcontrol}"
 EOF
 chmod 600 /etc/bedrock-federation.env
-if [ -z "${BEDROCK_ROLE_ARN:-}" ]; then
-    echo "WARNING: BEDROCK_ROLE_ARN secret is not set. Bedrock will not work, so" >&2
-    echo "         Claude Code has no model and Otto cannot answer. Everything" >&2
-    echo "         else still runs. Add the secret in Instruqt to fix." >&2
-fi
+. /etc/bedrock-federation.env
+echo "Bedrock role: ${BEDROCK_ROLE_ARN}"
 
 # ---------------------------------------------------------------------------
 # Self-heal the tool layer.
