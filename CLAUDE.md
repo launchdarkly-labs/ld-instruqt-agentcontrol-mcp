@@ -137,7 +137,9 @@ Each `patch-server.py` is idempotent via a `SIGNATURE` string, and the two funct
 
 `track.yml` uses `default_layout: AssignmentRight` and `default_layout_sidebar_size: 25` to match the reference. Do not carry a `checksum` over from another track; the CLI regenerates it.
 
-**`machine_type` is `n1-standard-4`, up from the reference's `n1-standard-2`.** This track runs code-server, uvicorn, the evaluator-tracker traffic loop, and Claude Code on one box, and Claude Code alone wants 4 GB.
+**VM size is `cpus: 4` / `memory: 16384`.** This track runs code-server, uvicorn, the evaluator-tracker traffic loop, and Claude Code on one box, and Claude Code alone wants 4 GB.
+
+**Size the VM with `cpus` and `memory`, never `machine_type`.** `config.yml` version 3 does not have a `machine_type` field. `instruqt track validate` and `push` both accept it silently as an unknown key, and then the track fails to provision with nothing more specific than "Unable to start track, please try again." Removing it is what surfaces the real schema error: `virtualmachines: cpus: cannot be blank; memory: cannot be blank`. The upstream reference track carried a `machine_type` line and no size, which is worth knowing if you ever try to start it.
 
 **Don't put comments in `config.yml`.** Instruqt strips them on push, which leaves a permanent local/remote delta and makes every subsequent `instruqt track push` fail the delta check until you pull. It also normalizes `track.yml` — expect it to append team members to `developers:`. Adopt those changes locally (`instruqt track pull`) rather than fighting them.
 

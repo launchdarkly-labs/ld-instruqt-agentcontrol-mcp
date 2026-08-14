@@ -6,7 +6,8 @@ virtualmachines:
 - name: workstation
   image: launchdarkly/workshop-ai-configs
   shell: /bin/bash
-  machine_type: n1-standard-4
+  cpus: 4
+  memory: 16384
 secrets:
 - name: AWS_ACCESS_KEY_ID
 - name: AWS_SECRET_ACCESS_KEY
