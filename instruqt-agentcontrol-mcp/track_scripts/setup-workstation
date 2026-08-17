@@ -316,39 +316,66 @@ sed -i 's|^AWS_REGION=.*|AWS_REGION='"${AWS_REGION}"'|g' "$APP_ENV"
 # Non-fatal on purpose: if the IAM principal behind the AWS secrets cannot write
 # these tables, the tab stays broken and the rest of the lab is unaffected.
 # ---------------------------------------------------------------------------
+# boto3, not the `aws` CLI. Nothing else in this lab shells out to the CLI --
+# Bedrock goes through boto3 -- so the CLI is not guaranteed to be on the image,
+# and a missing binary fails both writes identically and silently. boto3 is
+# guaranteed: the app venv imports it, and check-image.sh asserts that.
+#
+# `env -u AWS_PROFILE` rather than `AWS_PROFILE=`: the image exports
+# AWS_PROFILE=BedrockProfile for Bedrock, and an empty-string profile is not
+# reliably treated as "unset" by botocore. Removing the variable outright makes
+# boto3 fall through to AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from the
+# Instruqt secrets, which is the principal that can write these tables.
 provision_ld_login() {
-    LOGIN_API="https://nfiaf3w10f.execute-api.us-east-2.amazonaws.com/production/login"
-    LOGIN_SECRET="$(openssl rand -hex 16)"
-    # Comfortably beyond the track's time limit so the link outlives the lab.
-    LOGIN_EXPIRES="$(( $(date +%s) + 21600 ))"
-    LOGIN_EMAIL="instruqt+${LD_PROJECT_KEY}@launchdarkly.com"
+    PY=/opt/ld/ai-configs-intro/app/.venv/bin/python3
+    [ -x "$PY" ] || PY=python3
 
-    # AWS_PROFILE is exported on the image for Bedrock. Unset it here so the CLI
-    # uses AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from the Instruqt secrets.
-    AWS_PROFILE= aws dynamodb put-item \
-      --region us-east-2 \
-      --table-name instruqt-workshop-production-users \
-      --item "$(jq -n \
-        --arg pid "$LD_PROJECT_KEY" --arg secret "$LOGIN_SECRET" \
-        --arg exp "$LOGIN_EXPIRES" --arg email "$LOGIN_EMAIL" \
-        '{ProjectId: {S: $pid},
-          ProjectKey: {S: $pid},
-          ProjectName: {S: ("instruqt-workshop - " + $pid)},
-          LoginSecret: {S: $secret},
-          LoginExpiresAt: {N: $exp},
-          LoginEmail: {S: $email},
-          StudentEmail: {S: "workshops@launchdarkly.com"},
-          StudentOrganizationKey: {S: "workshop-org"}}')" || return 1
+    env -u AWS_PROFILE \
+        LD_PROJECT_KEY="$LD_PROJECT_KEY" \
+        SANDBOX_ID="$_SANDBOX_ID" \
+        "$PY" - <<'PY'
+import hashlib, hmac, os, secrets, sys, time
+import boto3
 
-    SIG="$(printf '%s' "${LD_PROJECT_KEY}.${LOGIN_EXPIRES}" \
-      | openssl dgst -sha256 -hmac "$LOGIN_SECRET" -hex | awk '{print $NF}')"
-    LOGIN_URL="${LOGIN_API}?id=${LD_PROJECT_KEY}&expires=${LOGIN_EXPIRES}&token=${SIG}"
+project = os.environ["LD_PROJECT_KEY"]
+sandbox = os.environ["SANDBOX_ID"]
+if not project or not sandbox:
+    sys.exit(f"empty key: project={project!r} sandbox={sandbox!r}")
 
-    AWS_PROFILE= aws dynamodb put-item \
-      --region us-east-2 \
-      --table-name instruqt-workshop-production-sandbox \
-      --item "$(jq -n --arg sb "$_SANDBOX_ID" --arg pid "$LD_PROJECT_KEY" --arg url "$LOGIN_URL" \
-        '{SandboxId: {S: $sb}, ProjectId: {S: $pid}, LoginUrl: {S: $url}}')" || return 1
+login_api = "https://nfiaf3w10f.execute-api.us-east-2.amazonaws.com/production/login"
+login_secret = secrets.token_hex(16)
+# Comfortably beyond the track's time limit so the link outlives the lab.
+expires = int(time.time()) + 21600
+
+ddb = boto3.client("dynamodb", region_name="us-east-2")
+
+ddb.put_item(
+    TableName="instruqt-workshop-production-users",
+    Item={
+        "ProjectId": {"S": project},
+        "ProjectKey": {"S": project},
+        "ProjectName": {"S": f"instruqt-workshop - {project}"},
+        "LoginSecret": {"S": login_secret},
+        "LoginExpiresAt": {"N": str(expires)},
+        "LoginEmail": {"S": f"instruqt+{project}@launchdarkly.com"},
+        "StudentEmail": {"S": "workshops@launchdarkly.com"},
+        "StudentOrganizationKey": {"S": "workshop-org"},
+    },
+)
+
+sig = hmac.new(
+    login_secret.encode(), f"{project}.{expires}".encode(), hashlib.sha256
+).hexdigest()
+
+ddb.put_item(
+    TableName="instruqt-workshop-production-sandbox",
+    Item={
+        "SandboxId": {"S": sandbox},
+        "ProjectId": {"S": project},
+        "LoginUrl": {"S": f"{login_api}?id={project}&expires={expires}&token={sig}"},
+    },
+)
+PY
 }
 
 if provision_ld_login; then
@@ -356,9 +383,9 @@ if provision_ld_login; then
 else
     echo "WARNING: could not provision the LaunchDarkly UI tab. It will time out" >&2
     echo "         and show 502; everything else in the lab still works." >&2
-    echo "         This IAM principal needs dynamodb:PutItem and DeleteItem on" >&2
-    echo "         the two instruqt-workshop tables:" >&2
-    echo "         $(AWS_PROFILE= aws sts get-caller-identity --query Arn --output text 2>&1 | head -1)" >&2
+    echo "         The boto3 traceback above names the cause. Identity in use:" >&2
+    env -u AWS_PROFILE /opt/ld/ai-configs-intro/app/.venv/bin/python3 -c \
+      'import boto3;print("        ",boto3.client("sts").get_caller_identity()["Arn"])' >&2 2>&1 || true
 fi
 
 # ---------------------------------------------------------------------------

@@ -527,3 +527,22 @@ The metadata endpoint is simply not reachable from the sandbox. No role ARN, aud
 **Trade-off, accepted deliberately:** long-lived keys land on a box the learner has a root shell on, so a learner can read them. Federated short-lived credentials would be better. Mitigations: scope the IAM user to Bedrock invoke on the workshop's inference profiles and nothing else, and treat the keys as rotatable. `gcp-federation/` stays in the repo as documentation of the intended posture and for any environment where metadata *is* reachable.
 
 **Consequence:** `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are now load-bearing rather than declared-but-unused, and `app/server.py`'s `profile_name="BedrockProfile"` finally resolves to something real.
+
+---
+
+## The LaunchDarkly UI tab is provisioned by writing two DynamoDB rows, with boto3 rather than the AWS CLI (2026-08-17)
+
+**Decision:** `track_scripts/setup-workstation` writes a row to `instruqt-workshop-production-users` and one to `instruqt-workshop-production-sandbox`; `cleanup-workstation` deletes both. Both use **boto3 via the app venv's python**, not `aws` CLI subcommands, and both clear `AWS_PROFILE` with `env -u AWS_PROFILE` rather than `AWS_PROFILE=`.
+
+**How the tab actually works,** since nothing documented it: the virtual browser opens a redirector lambda with `?sandboxId=${_SANDBOX_ID}`. That lambda polls the sandbox table for a matching row, then `301`s to the `LoginUrl` stored in it. The login lambda validates `token` as `HMAC-SHA256(LoginSecret, "<ProjectId>.<expires>")`, looks the project up in the users table, and returns a page that auto-POSTs a signed SAML assertion. **On a missing row it polls for a full 60 seconds and then returns a 502** — measured at `1:00.39`.
+
+**Two things this makes load-bearing:**
+
+- **`LoginExpiresAt` must be unix *seconds*.** Milliseconds fail.
+- **The SAML recipient is hardcoded** to account `652d7d3060d93a12fccd6e2e` (cert: "LaunchDarkly Workshop IdP", issued 2023-10-16). The assertion carries *only* an email — no role or project attributes — so LaunchDarkly auto-provisions the member into that one account. The tab therefore only works while `LAUNCHDARKLY_ACCESS_TOKEN` belongs to that same account. It does: the secret was created 2023-10-16, hours after the cert, and is described as "Specific to the workshops@launchdarkly.com account." **Repointing that secret at another account — a trial account, say — silently signs learners into an account with no project in it.** That is the constraint to check first if the tab ever shows a logged-in-but-empty LaunchDarkly.
+
+**Why boto3 and not the CLI:** nothing else in this lab shells out to `aws` — Bedrock goes through boto3 — so the CLI is not guaranteed to be on the image. A missing binary fails *both* writes identically, which is exactly the symptom observed: a live lab with neither row present. boto3 is guaranteed; `check-image.sh` asserts `import boto3`. `env -u` rather than `AWS_PROFILE=` because the image exports `AWS_PROFILE=BedrockProfile` and botocore does not reliably treat an empty-string profile as unset.
+
+**A diagnostic trap worth naming:** the 502 body is `Internal Server Error`, and Firefox's JSON viewer renders that on a dark background. Read as "the tab is black," it looks like the *login* page, which is genuinely `background-color:black` with a "Logging in..." spinner. Those two states are one keystroke apart in appearance and opposite in meaning — one is "no row was written," the other is "everything worked." Check the URL bar's `sandboxId` against the tables before theorising.
+
+**A wrong turn, recorded:** `aws-bedrock-workshop` looked like the workstation's IAM principal and holds a Bedrock-only policy, so "the writes are being denied" was an attractive story. `iam get-access-key-last-used` disproved it — the key that had hit Bedrock that day belonged to `instruqt-api`, which has `AdministratorAccess`. Permissions were never involved. One read-only API call beat the inference.

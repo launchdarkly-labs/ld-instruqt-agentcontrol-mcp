@@ -15,21 +15,38 @@ rm -f /opt/ld/ai-configs-intro/app/.mcp.json /opt/ld/.lab-token-id
 # grants a SAML login — so leaving it behind is leaving a live credential.
 #
 # Both are keyed by ids belonging to this sandbox, so nothing else is touched.
-# AWS_PROFILE is unset so the CLI uses the Instruqt AWS secrets rather than the
-# Bedrock profile baked into the image.
+#
+# boto3 rather than the `aws` CLI, and `env -u AWS_PROFILE` rather than
+# `AWS_PROFILE=`, for the same reasons as the matching block in
+# setup-workstation. Getting this wrong here is worse than there: a delete that
+# silently no-ops leaves a live LoginSecret in a shared production table.
 LD_PROJECT_KEY="${LD_PROJECT_KEY:-$(grep -m1 '^LD_PROJECT_KEY=' /opt/ld/ai-configs-intro/app/.env 2>/dev/null | cut -d= -f2-)}"
 
-if [ -n "${LD_PROJECT_KEY:-}" ]; then
-    AWS_PROFILE= aws dynamodb delete-item --region us-east-2 \
-      --table-name instruqt-workshop-production-users \
-      --key "{\"ProjectId\":{\"S\":\"${LD_PROJECT_KEY}\"}}" || true
-fi
+PY=/opt/ld/ai-configs-intro/app/.venv/bin/python3
+[ -x "$PY" ] || PY=python3
 
-if [ -n "${_SANDBOX_ID:-}" ]; then
-    AWS_PROFILE= aws dynamodb delete-item --region us-east-2 \
-      --table-name instruqt-workshop-production-sandbox \
-      --key "{\"SandboxId\":{\"S\":\"${_SANDBOX_ID}\"}}" || true
-fi
+env -u AWS_PROFILE \
+    LD_PROJECT_KEY="${LD_PROJECT_KEY:-}" \
+    SANDBOX_ID="${_SANDBOX_ID:-}" \
+    "$PY" - <<'PY' || echo "WARNING: could not remove the SSO login rows; a LoginSecret may be left behind." >&2
+import os
+import boto3
+
+ddb = boto3.client("dynamodb", region_name="us-east-2")
+project = os.environ.get("LD_PROJECT_KEY") or ""
+sandbox = os.environ.get("SANDBOX_ID") or ""
+
+if project:
+    ddb.delete_item(
+        TableName="instruqt-workshop-production-users",
+        Key={"ProjectId": {"S": project}},
+    )
+if sandbox:
+    ddb.delete_item(
+        TableName="instruqt-workshop-production-sandbox",
+        Key={"SandboxId": {"S": sandbox}},
+    )
+PY
 
 cd /opt/ld/terraform-ld-student
 terraform destroy -auto-approve
