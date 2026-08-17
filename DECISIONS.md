@@ -527,23 +527,3 @@ The metadata endpoint is simply not reachable from the sandbox. No role ARN, aud
 **Trade-off, accepted deliberately:** long-lived keys land on a box the learner has a root shell on, so a learner can read them. Federated short-lived credentials would be better. Mitigations: scope the IAM user to Bedrock invoke on the workshop's inference profiles and nothing else, and treat the keys as rotatable. `gcp-federation/` stays in the repo as documentation of the intended posture and for any environment where metadata *is* reachable.
 
 **Consequence:** `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are now load-bearing rather than declared-but-unused, and `app/server.py`'s `profile_name="BedrockProfile"` finally resolves to something real.
-
----
-
-## No LaunchDarkly UI tab (2026-08-17)
-
-**Decision:** `config.yml` has no `virtualbrowsers` block. The track has two tabs (ToggleWear, Code Editor) plus a third on the review chapter. Learners inspect what they built by asking the agent.
-
-**Why, traced to the bottom.** The inherited tab pointed at a Lambda URL that returned 502. The chain:
-
-1. `instruqt-login-redirector` (AWS account 955116512041, us-east-2) reads `sandboxId`, then polls DynamoDB table `instruqt-workshop-production-sandbox` for up to **60 seconds** waiting for a row, then 301-redirects to that row's `LoginUrl`. No row means it hits its 60s timeout, which the Lambda URL surfaces as a 502.
-2. The rows are written by a separate workshop-provisioning pipeline. Each holds a `ProjectId` that is a pet name (`organic-zebra`, `major-toad`) and a signed `LoginUrl` on an API Gateway in a **different AWS account**.
-3. **Those pet-name projects are not in the LaunchDarkly account this track provisions into.** The login service signs learners into a separate, dedicated workshop LaunchDarkly account.
-
-So the tab could not work for this track even with the lambda healthy: it would sign the learner into an account that does not contain the `agentcontrol-intro-<sandbox>` project our Terraform creates. They would see someone else's project and none of their own work.
-
-**Not fixable by copying the lambda.** The redirector is trivial; what is missing is the row, and producing one means adopting the whole provisioning pipeline — pet-name project in the workshop account plus a token signed by a service in another AWS account. That would mean abandoning `terraform/student-bootstrap` in favour of theirs. Possibly the right long-term move; out of scope here.
-
-**A correction worth recording.** I first concluded "the lambda is broken for everyone" from a bare `curl` with no query string. That request crashed on `Cannot read properties of undefined (reading 'sandboxId')` — I had tested it wrong and drew a conclusion from my own malformed request. The real failure with a valid sandbox id is a silent 60-second hang. Same verdict, wrong reasoning, and the wrong reasoning would have sent someone to fix the wrong thing.
-
-**Consequence:** the challenge-03 payoff reads scores back through the agent (`list-metric-events`), which suits a track whose premise is driving LaunchDarkly from your agent better than a UI detour did.

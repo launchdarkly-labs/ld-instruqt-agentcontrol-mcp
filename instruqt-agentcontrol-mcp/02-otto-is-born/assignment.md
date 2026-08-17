@@ -12,6 +12,10 @@ notes:
     few lines of server code that bring him to life. By the end of this challenge,
     Otto will say his first words from the ToggleWear storefront.
 tabs:
+- id: zxczmhyu7yzr
+  title: LaunchDarkly
+  type: browser
+  hostname: launchdarkly
 - id: jc5dtsgchozh
   title: ToggleWear
   type: service
@@ -29,7 +33,7 @@ enhanced_loading: null
 
 # Meet Otto
 
-ToggleWear wants an AI shopping assistant on the storefront, and we're going to build it. We've named him Otto. Right now he's a placeholder — the chat widget on the [ToggleWear](#tab-0) tab returns a canned "not wired up yet" line. We're going to fix that.
+ToggleWear wants an AI shopping assistant on the storefront, and we're going to build it. We've named him Otto. Right now he's a placeholder — the chat widget on the [ToggleWear](#tab-1) tab returns a canned "not wired up yet" line. We're going to fix that.
 
 By the end of this challenge:
 
@@ -52,7 +56,7 @@ You could click all of that together in the UI. Instead, describe it once and le
 | Model | `anthropic.claude-haiku-4-5-20251001-v1:0` on Bedrock |
 | Default rule, Test env | serve `otto-born` |
 
-Go back to your `claude` session in the [Code Editor](#tab-1) tab and paste this:
+Go back to your `claude` session in the [Code Editor](#tab-2) tab and paste this:
 
 ```
 In my LaunchDarkly project, create an AgentControl config named "Otto Assistant" with key otto-assistant in completion mode.
@@ -85,7 +89,7 @@ The keys matter. The app looks up `otto-assistant` by key, and the next challeng
 Two things worth noticing when it finishes:
 
 - That last instruction is the one people forget. A new Config serves a built-in "disabled" variation until you point the default rule somewhere, so a Config with a perfectly good variation still returns nothing.
-- Nothing it built is special because an agent built it. It's an ordinary Config, exactly what you'd get by clicking — which is the point. You'll read it back through the agent in a moment rather than in the UI.
+- Nothing it built is special because an agent built it. It's an ordinary Config, the same one you'd get by clicking — which is the point. If the [LaunchDarkly](#tab-0) tab signs you in, you can see it under **Agents → Configs**; that tab relies on a sandbox sign-in service that isn't always up, so the next section reads the Config back through the agent instead.
 
 # Check its work
 
@@ -101,7 +105,7 @@ This is worth doing every time, not just here. Verifying is the habit; the promp
 
 # Wire Otto into the app
 
-Open the [Code Editor](#tab-1) tab. Open `server.py`.
+Open the [Code Editor](#tab-2) tab. Open `server.py`.
 
 You could ask Claude Code to write this part too. We're pasting it by hand because the SDK calls are the part worth reading — this is the whole surface area of talking to AgentControl from an application, and it's about a dozen lines.
 
@@ -187,7 +191,7 @@ That's the shape worth remembering: LaunchDarkly decides *what* to send, your co
 
 # Say hi to Otto
 
-Open the [ToggleWear](#tab-0) tab. Click **Chat with Otto** in the bottom-right. Ask him something — try:
+Open the [ToggleWear](#tab-1) tab. Click **Chat with Otto** in the bottom-right. Ask him something — try:
 
 ```text
 Got any t-shirts?

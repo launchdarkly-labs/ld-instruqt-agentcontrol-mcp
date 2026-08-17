@@ -13,6 +13,10 @@ notes:
     the building. The thresholds live in a LaunchDarkly flag, so you can retune how
     cautious Otto is without redeploying anything.'
 tabs:
+- id: 7m4hnyaj4k8l
+  title: LaunchDarkly
+  type: browser
+  hostname: launchdarkly
 - id: xpusl1cvwlro
   title: ToggleWear
   type: service
@@ -84,7 +88,7 @@ Two things to confirm, both of which fail quietly. The variation values have to 
 
 # Wire the gate
 
-Open `app/server.py` in the [Code Editor](#tab-1) and find this function:
+Open `app/server.py` in the [Code Editor](#tab-2) and find this function:
 
 ```python
 def gate_response(
@@ -160,7 +164,7 @@ Read the `score is None` branch again before you move on. That's the failure mod
 
 # Watch it work
 
-Open the [ToggleWear](#tab-0) tab and talk to Otto until you land in the middle band. Ask him something he'll answer stiffly and briefly:
+Open the [ToggleWear](#tab-1) tab and talk to Otto until you land in the middle band. Ask him something he'll answer stiffly and briefly:
 
 ```text
 What is your return policy?
@@ -169,8 +173,8 @@ What is your return policy?
 Otto knows the policy but states it flatly, which is exactly what lands in the middle band. A few tries should get you a hold. When one does:
 
 1. The chat shows *"One moment — I'm having a colleague double-check this before I send it."*
-2. Switch to the [Staff Review](#tab-2) tab. Otto's proposed answer is waiting there with its score and the customer's question.
-3. Warm it up — edit the text — then click **Approve**. Switch back to [ToggleWear](#tab-0) and within a few seconds your edit appears in the customer's chat.
+2. Switch to the [Staff Review](#tab-3) tab. Otto's proposed answer is waiting there with its score and the customer's question.
+3. Warm it up — edit the text — then click **Approve**. Switch back to [ToggleWear](#tab-1) and within a few seconds your edit appears in the customer's chat.
 4. Get another hold and click **Reject** instead. The customer gets the support fallback pointing at the team.
 
 Notice what the two tabs are doing. Same browser, same person, but a shopper and a support agent are different roles with different authority, and the response crosses between them before it reaches anyone. That crossing is the whole chapter.
@@ -193,4 +197,4 @@ Change it back to **Balanced** when you've seen enough.
 
 Click **Check** when the flag exists and the gate is wired.
 
-<!-- VERIFY: confirm an Instruqt service tab accepts a `path:` key to open /review directly. If it doesn't, the learner has to navigate from the storefront's Staff Review link instead, and this tab plus the #tab-2 references need rewording. -->
+<!-- VERIFY: confirm an Instruqt service tab accepts a `path:` key to open /review directly. If it doesn't, the learner has to navigate from the storefront's Staff Review link instead, and this tab plus the #tab-3 references need rewording. -->
