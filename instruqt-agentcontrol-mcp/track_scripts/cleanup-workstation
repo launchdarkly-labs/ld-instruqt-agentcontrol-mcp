@@ -10,5 +10,26 @@ fi
 
 rm -f /opt/ld/ai-configs-intro/app/.mcp.json /opt/ld/.lab-token-id
 
+# Remove the SSO login records this lab wrote for the LaunchDarkly UI tab. These
+# live in shared production tables, and the user record holds a LoginSecret that
+# grants a SAML login — so leaving it behind is leaving a live credential.
+#
+# Both are keyed by ids belonging to this sandbox, so nothing else is touched.
+# AWS_PROFILE is unset so the CLI uses the Instruqt AWS secrets rather than the
+# Bedrock profile baked into the image.
+LD_PROJECT_KEY="${LD_PROJECT_KEY:-$(grep -m1 '^LD_PROJECT_KEY=' /opt/ld/ai-configs-intro/app/.env 2>/dev/null | cut -d= -f2-)}"
+
+if [ -n "${LD_PROJECT_KEY:-}" ]; then
+    AWS_PROFILE= aws dynamodb delete-item --region us-east-2 \
+      --table-name instruqt-workshop-production-users \
+      --key "{\"ProjectId\":{\"S\":\"${LD_PROJECT_KEY}\"}}" || true
+fi
+
+if [ -n "${_SANDBOX_ID:-}" ]; then
+    AWS_PROFILE= aws dynamodb delete-item --region us-east-2 \
+      --table-name instruqt-workshop-production-sandbox \
+      --key "{\"SandboxId\":{\"S\":\"${_SANDBOX_ID}\"}}" || true
+fi
+
 cd /opt/ld/terraform-ld-student
 terraform destroy -auto-approve

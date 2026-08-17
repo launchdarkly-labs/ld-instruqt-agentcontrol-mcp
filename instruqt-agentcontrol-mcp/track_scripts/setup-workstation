@@ -284,6 +284,84 @@ sed -i 's|^LD_API_TOKEN=.*|LD_API_TOKEN='"${LD_API_TOKEN}"'|g' "$APP_ENV"
 sed -i 's|^AWS_REGION=.*|AWS_REGION='"${AWS_REGION}"'|g' "$APP_ENV"
 
 # ---------------------------------------------------------------------------
+# LaunchDarkly UI tab: provision this sandbox's SSO login.
+#
+# The `launchdarkly` virtual browser points at instruqt-login-redirector, which
+# polls DynamoDB for a row keyed by sandbox id and redirects to that row's
+# LoginUrl. Nothing wrote a row for our sandboxes, so the tab used to hang for
+# 60 seconds and return 502. We write the two records it needs.
+#
+# The scheme, verified end to end against the live endpoint on 2026-08-17:
+#   * a user record in instruqt-workshop-production-users, keyed on ProjectId,
+#     holding LoginSecret / LoginExpiresAt / LoginEmail;
+#   * a row in instruqt-workshop-production-sandbox mapping SandboxId to
+#     {ProjectId, LoginUrl};
+#   * LoginUrl = <api>/production/login?id=<ProjectId>&expires=<unix SECONDS>
+#     &token=HMAC-SHA256(LoginSecret, "<ProjectId>.<expires>") in hex.
+#
+# `expires` is SECONDS, not milliseconds, even though the handler does
+# `new Date(expires)`. Do not "correct" it: the handler also requires the value
+# to be in the past when read as milliseconds, and a 10-digit seconds value
+# satisfies that while a 13-digit millisecond value does not. Seconds is what
+# the existing rows use and what works.
+#
+# This works only because the lab provisions into the same LaunchDarkly account
+# the SAML recipient targets (652d7d3060...). If LAUNCHDARKLY_ACCESS_TOKEN is
+# ever repointed at another account, the tab silently signs learners into an
+# account without their project in it.
+#
+# These are shared production tables used by other workshops. We only ever write
+# rows keyed by this sandbox's own ids, and cleanup-workstation deletes both.
+#
+# Non-fatal on purpose: if the IAM principal behind the AWS secrets cannot write
+# these tables, the tab stays broken and the rest of the lab is unaffected.
+# ---------------------------------------------------------------------------
+provision_ld_login() {
+    LOGIN_API="https://nfiaf3w10f.execute-api.us-east-2.amazonaws.com/production/login"
+    LOGIN_SECRET="$(openssl rand -hex 16)"
+    # Comfortably beyond the track's time limit so the link outlives the lab.
+    LOGIN_EXPIRES="$(( $(date +%s) + 21600 ))"
+    LOGIN_EMAIL="instruqt+${LD_PROJECT_KEY}@launchdarkly.com"
+
+    # AWS_PROFILE is exported on the image for Bedrock. Unset it here so the CLI
+    # uses AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from the Instruqt secrets.
+    AWS_PROFILE= aws dynamodb put-item \
+      --region us-east-2 \
+      --table-name instruqt-workshop-production-users \
+      --item "$(jq -n \
+        --arg pid "$LD_PROJECT_KEY" --arg secret "$LOGIN_SECRET" \
+        --arg exp "$LOGIN_EXPIRES" --arg email "$LOGIN_EMAIL" \
+        '{ProjectId: {S: $pid},
+          ProjectKey: {S: $pid},
+          ProjectName: {S: ("instruqt-workshop - " + $pid)},
+          LoginSecret: {S: $secret},
+          LoginExpiresAt: {N: $exp},
+          LoginEmail: {S: $email},
+          StudentEmail: {S: "workshops@launchdarkly.com"},
+          StudentOrganizationKey: {S: "workshop-org"}}')" || return 1
+
+    SIG="$(printf '%s' "${LD_PROJECT_KEY}.${LOGIN_EXPIRES}" \
+      | openssl dgst -sha256 -hmac "$LOGIN_SECRET" -hex | awk '{print $NF}')"
+    LOGIN_URL="${LOGIN_API}?id=${LD_PROJECT_KEY}&expires=${LOGIN_EXPIRES}&token=${SIG}"
+
+    AWS_PROFILE= aws dynamodb put-item \
+      --region us-east-2 \
+      --table-name instruqt-workshop-production-sandbox \
+      --item "$(jq -n --arg sb "$_SANDBOX_ID" --arg pid "$LD_PROJECT_KEY" --arg url "$LOGIN_URL" \
+        '{SandboxId: {S: $sb}, ProjectId: {S: $pid}, LoginUrl: {S: $url}}')" || return 1
+}
+
+if provision_ld_login; then
+    echo "LaunchDarkly UI tab provisioned for sandbox ${_SANDBOX_ID}."
+else
+    echo "WARNING: could not provision the LaunchDarkly UI tab. It will time out" >&2
+    echo "         and show 502; everything else in the lab still works." >&2
+    echo "         This IAM principal needs dynamodb:PutItem and DeleteItem on" >&2
+    echo "         the two instruqt-workshop tables:" >&2
+    echo "         $(AWS_PROFILE= aws sts get-caller-identity --query Arn --output text 2>&1 | head -1)" >&2
+fi
+
+# ---------------------------------------------------------------------------
 # Point Claude Code at the LaunchDarkly MCP server.
 #
 # The token is written literally rather than as ${LD_API_TOKEN}. code-server
