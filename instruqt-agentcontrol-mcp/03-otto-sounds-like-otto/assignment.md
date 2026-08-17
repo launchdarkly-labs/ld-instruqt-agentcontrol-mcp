@@ -150,6 +150,16 @@ def score_response(
             else:
                 bv_messages.append({"role": m.role, "content": [{"text": m.content}]})
 
+        # Bedrock's Converse API requires the conversation to start with a user
+        # turn. A LaunchDarkly judge variation normally carries only a system
+        # message — the answer being judged is interpolated into it as
+        # {{response}} — so bv_messages is empty here and the call would fail with
+        # ValidationException: "A conversation must start with a user message."
+        if not bv_messages:
+            bv_messages = [
+                {"role": "user", "content": [{"text": "Score the response. Reply with only the number."}]}
+            ]
+
         bv_kwargs = {
             "modelId": resolve_bedrock_model(bv_cfg.model.name),
             "messages": bv_messages,

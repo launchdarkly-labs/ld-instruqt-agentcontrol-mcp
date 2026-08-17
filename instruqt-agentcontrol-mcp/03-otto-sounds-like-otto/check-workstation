@@ -111,7 +111,11 @@ curl -s --max-time 60 -o /dev/null -X POST 'http://localhost:3000/chat' \
   --data-raw '{"message":"What is your return policy?","user_tier":"free","session_id":"check-ch02"}'
 
 if journalctl -u togglewear --since '-2 min' 2>/dev/null | grep -q 'Brand-voice judge eval failed'; then
-  DETAIL=$(journalctl -u togglewear --since '-2 min' 2>/dev/null | grep -A3 'Brand-voice judge eval failed' | tail -3)
+  # Grab the exception line, not the first few traceback frames — the frames
+  # say where it failed, the last line says why.
+  DETAIL=$(journalctl -u togglewear --since '-2 min' 2>/dev/null \
+    | grep -A20 'Brand-voice judge eval failed' \
+    | grep -iE 'Error|Exception|ValidationException' | tail -2)
   fail-message "The judge ran but threw an error, so no score was recorded. The app swallows judge failures on purpose, which is why Otto still replied. Details: ${DETAIL}"
   exit 1
 fi
