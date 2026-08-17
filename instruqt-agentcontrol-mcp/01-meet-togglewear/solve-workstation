@@ -1,2 +1,20 @@
 #!/bin/sh
+#
+# The learner's job in this chapter is to launch Claude Code and make one MCP
+# call. Solve has to produce the same state, and the check looks for a session
+# directory under ~/.claude/projects — which only appears once claude has run.
+#
+# `claude -p` runs headlessly, so this works with no TTY. Pinned to the cheap
+# model: this is a state-producing step, not a demonstration. Failure is
+# non-fatal so a Skip never dead-ends the learner; the check will say what's
+# still missing.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/app 2>/dev/null || cd /root
+
+timeout 120 claude -p 'Reply with exactly: ready' \
+  --model us.anthropic.claude-haiku-4-5-20251001-v1:0 \
+  >/tmp/claude-solve.log 2>&1 || echo "claude -p did not complete cleanly; see /tmp/claude-solve.log" >&2
+
 exit 0
