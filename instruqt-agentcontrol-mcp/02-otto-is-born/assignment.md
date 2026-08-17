@@ -12,7 +12,7 @@ notes:
     few lines of server code that bring him to life. By the end of this challenge,
     Otto will say his first words from the ToggleWear storefront.
 tabs:
-- id: zxczmhyu7yzr
+- id: it1g4gasa915
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly

@@ -13,7 +13,7 @@ notes:
     the building. The thresholds live in a LaunchDarkly flag, so you can retune how
     cautious Otto is without redeploying anything.'
 tabs:
-- id: 7m4hnyaj4k8l
+- id: zzlbjqrmwmlk
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly

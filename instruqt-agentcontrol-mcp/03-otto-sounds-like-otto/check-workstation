@@ -62,13 +62,18 @@ if ! printf '%s' "$SYSTEM_MSG" | grep -q '{{response}}'; then
   exit 1
 fi
 
-# The judge has to be attached to the variation it grades. The beta API version
-# is required for judgeConfiguration to appear on the variation.
+# The judge has to be attached to the variation it grades.
+#
+# Read this from the CONFIG, not from the variation path. A GET on
+# .../ai-configs/<key>/variations/<variationKey> returns HTTP 200 with a LIST
+# ({"items":[...]}), so `.judgeConfiguration` is null at the top level and an
+# attachment check against it always reads zero. Verified against the API.
+# The config GET carries judgeConfiguration on each variation.
 ATTACHED=$(curl -fsS -X GET \
-  "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/variations/otto-born" \
+  "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
   -H 'LD-API-Version: beta' 2>/dev/null \
-  | jq -r '[.judgeConfiguration.judges[]? | select(.judgeConfigKey=="otto-brand-voice-judge")] | length')
+  | jq -r '[.variations[]? | select(.key=="otto-born") | .judgeConfiguration.judges[]? | select(.judgeConfigKey=="otto-brand-voice-judge")] | length')
 
 if [ "${ATTACHED:-0}" -lt 1 ]; then
   fail-message "The judge isn't attached to Otto's **otto-born** variation, so LaunchDarkly doesn't know it grades Otto. Ask Claude Code to attach otto-brand-voice-judge to the otto-born variation of otto-assistant."

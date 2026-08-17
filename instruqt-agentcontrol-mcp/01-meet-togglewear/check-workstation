@@ -77,4 +77,19 @@ if ! printf '%s' "$MCP_TOOLS" | grep -q 'create-agentcontrol-config'; then
   exit 1
 fi
 
+# 5. The learner has actually launched Claude Code.
+#
+# Everything above verifies the lab is wired correctly, which is true before the
+# learner does anything — so on its own this check can never fail, which makes it
+# a weak gate and makes `instruqt track test` reject it ("Check completed
+# successfully, but we expect a fail here").
+#
+# Claude Code writes a per-workspace session directory under ~/.claude/projects
+# on first run. The image build deletes that directory before the image is saved,
+# so its presence means someone started `claude` in this lab.
+if [ ! -d /root/.claude/projects ] || [ -z "$(ls -A /root/.claude/projects 2>/dev/null)" ]; then
+  fail-message "You haven't started Claude Code yet. Open a terminal in the **Code Editor** tab, run \`claude\`, then ask it to list your LaunchDarkly projects."
+  exit 1
+fi
+
 exit 0

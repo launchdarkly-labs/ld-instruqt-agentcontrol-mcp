@@ -163,6 +163,13 @@ else
     echo "WARNING: ${TF_TARGET} missing; leaving ${TF_LINK} as-is" >&2
 fi
 
+# Which LaunchDarkly account is this lab actually provisioning into? The team
+# secret is described as belonging to workshops@launchdarkly.com, and knowing the
+# account id decides whether the LaunchDarkly UI tab can ever show a learner
+# their own project. Prints the id only, never the token.
+echo "LD account for this lab: $(curl -sS https://app.launchdarkly.com/api/v2/caller-identity \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" | jq -r '.accountId // "unknown"')"
+
 cd /opt/ld/terraform-ld-student
 echo "sandbox_id = \"${_SANDBOX_ID}\"" > terraform.tfvars
 terraform apply -auto-approve
