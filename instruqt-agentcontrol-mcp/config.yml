@@ -1,7 +1,4 @@
 version: "3"
-virtualbrowsers:
-- name: launchdarkly
-  url: https://i3vcudz5ncoet6xkoaqxnos7mu0sdcpz.lambda-url.us-east-2.on.aws/?sandboxId=${_SANDBOX_ID}
 virtualmachines:
 - name: workstation
   image: launchdarkly/workshop-ai-configs

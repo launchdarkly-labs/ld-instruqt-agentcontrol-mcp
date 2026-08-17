@@ -84,18 +84,21 @@ Quiz challenges have only `assignment.md` plus `exit 0` script stubs.
 
 ### `assignment.md` front-matter
 
-Three tabs on every challenge, in this order, so tab indices are stable:
+Two tabs on every challenge, in this order, so tab indices are stable:
 
 ```yaml
 tabs:
-- id: <12-char random>   # LaunchDarkly, type: browser, hostname: launchdarkly
 - id: <12-char random>   # ToggleWear, type: service, hostname: workstation, port: 3000
 - id: <12-char random>   # Code Editor, type: service, hostname: workstation, port: 8080
 ```
 
-Challenge and tab ids are random 12-character alphanumeric strings; generate fresh ones per challenge. Reference tabs by index: `[LaunchDarkly](#tab-0)`, `[ToggleWear](#tab-1)`, `[Code Editor](#tab-2)`.
+**There is no LaunchDarkly UI tab, deliberately.** See the entry in `DECISIONS.md`.
 
-**Exception:** `03-otto-asks-for-help` adds a fourth tab, "Staff Review" (`#tab-3`), pointing at the app's `/review` page. Indices 0-2 are unchanged, so no existing reference moves. See the reviewer-surface entry in `DECISIONS.md` for why the review queue is its own page rather than a panel on the storefront.
+Challenge and tab ids are random 12-character alphanumeric strings; generate fresh ones per challenge. Reference tabs by index: `[ToggleWear](#tab-0)`, `[Code Editor](#tab-1)`.
+
+**Exception:** `04-otto-asks-for-help` adds a third tab, "Staff Review" (`#tab-2`), pointing at the app's `/review` page. See the reviewer-surface entry in `DECISIONS.md`.
+
+**If you ever add or remove a tab, shift every `#tab-N` reference in one pass.** Doing it with sequential string replacements (`2→1` then `1→0`) collapses everything onto the lowest index, because the second replace also hits what the first one produced.
 
 ### `assignment.md` body voice
 

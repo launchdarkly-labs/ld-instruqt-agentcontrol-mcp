@@ -11,10 +11,6 @@ notes:
     grade him, and decide what happens when the grade comes back shaky. His name is
     going to be Otto. You'll build him by asking, not by clicking.
 tabs:
-- id: cxolrfdqvcqe
-  title: LaunchDarkly
-  type: browser
-  hostname: launchdarkly
 - id: yxorswxxav8c
   title: ToggleWear
   type: service
@@ -32,7 +28,7 @@ enhanced_loading: null
 
 # Welcome
 
-You're going to build an AI shopping assistant for **ToggleWear**, a fictional online retailer of LaunchDarkly-branded apparel. The assistant's name is **Otto**. Right now Otto doesn't exist. By the end of this track he'll be live in the [ToggleWear](#tab-1) storefront, graded on every answer by a judge you wrote, and wired to a review gate that holds his borderline answers for a human.
+You're going to build an AI shopping assistant for **ToggleWear**, a fictional online retailer of LaunchDarkly-branded apparel. The assistant's name is **Otto**. Right now Otto doesn't exist. By the end of this track he'll be live in the [ToggleWear](#tab-0) storefront, graded on every answer by a judge you wrote, and wired to a review gate that holds his borderline answers for a human.
 
 You're going to do this using **LaunchDarkly AgentControl**: prompts, models, and quality gates as runtime configuration instead of hardcoded values.
 
@@ -49,7 +45,7 @@ And you're going to do almost all of it without clicking through the LaunchDarkl
 
 # Connect to LaunchDarkly
 
-Open the [Code Editor](#tab-2) tab. Open a terminal in it — **Terminal → New Terminal** — and start the agent:
+Open the [Code Editor](#tab-1) tab. Open a terminal in it — **Terminal → New Terminal** — and start the agent:
 
 ```sh
 claude
@@ -79,9 +75,9 @@ If the agent reports an invalid access token, tell the operator — the lab's cr
 
 This track assumes you already know the LaunchDarkly basics: flags, contexts, environments, targeting rules. If you don't, the [LaunchDarkly Basics](https://launchdarkly.com) track is a better starting point.
 
-[Code Editor](#tab-2) is where you'll spend most of your time, both for Claude Code and for editing `server.py`. [ToggleWear](#tab-1) is the live storefront.
+[Code Editor](#tab-1) is where you'll spend most of your time, both for Claude Code and for editing `server.py`. [ToggleWear](#tab-0) is the live storefront.
 
-The [LaunchDarkly](#tab-0) tab is optional. It signs you into a sandbox LaunchDarkly account so you can look at what you've built, but that sign-in service isn't always available, and nothing in this track needs it — everything you create, you can also read back by asking the agent.
+There's no LaunchDarkly UI tab, and you won't need one. Everything you create, you can read back by asking the agent — which is closer to how you'd actually work anyway.
 
 # When the agent gets it wrong
 

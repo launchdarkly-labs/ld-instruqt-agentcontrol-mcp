@@ -13,10 +13,6 @@ notes:
     him to sound. Then you'll paste a small block into the server so every response
     gets graded, and watch the scores arrive.
 tabs:
-- id: laygyxjroypv
-  title: LaunchDarkly
-  type: browser
-  hostname: launchdarkly
 - id: nbxdoutcwgb6
   title: ToggleWear
   type: service
@@ -54,7 +50,7 @@ Here's the spec:
 | Attached to | `otto-assistant` / `otto-born`, sampling 100% |
 | Metric | `otto-brand-voice-score`, numeric, averaged, higher is better |
 
-Back in your `claude` session in the [Code Editor](#tab-2) tab:
+Back in your `claude` session in the [Code Editor](#tab-1) tab:
 
 ```
 In my LaunchDarkly project, create an AgentControl config named "Otto Brand Voice Judge" with key otto-brand-voice-judge in judge mode, with evaluation metric key $ld:ai:judge:otto-brand-voice-score.
@@ -107,7 +103,7 @@ Attaching the judge declared your intent. It doesn't make the judge run.
 
 Here's why: the `ldai` SDK can invoke attached judges automatically, but only through a provider plugin, and there's no Bedrock provider today. So the app fetches the judge's Config and calls Bedrock itself. Same judge, same prompt, same score — the call just originates in our code instead of the SDK's.
 
-Open the [Code Editor](#tab-2) tab and open `app/server.py`. Find this function:
+Open the [Code Editor](#tab-1) tab and open `app/server.py`. Find this function:
 
 ```python
 def score_response(
@@ -200,6 +196,6 @@ You should see scores clustered in the middle of the range rather than near 1.0.
 
 <!-- VERIFY: confirm the agent can summarise metric values, not just list event keys. If the MCP surface only exposes event keys and last-seen timestamps, cut the second prompt and keep the first. -->
 
-You can also see this in the LaunchDarkly UI under **Agents → Configs → Otto Assistant → Monitoring**, selecting **otto-brand-voice-score** from the metric dropdown. Treat that as optional: the [LaunchDarkly](#tab-0) tab depends on a sandbox sign-in service that isn't always available, and nothing in this track requires it.
+If you have your own LaunchDarkly login, the same data is under **Agents → Configs → Otto Assistant → Monitoring**, selecting **otto-brand-voice-score** from the metric dropdown. This lab doesn't sign you in, so the agent is the path here.
 
 Click **Check** when the judge is live and `server.py` invokes it.
