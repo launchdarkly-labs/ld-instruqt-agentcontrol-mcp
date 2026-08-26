@@ -93,13 +93,13 @@ Two things worth noticing when it finishes:
 
 # Check its work
 
-An agent will tell you it succeeded either way. Get it to show you:
+An agent will tell you it succeeded either way. Run the following command to see details of the Config:
 
 ```
 Show me the otto-assistant config: its mode, its variations and their keys and models, and what the Test environment is serving.
 ```
 
-You're looking for mode `completion`, one variation keyed `otto-born` on a Haiku 4.5 model, and Test serving that variation rather than the built-in disabled one. If any of those is wrong, say so and ask it to fix that specific thing — it has the tools to correct its own work.
+You're looking for mode `completion`, one variation keyed `otto-born` on a Haiku 4.5 model, and Test serving that variation rather than the built-in disabled one. If any of this information is wrong, point it out and ask it to fix it specifically. Claude has the tools to correct its own work.
 
 This is worth doing every time, not just here. Verifying is the habit; the prompt is the easy part.
 
@@ -185,7 +185,7 @@ cfg = ai_client.completion_config(OTTO_CONFIG_KEY, context, FALLBACK_CONFIG)
 
 One call, and `cfg` carries the prompt, the model, and the parameters that whoever edits the Config decided on — resolved fresh on every request, for this specific `context`. `ai_client` was built once at startup, further up the file: `ai_client = LDAIClient(ld_client)`.
 
-Everything after that call is translation. `cfg.messages` becomes Bedrock's `system` and `messages` blocks, `cfg.model.name` becomes a Bedrock model id, and `cfg.create_tracker()` gives you a tracker that reports tokens and latency back to LaunchDarkly so the Monitoring tab has something in it.
+Everything after that call is translation. `cfg.messages` becomes Bedrock's `system` and `messages` blocks, `cfg.model.name` becomes a Bedrock model ID, and `cfg.create_tracker()` gives you a tracker that reports tokens and latency back to LaunchDarkly so the Monitoring tab has something in it.
 
 That's the shape worth remembering: LaunchDarkly decides *what* to send, your code decides *how* to send it. Nothing about the prompt or the model is in this file.
 
