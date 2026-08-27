@@ -84,7 +84,7 @@ If a customer asks something these notes don't cover, say you don't know and poi
 Then set the default rule in the Test environment to serve otto-born.
 ```
 
-The keys matter. The app looks up `otto-assistant` by key, and the next challenge attaches a judge to `otto-born` by key. If the agent picks something different, tell it to use the exact keys above.
+The keys matter. The app looks up `otto-assistant` by key, and later chapters add a variation and attach a judge to `otto-born` by key. If the agent picks something different, tell it to use the exact keys above.
 
 Two things worth noticing when it finishes:
 
@@ -198,5 +198,35 @@ Got any t-shirts?
 ```
 
 Otto should answer for real this time. He'll be brief and a little robotic. That's by design: it gives the judge you're about to write something to actually complain about.
+
+# Change his mind without shipping anything
+
+Otto's prompt says free shipping starts at $50. Ask him:
+
+```text
+How much is shipping on a $40 order?
+```
+
+He'll quote you $6. Now suppose marketing drops the threshold to $35 — a one-word change to a fact a customer relies on, and in most architectures a code change, a review, and a deploy.
+
+Here it isn't. In your `claude` session:
+
+```
+In the otto-assistant AI Config, update the otto-born variation's system message: change "free shipping over $50" to "free shipping over $35". Change nothing else about the prompt.
+```
+
+Go back to [ToggleWear](#tab-1), start a **new** chat, and ask the same question. Otto now says the $40 order ships free.
+
+Nothing was rebuilt. Nothing restarted. You didn't touch `server.py` — go and look at it if you don't believe it. The prompt was never in the application; the application only ever knew how to go and ask for one.
+
+That "start a new chat" instruction is the one caveat worth understanding. `completion_config()` resolves on every request, so the change is live immediately — but Otto's earlier replies are still in his conversation history, and he'll stay consistent with what he already told you. It's a stale conversation, not a stale config.
+
+Put it back before you move on:
+
+```
+Change the otto-born system message back: free shipping over $50, not $35.
+```
+
+Leave it changed and Otto starts contradicting the storefront's own shipping copy, which is a confusing thing to debug three chapters from now.
 
 When you're satisfied, click **Check** below.

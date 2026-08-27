@@ -127,7 +127,7 @@ cd /opt/ld/ai-configs-intro/terraform/student-bootstrap
 terraform init
 
 say "Pre-initializing per-challenge terraform modules"
-for ch in challenge-01 challenge-02 challenge-03 challenge-04; do
+for ch in challenge-01 challenge-02 challenge-03 challenge-04 challenge-05; do
     (cd "/opt/ld/ai-configs-intro/terraform/${ch}" && terraform init -input=false)
 done
 

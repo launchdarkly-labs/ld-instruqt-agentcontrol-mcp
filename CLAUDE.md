@@ -10,22 +10,34 @@ A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product thr
 
 The distinguishing premise: **the learner drives LaunchDarkly through the hosted MCP server, not the UI.** Claude Code runs on the workstation, already connected, and the learner creates Configs, judges, and flags by describing what they want in plain language. The LaunchDarkly UI is used for *looking at* what was built and for reading scores, not for building.
 
-Five challenges, ~1¼ hours self-paced:
+Five challenges, 90 minutes self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
 
 | Dir | Type | Beat |
 |---|---|---|
 | `01-meet-togglewear` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
-| `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. Then a `server.py` paste wires Otto to Bedrock. |
-| `03-otto-sounds-like-otto` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. A second paste invokes it. |
-| `04-otto-asks-for-help` | challenge | One prompt creates the `otto-review-thresholds` JSON flag. A third paste gates responses into ship / hold-for-human / suppress, and the learner retunes the band live. |
-| `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and starts a guarded rollout watching `otto-brand-voice-score`. The learner reads the rollback back through MCP. No `server.py` paste. |
+| `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A `server.py` paste wires Otto to Bedrock. Then a live prompt edit changes a shipping policy mid-session with no deploy. |
+| `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet and a `tier is premium` targeting rule. No app change at all — the chapter's point. |
+| `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. A second paste invokes it. |
+| `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and starts a guarded rollout watching `otto-brand-voice-score`. The rollback is read back through MCP. No paste. |
 | `06-wrap-up` | quiz | Recap and one question. |
+
+**The 90 minutes is a hard budget and it is fully spent** — 600 + 1200 + 900 + 1200 + 1200 + 300 = 5400, exactly `track.yml`'s `timelimit`. Adding a chapter means taking the time from another one. If a live run overshoots, the lever to pull first is pre-baking the `server.py` pastes into the VM image so the learner only touches LaunchDarkly; that buys back roughly 15 minutes and sharpens the MCP premise rather than diluting it.
 
 ### Two numbering schemes, deliberately
 
 **Directory index** is presentation order only: `01`..`06`.
 
-**Terraform modules and code markers** are numbered by *substantive* chapter, and do not shift: `terraform/challenge-01` is Otto's Config, `challenge-02` the judge, `challenge-03` the review gate, `challenge-04` the guarded rollout. The `server.py` markers (`Challenge 01 paste block`, `Challenge 02 judge: replace this body`, `Challenge 03 review gate: replace this body`) match that scheme, because patch scripts and checks match on those exact strings. The guarded-rollout chapter adds no marker — it touches LaunchDarkly only, which is why it has no `patch-server.py`.
+**Terraform modules and code markers** are numbered by *substantive* chapter, and do not shift — including when a chapter is cut or a new one lands in the middle. The mapping is therefore no longer sorted, and that is the intended behaviour, not drift:
+
+| Module | Chapter | Directory |
+|---|---|---|
+| `challenge-01` | Otto's Config | `02-otto-is-born` |
+| `challenge-02` | brand-voice judge | `04-otto-gets-graded` |
+| `challenge-03` | review gate | **none — chapter cut, module retained** |
+| `challenge-04` | guarded rollout | `05-trust-but-verify` |
+| `challenge-05` | tier-based routing | `03-otto-knows-his-audience` |
+
+The `server.py` markers (`Challenge 01 paste block`, `Challenge 02 judge: replace this body`, `Challenge 03 review gate: replace this body`) match that scheme, because patch scripts and checks match on those exact strings. The third marker is now unreachable from any chapter but stays in `server.py` — it's the stub a learner falls back to, and removing it would break `terraform/challenge-03/patch-server.py`. The routing and guarded-rollout chapters add no markers: neither touches the app.
 
 Learner-facing prose names chapters rather than numbering them, so a reorder can't make it wrong.
 
@@ -61,7 +73,8 @@ This track mirrors the structure and conventions of an existing LaunchDarkly Ins
 │   ├── challenge-01/               # Otto's Config + SDK paste
 │   ├── challenge-02/               # brand-voice judge + metric + attachment
 │   ├── challenge-03/               # thresholds flag + review-gate paste
-│   └── challenge-04/               # Nova Pro + otto-stiff + rollout fallback
+│   ├── challenge-04/               # Nova Pro + otto-stiff + rollout fallback
+│   └── challenge-05/               # Sonnet + otto-premium + tier targeting rule
 ├── gcp-federation/                 # AWS IAM role + GCP OIDC trust for Bedrock
 ├── traffic-generator/              # background traffic so scores populate
 └── vm-image/                       # inputs for baking the VM image
@@ -185,8 +198,10 @@ When implementing, **verify the latest stable version** before pinning. Don't as
 ## Out of scope
 
 - Re-teaching LaunchDarkly basics. Assume mastery.
-- Prompt snippets, experiments, offline evaluations, agent-mode Configs, agent graphs, targeting by user attribute. Each is named in `06-wrap-up` as a next step; none is taught.
-- **Guarded rollouts were on that list until 2026-08-27 and are now taught** in `05-trust-but-verify`. See the DECISIONS.md entry "Guarded rollout added back as a fifth chapter" — including the one place it forces a compromise, which is that `solve-workstation` can't reproduce the learner's end state.
+- Prompt snippets, experiments, agent-mode Configs, agent graphs, tool management. Each is named in `06-wrap-up` as a next step; none is taught.
+- **Human-in-the-loop review.** Was `04-otto-asks-for-help`; cut 2026-08-27 because it maps to none of the six objectives. The chapter is gone but `terraform/challenge-03`, `gate_response()`, the review queue, `/review`, and the Staff Review page all remain in the repo unreferenced, so restoring it is a chapter rewrite rather than a rebuild. Do not delete them without checking DECISIONS.md first.
+- **Guarded rollouts and targeting by user attribute were out of scope until 2026-08-27 and are now taught**, in `05-trust-but-verify` and `03-otto-knows-his-audience`.
+- **Offline evaluations are an objective with no MCP path.** Not built. The public REST API has no dataset or evaluation endpoints at all, and the docs describe offline evals as a UI-only flow under Agents → Configs → Playgrounds. See DECISIONS.md before attempting a chapter.
 - Lecture content. Presenters deliver that via slides.
 - A cart, checkout, or authentication in ToggleWear.
 - Any non-Bedrock LLM provider for the app.

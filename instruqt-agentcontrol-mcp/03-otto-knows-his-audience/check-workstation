@@ -1,0 +1,115 @@
+#!/bin/sh
+#
+# Validates tier-based model routing.
+#
+#   1. otto-assistant has an otto-premium variation on a Sonnet model.
+#   2. A Test targeting rule matches the `tier` attribute against "premium"
+#      and serves that variation.
+#   3. The default rule still serves otto-born — a rule that swallowed the
+#      fallthrough routes everyone to the expensive model and looks fine.
+#   4. A real premium request actually gets Sonnet.
+#
+# Not asserted: rule description, rule position, the operator used (in/equals
+# both work), or the variation's display name.
+
+#
+# NOTE: this is /bin/sh, which is dash on Ubuntu, and dash's builtin `echo`
+# interprets backslash escapes. `echo "$JSON" | jq` therefore turns escaped \n
+# inside JSON strings into real newlines and jq fails with "control characters
+# must be escaped". Always `printf '%s' "$JSON" | jq`.
+API="https://app.launchdarkly.com/api/v2"
+
+# ─── 1. The premium variation ──────────────────────────────────────────────
+
+i=0
+while [ $i -lt 5 ]; do
+  CONFIG=$(curl -fsS -X GET \
+    "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
+    -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+    -H 'LD-API-Version: beta' 2>/dev/null)
+  PREMIUM=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-premium") | .key' 2>/dev/null)
+  [ "$PREMIUM" = "otto-premium" ] && break
+  i=$((i + 1))
+  sleep 2
+done
+
+if [ "$PREMIUM" != "otto-premium" ]; then
+  fail-message "No variation keyed **otto-premium** on otto-assistant. Ask Claude Code for it using the prompt under **Ask for the rule** — the key matters, because this check and the next chapter both look for it."
+  exit 1
+fi
+
+PREMIUM_MODEL=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-premium") | .modelConfigKey // ""')
+case "$(printf '%s' "$PREMIUM_MODEL" | tr '[:upper:]' '[:lower:]')" in
+  *sonnet*) : ;;
+  *)
+    fail-message "**otto-premium** is backed by \`${PREMIUM_MODEL}\`, which isn't a Sonnet model. The point of the chapter is that premium shoppers get a stronger model — ask Claude Code to point it at anthropic.claude-sonnet-4-5-20250929-v1:0."
+    exit 1 ;;
+esac
+
+# ─── 2 & 3. The rule, and the fallthrough it must not have eaten ───────────
+
+i=0
+while [ $i -lt 5 ]; do
+  TARGETING=$(curl -fsS -X GET \
+    "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/targeting" \
+    -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+    -H 'LD-API-Version: beta' 2>/dev/null)
+  RULES=$(printf '%s' "$TARGETING" | jq -c '.environments.test.rules // []' 2>/dev/null)
+  [ -n "$RULES" ] && [ "$RULES" != "[]" ] && break
+  i=$((i + 1))
+  sleep 2
+done
+
+PREMIUM_VAR_ID=$(printf '%s' "$TARGETING" | jq -r '.variations[]? | select(.key=="otto-premium") | ._id // ""')
+
+MATCHING=$(printf '%s' "$TARGETING" | jq --arg vid "$PREMIUM_VAR_ID" '
+  [ .environments.test.rules[]?
+    | select(.variationId == $vid)
+    | select([ .clauses[]? | select(.attribute == "tier") | select([.values[]? | ascii_downcase] | index("premium")) ] | length > 0)
+  ] | length' 2>/dev/null)
+
+if [ "${MATCHING:-0}" -lt 1 ]; then
+  # Distinguish "no rule at all" from "rule on the wrong attribute", because
+  # the fix is different and the symptom is identical: nobody gets routed.
+  ANY_RULE=$(printf '%s' "$TARGETING" | jq '[.environments.test.rules[]?] | length' 2>/dev/null)
+  if [ "${ANY_RULE:-0}" -lt 1 ]; then
+    fail-message "otto-assistant has no targeting rules in Test. Ask Claude Code to add one: when the user context's **tier** attribute is **premium**, serve **otto-premium**."
+  else
+    WRONG_ATTRS=$(printf '%s' "$TARGETING" | jq -r '[.environments.test.rules[]?.clauses[]?.attribute] | unique | join(", ")' 2>/dev/null)
+    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Ask Claude Code to fix the attribute name."
+  fi
+  exit 1
+fi
+
+FALLTHROUGH_ID=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variationId // ""')
+BORN_ID=$(printf '%s' "$TARGETING" | jq -r '.variations[]? | select(.key=="otto-born") | ._id // ""')
+
+if [ -n "$FALLTHROUGH_ID" ] && [ -n "$BORN_ID" ] && [ "$FALLTHROUGH_ID" != "$BORN_ID" ]; then
+  fail-message "The premium rule is in place, but the default rule no longer serves **otto-born** — so everyone, not just premium shoppers, is getting the expensive model. Ask Claude Code to set the default rule back to otto-born."
+  exit 1
+fi
+
+# ─── 4. It actually routes ─────────────────────────────────────────────────
+#
+# Without this the check passes on a rule that reads correctly and never fires.
+
+curl -s --max-time 60 -o /dev/null -X POST 'http://localhost:3000/chat' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{"message":"Do the Toggle Socks come in large?","user_tier":"premium","session_id":"check-premium-routing"}'
+
+ROUTED=$(journalctl -u togglewear --since '-2 min' 2>/dev/null \
+  | grep 'chat session=check-premium-routing' | tail -1)
+
+if [ -z "$ROUTED" ]; then
+  fail-message "Otto didn't answer a premium request, so routing couldn't be verified. Confirm the ToggleWear service is running and that Challenge 01's paste block is still in \`server.py\` — an unwired Otto never evaluates the Config."
+  exit 1
+fi
+
+case "$ROUTED" in
+  *sonnet*) : ;;
+  *)
+    fail-message "A premium request was served by a model that isn't Sonnet. The rule exists but isn't taking effect. Check that the rule's context kind is **user** — the app builds a user context — and ask Claude Code to read the rule back. Saw: ${ROUTED}"
+    exit 1 ;;
+esac
+
+exit 0

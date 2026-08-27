@@ -11,7 +11,7 @@ notes:
     it keeps him sounding like himself until real traffic hits it — and by then the
     damage is done. So don't decide. Ship it behind the brand-voice judge, give
     LaunchDarkly a threshold, and let the rollout revert itself if the scores fall.
-    The judge you wrote two chapters ago is about to become a release gate.
+    The judge you wrote in the last chapter is about to become a release gate.
 tabs:
 - id: m6cbm4xg6v7u
   title: LaunchDarkly
@@ -28,7 +28,7 @@ tabs:
   hostname: workstation
   port: 8080
 difficulty: intermediate
-timelimit: 1800
+timelimit: 1200
 enhanced_loading: null
 ---
 
@@ -95,17 +95,24 @@ If any of that is wrong, point it out and ask Claude to fix that specific thing.
 
 # Watch it fail
 
-The rollout is now sending about one in ten shoppers to a version of Otto that talks like a form letter. Background traffic has been running since the challenge started, and every session it generates gets scored by your judge, so the metric is already moving.
+The rollout is now sending about one in ten shoppers to a version of Otto that talks like a form letter. Talk to Otto in the [ToggleWear](#tab-1) tab and send a few messages — most will be the Otto you know, but once in a while you'll get something that opens with "Dear valued customer." That's the Stiff arm, and that's a bad score being written to your metric.
 
-Talk to Otto in the [ToggleWear](#tab-1) tab and send a few messages. Most of the time you'll get the Otto you know. Once in a while you'll get something that opens with "Dear valued customer" — that's the Stiff arm, and that's a bad score being written to your metric.
+Background traffic has been running since the challenge started, so the metric is already moving. Left alone, the rollout would get there on its own — but "alone" means longer than this lab has. Compress it. In a terminal in the [Code Editor](#tab-2):
 
-Then ask for the status, and keep asking:
+```bash
+/opt/ld/ai-configs-intro/app/.venv/bin/python3 \
+  /opt/ld/ai-configs-intro/traffic-generator/sabotage.py
+```
+
+That evaluates 600 contexts, lets LaunchDarkly bucket each one into whichever arm the rollout assigns, and scores it accordingly — near-zero for Stiff, healthy for Born. It's a real regression signal delivered fast, not a fake one: the events are attributed to the arms exactly the way organic traffic is. You're speeding up the clock, not rigging the result.
+
+While it runs, ask for the status, and keep asking:
 
 ```
 What stage is the otto-assistant guarded rollout at now, and what is the brand-voice score for each arm?
 ```
 
-You're watching for the control and test means to separate. Born sits somewhere around 0.8; Stiff should be dragging along the bottom. When the gap is wide enough for long enough, the rollout calls it and reverts.
+You're watching for the two arms to separate. Born sits around 0.8 — roughly where you saw it in the judge chapter. Stiff drags along the bottom. When the gap is wide enough for long enough, the rollout calls it.
 
 When it fires:
 
@@ -115,22 +122,11 @@ When it fires:
 
 If the [LaunchDarkly](#tab-0) tab signs you in, **Agents → Configs → Otto Assistant → Monitoring** draws the same story as a graph, with the dip and the recovery. Nice if it works; the read-back prompt is the reliable path.
 
-# If it's taking too long
-
-Background traffic is deliberately slow so the lab doesn't burn tokens. If the rollout is still sitting at stage one and you'd rather not wait, force it from a terminal in the [Code Editor](#tab-2):
-
-```bash
-/opt/ld/ai-configs-intro/app/.venv/bin/python3 \
-  /opt/ld/ai-configs-intro/traffic-generator/sabotage.py
-```
-
-It evaluates 600 contexts, lets LaunchDarkly bucket each one into whichever arm the rollout assigns, and scores it accordingly — near-zero for Stiff, healthy for Born. That's a real regression signal delivered fast, not a fake one: the events are attributed to the arms the same way organic traffic is. The rollback usually fires within a minute of it finishing.
-
 # What just happened
 
 A model nobody had tested reached real users, got measured against a standard you wrote yourself, and was withdrawn — and the only human decision in that sequence happened before the rollout started.
 
-That's the difference between a metric and a guardrail. For three chapters `otto-brand-voice-score` was something you looked at. Here it was something that acted. The judge didn't change at all; you just gave its output somewhere to go.
+That's the difference between a metric and a guardrail. Until now `otto-brand-voice-score` was something you looked at. Here it was something that acted. The judge didn't change at all; you just gave its output somewhere to go.
 
 Worth sitting with: the thing that made this safe wasn't the rollback. It was having written down what "good" means, in a judge, before you needed it. The rollback is just plumbing attached to that definition.
 

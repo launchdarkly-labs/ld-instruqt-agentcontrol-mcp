@@ -1,8 +1,8 @@
 ---
-slug: otto-sounds-like-otto
+slug: otto-gets-graded
 id: giadwdq0s1yv
 type: challenge
-title: Otto Sounds Like Otto
+title: Otto Gets Graded
 teaser: Ask for a custom judge that grades every one of Otto's answers against ToggleWear's
   brand voice.
 notes:
@@ -38,7 +38,7 @@ Otto answers questions now. Whether he answers them *well* is currently a matter
 
 LaunchDarkly ships built-in judges for accuracy, relevance, and toxicity. Useful, but generic: they have no idea what ToggleWear wants Otto to sound like. So we'll write our own.
 
-A judge is just another AgentControl Config, in **judge mode**. Its prompt takes the response being evaluated as a `{{response}}` template variable, grades it, and returns a number. You attach it to the variation you want graded and give it a sampling rate — every graded response costs a second model call, so in production you'd sample down. This lab uses 100%, because the next challenge needs a score on every answer.
+A judge is just another AgentControl Config, in **judge mode**. Its prompt takes the response being evaluated as a `{{response}}` template variable, grades it, and returns a number. You attach it to the variation you want graded and give it a sampling rate — every graded response costs a second model call, so in production you'd sample down. This lab uses 100%, because the guarded rollout in the last chapter needs a score on every answer to have anything to compare.
 
 # Ask for the judge
 
@@ -123,7 +123,7 @@ def score_response(
     return None
 ```
 
-`/chat` already calls it on every request and hands the result to the review gate you'll write next challenge. Replace the two lines of its body — the marker comment and `return None` — with:
+`/chat` already calls it on every request. Nothing acts on the score yet — the last chapter is where it starts making decisions. Replace the two lines of its body — the marker comment and `return None` — with:
 
 ```python
     # ─── Challenge 02: brand-voice judge ─────────────────────────────────────
@@ -131,7 +131,7 @@ def score_response(
     # it as an otto-brand-voice-score metric event, and return it.
     #
     # Errors are swallowed and return None — a judge failure should not poison a
-    # customer's chat. The next challenge decides what None means.
+    # customer's chat. None means "ungraded", not "bad".
     try:
         bv_ctx = Context.builder(req.session_id).set("tier", req.user_tier).build()
         bv_cfg = ai_client.judge_config(
@@ -186,7 +186,7 @@ def score_response(
 
 Save the file. The ToggleWear service auto-reloads.
 
-Note the bare `except` returning `None`. A judge is a second model call in the middle of a user's request, and it can fail for reasons that have nothing to do with the customer asking about socks. When it fails the customer still gets their answer and we lose a score. That tradeoff is deliberate, and `None` becomes a real decision in the next challenge.
+Note the bare `except` returning `None`. A judge is a second model call in the middle of a user's request, and it can fail for reasons that have nothing to do with the customer asking about socks. When it fails the customer still gets their answer and we lose a score. That tradeoff is deliberate. It also means a rollout watching this metric is watching a metric that can silently go quiet — worth remembering in the last chapter.
 
 # Watch the scores
 
@@ -206,7 +206,7 @@ Then ask for the substance rather than just the existence:
 Summarise the recent otto-brand-voice-score values for my project. What's the rough average, and what's the spread?
 ```
 
-You should see scores clustered in the middle of the range rather than near 1.0. Otto's prompt tells him to be "accurate and concise" and says nothing about warmth, so he's being graded against a standard nobody asked him to meet. He knows the catalog, he just recites it. That gap is the whole reason the next challenge exists.
+You should see scores clustered in the middle of the range rather than near 1.0. Otto's prompt tells him to be "accurate and concise" and says nothing about warmth, so he's being graded against a standard nobody asked him to meet. He knows the catalog, he just recites it. Remember roughly where that average sits. It's the baseline the last chapter's guarded rollout measures a challenger against.
 
 <!-- VERIFY: confirm the agent can summarise metric values, not just list event keys. If the MCP surface only exposes event keys and last-seen timestamps, cut the second prompt and keep the first. -->
 

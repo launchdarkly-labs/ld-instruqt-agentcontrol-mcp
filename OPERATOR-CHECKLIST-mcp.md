@@ -73,7 +73,7 @@ For each: paste the assignment's prompt into Claude Code **verbatim** and see wh
 - [ ] Confirm the existing `assets/ch01-create-config.png` is still accurate or replace it — the assignment no longer walks the create-config dialog, so it may want a different shot (the created Config as the agent left it).
 - [ ] Confirm pasting the Challenge 01 block and saving triggers a reload that wires Otto correctly, and that the marker line survives verbatim for challenge 02's patch.
 
-### 02 Otto sounds like Otto
+### 02 Otto gets graded (judge)
 
 - [ ] **Confirm the agent creates the judge in judge mode.** Mode is fixed at creation, so an agent that defaults to completion mode leaves the learner needing to delete and recreate. If it gets this wrong often, the prompt needs to be blunter.
 - [ ] **Confirm `{{response}}` survives into the saved prompt.** This is the silent-failure case: a judge without it grades an empty string and still returns plausible numbers.
@@ -84,18 +84,15 @@ For each: paste the assignment's prompt into Claude Code **verbatim** and see wh
 - [ ] **Measure Otto's actual score distribution and set the bands to match.** `{auto: 0.8, review: 0.5}` are reasoned guesses, not measurements. Run traffic for a few minutes, look at the spread, and confirm a meaningful share lands between the two numbers. If it doesn't, move them — in `terraform/challenge-03/main.tf`, the ch03 assignment, and `DECISIONS.md`, together. This is the single most likely reason challenge 03 falls flat.
 - [ ] Confirm the read-back prompt's output is accurate and readable. It's learner-facing now, so a confusing summary of a Config is a content bug.
 
-### 03 Otto asks for help
+### 03 Otto knows his audience (tier routing)
 
-- [ ] Confirm the agent creates a genuine **JSON** flag with both variations parsing as objects containing `auto` and `review`.
-- [ ] Confirm it turns the flag on in Test and serves Balanced — a flag left off still serves `off_variation`, so the gate appears to work either way and the check has to catch it.
-- [ ] Complete the full review loop as a learner: land a hold, see the placeholder in chat, find the item in the staff panel, approve unedited, approve edited, reject. Each must reach the customer's transcript within a poll cycle.
-- [ ] Confirm `otto-review-outcome` records all three bands and `otto-review-decision` records all three human outcomes.
-- [ ] **Break the judge deliberately** (point its targeting at the disabled variation) and confirm the gate fails open and ships, rather than holding everything.
-- [ ] Switch to **Cautious** mid-session and confirm routing changes with no restart. This is the chapter's payoff; it has to be visible.
-- [ ] **Confirm the Staff Review tab opens `/review` directly.** There's a `VERIFY` marker on the tab's `path:` key — if Instruqt service tabs don't honour it, the learner has to reach the page via the storefront's "Staff review" nav link, and the tab plus every `#tab-3` reference needs rewording.
-- [ ] Check the Staff Review page's appearance in a browser — it's new UI and hasn't been seen rendered.
-- [ ] Confirm the queue shows only the learner's own held responses, and that the "N more from other sessions" line reflects background traffic.
-- [ ] Confirm a learner can reliably reach the middle band with a few messages. If not, adjust the suggested question in the assignment rather than the thresholds.
+- [ ] Confirm the agent uses the attribute **`tier`**, not `userTier`/`user_tier`/`plan`. The app sets `tier`; any other spelling produces a rule that matches nobody and is indistinguishable from one that works.
+- [ ] Confirm it adds a *rule* and leaves the default rule on `otto-born`. A rule that replaces the fallthrough sends everyone to Sonnet — it works perfectly and quietly costs money.
+- [ ] Confirm the context kind on the clause is **user**.
+- [ ] Run the learner path: tail `journalctl -u togglewear -f | grep 'chat session='`, flip the storefront tier switcher, confirm `model=` changes between haiku and sonnet on the same question.
+- [ ] **Resolve the `VERIFY` marker on the tier switcher** — confirm it's present in the baked image and still labelled "Free user" / "Premium user". The prose names those labels exactly.
+- [ ] Confirm `terraform/challenge-05`'s `otto_prompt` local is still byte-identical to `challenge-01`'s `otto_born_prompt`. The chapter claims only the model differs; nothing checks it.
+- [ ] Note the interaction with chapter 02's live-edit section: a learner who edits `otto-born`'s prompt and doesn't revert leaves the two variations genuinely different. Harmless, but confirm it doesn't confuse the comparison.
 
 ### 04 Trust but verify
 

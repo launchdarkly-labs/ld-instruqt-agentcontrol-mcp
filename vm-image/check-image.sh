@@ -26,11 +26,11 @@ head2 "Repo and app source"
 [ -f "$APP/server.py" ] && ok "app/server.py present" || bad "app/server.py missing" "wrong REPO_REF?"
 [ -f "$APP/.mcp.json.example" ] && ok "app/.mcp.json.example present (setup renders this)" \
   || bad "app/.mcp.json.example missing" "setup-workstation will abort on the sed; you baked an old commit"
-for d in challenge-01 challenge-02 challenge-03 challenge-04 student-bootstrap; do
+for d in challenge-01 challenge-02 challenge-03 challenge-04 challenge-05 student-bootstrap; do
   [ -d "$REPO/terraform/$d" ] && ok "terraform/$d present" || bad "terraform/$d missing" "wrong REPO_REF"
 done
-[ -f "$APP/static/review.html" ] && ok "staff review page present" \
-  || bad "app/static/review.html missing" "challenge 03's fourth tab will 404"
+[ -f "$APP/static/review.html" ] && ok "staff review page present (retired chapter; kept for restore)" \
+  || warn "app/static/review.html missing" "harmless today — the review-gate chapter is cut. Only matters if that chapter is restored; see DECISIONS.md"
 
 head2 "Authoring docs stripped (they spoil the labs)"
 LEAK=0

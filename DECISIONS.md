@@ -570,3 +570,40 @@ So Skip produces the Nova Pro model config, the `otto-stiff` variation, the judg
 **Revisit when** a guarded-rollout instruction ships publicly. At that point replace `null_resource.fallthrough_rollout`, make the check's guard mandatory, and this entry's main cost goes away.
 
 **Also unverified, and marked in the files:** the guarded rollout's response shape on the targeting GET was never confirmed against a live account, so the check's detection is a best guess across four plausible field names. And the assignment's read-back prompts assume the MCP server can report a rollout's current stage and per-arm metric values — if it only exposes start, those prompts need to become the UI path. Both carry `VERIFY` markers.
+
+---
+
+## Track rebuilt around six learning objectives, inside a hard 90-minute budget (2026-08-27)
+
+**Decision:** the chapter set is now derived from six stated learning objectives rather than from Otto's narrative arc. `04-otto-asks-for-help` (human review gate) is cut, `03-otto-knows-his-audience` (tier-based model routing) is added, and every chapter's `timelimit` is set so the six sum to exactly 5400 seconds — `track.yml`'s limit.
+
+The objectives, and where each lands:
+
+| # | Objective | Chapter |
+|---|---|---|
+| 1 | Create a config | `02-otto-is-born` |
+| 2 | Update prompts and models without redeploying | `02-otto-is-born`, live-edit section |
+| 3 | Drive LaunchDarkly from a coding agent over MCP | `01-meet-togglewear`, and every chapter after it |
+| 4 | Route users or segments to different models | `03-otto-knows-his-audience` |
+| 5 | Evaluate agents side by side (offline eval on a labeled dataset) | **not built — see below** |
+| 6 | Ship behind a guarded rollout with a judge guardrail | `05-trust-but-verify` |
+
+**Why the review gate went.** It maps to none of the six. It was also the most expensive chapter in the track — the largest `server.py` paste, a fourth browser tab, and the whole review-queue surface — so it was the only cut that freed enough time for objective 4 without compressing something on the list. This reverses the emphasis of the 2026-08-14 scope cut, which kept human-in-the-loop precisely *because* it was the distinctive beat. The objectives won.
+
+**The chapter is gone; the code is not.** `terraform/challenge-03`, `gate_response()`, `_enqueue_review`, the `/review` endpoints, the Staff Review page, and the `Challenge 03 review gate` marker in `server.py` all stay in the repo, unreferenced by any chapter. Restoring the chapter is then a rewrite of four files, not a rebuild of a feature. The alternative — deleting it — was rejected because the operator explicitly left the door open to folding it into the guarded-rollout chapter later.
+
+**Why it wasn't folded into the guarded-rollout chapter instead**, which the operator offered as an option: the combined chapter would be ~30 minutes covering two different governance mechanisms — one that reacts at release time while traffic ramps, one that reacts per-request in production. They're a genuinely interesting pair, and the intro workshop's own quiz contrasts them. But at 20 minutes it would teach both badly, and only one of them is on the objective list. Recorded as available if the budget ever grows.
+
+**"Tools" was dropped from objective 2.** The objective says "prompts, models, and tools." ToggleWear is a completion-mode chat app with no tool-calling anywhere in it; managing tool definitions from LaunchDarkly requires agent-mode Configs *and* an app that actually calls tools. That's app work, not prose, and chapter 2 has no room for it. Narrowed to prompts and models on the operator's call.
+
+**Objective 5 has no MCP path and was not built.** This is the one objective the track does not meet, and the reason is external:
+
+- The public REST API has **no dataset and no evaluation endpoints**. Verified by enumerating every path in `app.launchdarkly.com/api/v2/openapi.json` — the only matches for "eval" are flag/segment evaluation and usage counters.
+- LaunchDarkly's own AI Config skills cover create, variations, targeting, tools, online evals, and update. There is no offline-eval skill.
+- The docs describe offline evaluations as a UI flow under **Agents → Configs → Playgrounds** and mention no API.
+
+So an offline-eval chapter could not be MCP-driven, could not be asserted by `check-workstation`, and could not be produced by `solve-workstation` — it would be a UI-only chapter with no check, in a track whose premise is that you don't use the UI. It stays in `06-wrap-up` as a next step.
+
+**The alternative, if the objective needs to be met:** `GET /projects/{proj}/ai-configs/{key}/metrics-by-variation` exists and returns usage metrics split by variation. With `otto-born`, `otto-premium`, and `otto-brand-voice-score` all live by chapter four, that supports a genuine side-by-side comparison of two agents on the same judge — API-backed, MCP-drivable, and checkable. It is *not* an offline evaluation against a labeled dataset: it compares live traffic, and there are no row-level scores against expected outputs. Whether that satisfies the objective is a product call, not a technical one.
+
+**The budget is now load-bearing.** 600 + 1200 + 900 + 1200 + 1200 + 300 = 5400. There is no slack. The first lever if a live run overshoots is pre-baking the two `server.py` pastes into the VM image so the learner only ever touches LaunchDarkly — roughly 15 minutes back, and it sharpens the MCP premise. That was considered for this pass and deferred: it changes the app, the patch scripts, and two checks, and it removes the one place the track shows how the SDK actually resolves a Config.

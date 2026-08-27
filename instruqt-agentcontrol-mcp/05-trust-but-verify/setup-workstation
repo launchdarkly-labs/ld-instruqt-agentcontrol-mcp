@@ -24,8 +24,8 @@ echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
 terraform init -input=false
 terraform apply -auto-approve -target=launchdarkly_model_config.nova_pro
 
-# The review-gate chapter's generator drives real /chat calls, which are
-# expensive and no longer needed. background_traffic.py emits synthetic
+# The judge chapter's generator drives real /chat calls, which are expensive
+# and no longer needed. background_traffic.py emits synthetic
 # sessions with per-model brand-voice scores instead — much cheaper, and it
 # biases Nova Pro low, which is what gives the rollout something to detect.
 pkill -f realchat_traffic.py 2>/dev/null || true

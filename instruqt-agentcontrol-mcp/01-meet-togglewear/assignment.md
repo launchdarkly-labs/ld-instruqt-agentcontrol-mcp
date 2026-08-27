@@ -32,7 +32,7 @@ enhanced_loading: null
 
 # Welcome
 
-You're going to build an AI shopping assistant for **ToggleWear**, a fictional online retailer of LaunchDarkly-branded apparel. The assistant's name is **Otto**. Right now Otto doesn't exist. By the end of this track he'll be live in the [ToggleWear](#tab-1) storefront, graded on every answer by a judge you wrote, and wired to a review gate that holds his borderline answers for a human.
+You're going to build an AI shopping assistant for **ToggleWear**, a fictional online retailer of LaunchDarkly-branded apparel. The assistant's name is **Otto**. Right now Otto doesn't exist. By the end of this track he'll be live in the [ToggleWear](#tab-1) storefront, routing premium shoppers to a stronger model, graded on every answer by a judge you wrote — and that judge will have thrown out a replacement model on his behalf, automatically.
 
 You're going to do this using **LaunchDarkly AgentControl**: prompts, models, and quality gates as runtime configuration instead of hardcoded values.
 
@@ -87,7 +87,7 @@ The [LaunchDarkly](#tab-0) tab is optional. It signs you into a sandbox LaunchDa
 
 It will, sometimes. Come back to this section when it does — every chapter's **Check** tells you what's missing, and these are the fixes.
 
-**It used a different key.** The most common one, and the one that breaks the most downstream. This track depends on the exact keys `otto-assistant`, `otto-born`, `otto-brand-voice-judge`, and `otto-review-thresholds`. Tell it plainly: *"You created it with key X. Delete that and recreate it with key `otto-assistant` exactly."*
+**It used a different key.** The most common one, and the one that breaks the most downstream. This track depends on the exact keys `otto-assistant`, `otto-born`, `otto-premium`, `otto-brand-voice-judge`, and `otto-stiff`. Tell it plainly: *"You created it with key X. Delete that and recreate it with key `otto-assistant` exactly."*
 
 **It created the Config but nothing is being served.** A new Config serves a built-in "disabled" variation until a targeting rule points somewhere else. Ask: *"Set the default rule in the Test environment to serve the otto-born variation."*
 
