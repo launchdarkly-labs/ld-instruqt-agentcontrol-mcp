@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# Skip path for ch04 (guarded rollout).
+#
+# Applies the challenge-04 module: the Nova Pro model config (already applied
+# by setup, so a no-op here), the otto-stiff variation, the judge attachment,
+# and a fallthrough rollout splitting traffic 10/90 between Stiff and Born.
+#
+# CAVEAT, and it's a real one: that last piece is a plain percentage rollout,
+# not a guarded rollout. No public REST instruction starts a guarded rollout —
+# see the long comment on null_resource.fallthrough_rollout in the module for
+# the verification behind that claim. Solve must not depend on an LLM, so it
+# can't reach the MCP tool the learner uses.
+#
+# So Skip leaves the workstation with the risky variation live and traffic
+# split, but nothing watching the metric and nothing to roll it back. A learner
+# who skips this chapter sees the setup, not the payoff.
+#
+# This is the one place in the track where solve does not reproduce the
+# learner's end state. Flagged in OPERATOR-CHECKLIST-mcp.md.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-04
+terraform apply -auto-approve
+
+# Make sure the metric keeps moving for whatever comes next.
+if ! pgrep -f background_traffic.py > /dev/null; then
+  nohup /opt/ld/ai-configs-intro/app/.venv/bin/python3 \
+    /opt/ld/ai-configs-intro/traffic-generator/background_traffic.py \
+    > /var/log/togglewear-bg-traffic.log 2>&1 &
+fi
+
+exit 0

@@ -20,13 +20,14 @@ tags:
 - mcp
 owner: launchdarkly
 developers:
+- dphan@launchdarkly.com
 - kcochran@launchdarkly.com
 - aroberson@launchdarkly.com
 - sattensil@launchdarkly.com
 - dgorton@launchdarkly.com
 show_timer: true
 idle_timeout: 1200
-timelimit: 5400
+timelimit: 2100
 lab_config:
   extend_ttl: 3600
   sidebar_enabled: true
@@ -39,5 +40,5 @@ lab_config:
   hideStopButton: false
   default_layout: AssignmentRight
   default_layout_sidebar_size: 25
-checksum: "10973360959810386032"
+checksum: "13229993440592453665"
 enhanced_loading: false

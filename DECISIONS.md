@@ -546,3 +546,88 @@ The metadata endpoint is simply not reachable from the sandbox. No role ARN, aud
 **A diagnostic trap worth naming:** the 502 body is `Internal Server Error`, and Firefox's JSON viewer renders that on a dark background. Read as "the tab is black," it looks like the *login* page, which is genuinely `background-color:black` with a "Logging in..." spinner. Those two states are one keystroke apart in appearance and opposite in meaning — one is "no row was written," the other is "everything worked." Check the URL bar's `sandboxId` against the tables before theorising.
 
 **A wrong turn, recorded:** `aws-bedrock-workshop` looked like the workstation's IAM principal and holds a Bedrock-only policy, so "the writes are being denied" was an attractive story. `iam get-access-key-last-used` disproved it — the key that had hit Bedrock that day belonged to `instruqt-api`, which has `AdministratorAccess`. Permissions were never involved. One read-only API call beat the inference.
+
+---
+
+## Guarded rollout added back as a fifth chapter, driven from MCP (2026-08-27)
+
+**Decision:** `05-trust-but-verify` teaches guarded rollouts. This reverses the scope cut recorded above in "Scope cut to one track" (2026-08-14), which named guarded rollouts as one of the things that went, and it removes them from the next-steps list in the wrap-up. The chapter is lifted from the AI Configs intro workshop's `instruqt-evaluate/07-trust-but-verify` (repo `launchdarkly-labs/ld-workshop-ai-configs-intro`, track slug `ld-agentcontrol-evaluate`) and rewired to be driven from the MCP server.
+
+**Rationale:** the cut was made when the track's arc ended at the review gate. It doesn't anymore. The judge from the judge chapter is already a real metric with real values by chapter four, and pointing it at a release is the shortest path from "a number you look at" to "a number that acts." The intro workshop kept this chapter UI-driven only because the guarded rollout API wasn't reachable when it was authored — its own `solve-workstation` says so in a comment. That's no longer true for MCP, so the one thing that made it a bad fit for this track is gone.
+
+**Why the source chapter's structure changed:**
+
+- **The learner creates the risky variation, rather than setup pre-creating it.** The intro version hands `otto-stiff` over and has the learner only configure the rollout, because configuring it meant clicking. Here both are one prompt, which is the shape every other chapter in this track uses.
+- **The rollback is read back through MCP, not watched in the UI.** `01-meet-togglewear` already warns that the sandbox sign-in service isn't always up. Making the chapter's entire payoff depend on it would put the one moment worth seeing behind the least reliable surface in the lab. The UI path is mentioned as a nicety.
+- **The Nova Pro model config is pre-created by `setup-workstation`, with `-target`.** This is the exception to "the learner asks for everything," and it's not stylistic. `server.py` resolves Bedrock model IDs through `BEDROCK_MODEL_IDS`, keyed on the name LaunchDarkly returns, and passes unknown names through verbatim. An agent that reasonably names it "Amazon Nova Pro" produces a variation that reads correctly in every UI and 400s at Bedrock on first serve. The failure is invisible until the rollout starts. Names the app parses are not the agent's to choose.
+
+**The cost, stated plainly: `solve-workstation` cannot reproduce the learner's end state.** This is the only chapter in the track where that's true, and it breaks definition-of-done #3.
+
+No public REST instruction starts a guarded rollout. Verified against `app.launchdarkly.com/api/v2/openapi.json`: `PATCH /projects/{proj}/ai-configs/{key}/targeting` documents 21 semantic-patch instruction kinds, and the only rollout instruction is `updateFallthroughVariationOrRollout`, which takes plain `rolloutWeights`. The regular flag endpoint matches. A `ReleaseGuardianConfiguration` schema exists in the spec but is referenced only from the release-pipeline models, not from flag or AI Config targeting. The MCP server does expose it — that's what the learner drives — but solve must not depend on an LLM, so it can't get there.
+
+So Skip produces the Nova Pro model config, the `otto-stiff` variation, the judge attachment, and a plain 10/90 percentage rollout — the setup, with nothing watching and nothing to roll back. `check-workstation` is deliberately permissive about this: it requires a rollout, and holds it to the metric-and-rollback standard only if it detects a guarded one. Failing the operator's own escape hatch would be worse than a soft check.
+
+**Revisit when** a guarded-rollout instruction ships publicly. At that point replace `null_resource.fallthrough_rollout`, make the check's guard mandatory, and this entry's main cost goes away.
+
+**Also unverified, and marked in the files:** the guarded rollout's response shape on the targeting GET was never confirmed against a live account, so the check's detection is a best guess across four plausible field names. And the assignment's read-back prompts assume the MCP server can report a rollout's current stage and per-arm metric values — if it only exposes start, those prompts need to become the UI path. Both carry `VERIFY` markers.
+
+---
+
+## Track rebuilt around six learning objectives, inside a hard 90-minute budget (2026-08-27)
+
+**Decision:** the chapter set is now derived from six stated learning objectives rather than from Otto's narrative arc. `04-otto-asks-for-help` (human review gate) is cut, `03-otto-knows-his-audience` (tier-based model routing) is added, and every chapter's `timelimit` is set so the six sum to exactly 5400 seconds — `track.yml`'s limit.
+
+The objectives, and where each lands:
+
+| # | Objective | Chapter |
+|---|---|---|
+| 1 | Create a config | `02-otto-is-born` |
+| 2 | Update prompts and models without redeploying | `02-otto-is-born`, live-edit section |
+| 3 | Drive LaunchDarkly from a coding agent over MCP | `01-meet-togglewear`, and every chapter after it |
+| 4 | Route users or segments to different models | `03-otto-knows-his-audience` |
+| 5 | Evaluate agents side by side (offline eval on a labeled dataset) | **not built — see below** |
+| 6 | Ship behind a guarded rollout with a judge guardrail | `05-trust-but-verify` |
+
+**Why the review gate went.** It maps to none of the six. It was also the most expensive chapter in the track — the largest `server.py` paste, a fourth browser tab, and the whole review-queue surface — so it was the only cut that freed enough time for objective 4 without compressing something on the list. This reverses the emphasis of the 2026-08-14 scope cut, which kept human-in-the-loop precisely *because* it was the distinctive beat. The objectives won.
+
+**The chapter is gone; the code is not.** `terraform/challenge-03`, `gate_response()`, `_enqueue_review`, the `/review` endpoints, the Staff Review page, and the `Challenge 03 review gate` marker in `server.py` all stay in the repo, unreferenced by any chapter. Restoring the chapter is then a rewrite of four files, not a rebuild of a feature. The alternative — deleting it — was rejected because the operator explicitly left the door open to folding it into the guarded-rollout chapter later.
+
+**Why it wasn't folded into the guarded-rollout chapter instead**, which the operator offered as an option: the combined chapter would be ~30 minutes covering two different governance mechanisms — one that reacts at release time while traffic ramps, one that reacts per-request in production. They're a genuinely interesting pair, and the intro workshop's own quiz contrasts them. But at 20 minutes it would teach both badly, and only one of them is on the objective list. Recorded as available if the budget ever grows.
+
+**"Tools" was dropped from objective 2.** The objective says "prompts, models, and tools." ToggleWear is a completion-mode chat app with no tool-calling anywhere in it; managing tool definitions from LaunchDarkly requires agent-mode Configs *and* an app that actually calls tools. That's app work, not prose, and chapter 2 has no room for it. Narrowed to prompts and models on the operator's call.
+
+**Objective 5 has no MCP path and was not built.** This is the one objective the track does not meet, and the reason is external:
+
+- The public REST API has **no dataset and no evaluation endpoints**. Verified by enumerating every path in `app.launchdarkly.com/api/v2/openapi.json` — the only matches for "eval" are flag/segment evaluation and usage counters.
+- LaunchDarkly's own AI Config skills cover create, variations, targeting, tools, online evals, and update. There is no offline-eval skill.
+- The docs describe offline evaluations as a UI flow under **Agents → Configs → Playgrounds** and mention no API.
+
+So an offline-eval chapter could not be MCP-driven, could not be asserted by `check-workstation`, and could not be produced by `solve-workstation` — it would be a UI-only chapter with no check, in a track whose premise is that you don't use the UI. It stays in `06-wrap-up` as a next step.
+
+**The alternative, if the objective needs to be met:** `GET /projects/{proj}/ai-configs/{key}/metrics-by-variation` exists and returns usage metrics split by variation. With `otto-born`, `otto-premium`, and `otto-brand-voice-score` all live by chapter four, that supports a genuine side-by-side comparison of two agents on the same judge — API-backed, MCP-drivable, and checkable. It is *not* an offline evaluation against a labeled dataset: it compares live traffic, and there are no row-level scores against expected outputs. Whether that satisfies the objective is a product call, not a technical one.
+
+**The budget is now load-bearing.** 600 + 1200 + 900 + 1200 + 1200 + 300 = 5400. There is no slack. The first lever if a live run overshoots is pre-baking the two `server.py` pastes into the VM image so the learner only ever touches LaunchDarkly — roughly 15 minutes back, and it sharpens the MCP premise. That was considered for this pass and deferred: it changes the app, the patch scripts, and two checks, and it removes the one place the track shows how the SDK actually resolves a Config.
+
+---
+
+## Cut to 35 minutes: the server.py pastes are pre-baked (2026-08-27)
+
+**Decision:** the track's budget drops from 90 minutes to 35. Both `server.py` paste sections are removed from the assignments and their code is baked into the VM image, so the app ships fully wired and the learner touches LaunchDarkly only. All six chapters and all five objectives survive; prose is cut roughly in half.
+
+New budget: 240 + 480 + 360 + 300 + 600 + 120 = 2100 seconds. Prose is ~3,700 words (~18 min reading), leaving ~17 minutes for agent round-trips and waiting.
+
+**Why pre-baking was the only lever big enough.** The pastes were ~13 minutes of the 90 — the largest single recoverable block, and the only one that could be removed without dropping an objective. `CLAUDE.md` and the previous DECISIONS entry had both already named it as the first lever to pull if timing overshot; at 35 minutes it stopped being a lever and became a prerequisite. Everything else came from prose.
+
+**What it costs.** The learner never writes the integration. That was the one place the track showed how `completion_config()` resolves a Config and how the result maps onto a Bedrock call — genuinely the most transferable thing in the workshop for someone going home to wire up their own app. Mitigated with a ~90-second read-only walkthrough in `02-otto-is-born` ("The six lines that did that"): the same code, shown rather than typed. That keeps the teaching and drops both the typing time and the paste-error failure mode, which was a real source of check failures.
+
+**What it gains beyond time.** It sharpens the premise. A track whose thesis is "you drive LaunchDarkly from your agent, not the UI" was spending a quarter of its runtime on neither — a learner hand-editing Python. Now every minute is either MCP or observing the result.
+
+**How it was applied.** Not by hand — by running `terraform/challenge-01/patch-server.py` and `challenge-02/patch-server.py` against the repo copy of `server.py`, so the baked result is byte-identical to what a solve would have produced. Both are `SIGNATURE`-guarded and now no-op ("already wired — no patch needed"), which was verified by re-running them. They're kept rather than deleted so solve still works if someone bakes from an older commit.
+
+**Three things inverted with it, and getting any of them wrong ships a broken lab:**
+
+- `vm-image/check-image.sh` asserted the *stub markers* were intact. It now asserts the *implementations* are present. The old assertion would pass on a correctly-baked image only by accident and fail loudly the moment the bake is right.
+- The paste assertions in `02` and `04`'s `check-workstation` are retained but re-worded: they can now only fire because of a bad image, so they tell the learner to talk to the operator rather than to paste code that is already there.
+- `gate_response()`'s stub marker stays. The review-gate chapter is cut, so the stub *is* the shipping behaviour, and `terraform/challenge-03/patch-server.py` still matches on it.
+
+**The remaining risk is `05-trust-but-verify`.** ~5 minutes of reading inside a 10-minute limit, leaving ~5 for the guarded rollout to actually detect a regression and revert. `sabotage.py` compresses it and is now the normal path rather than an escape hatch, but the detector's timing is not ours to control. If a live run overshoots, trimming more prose will not fix it — the honest options are dropping an objective or accepting a longer track. Do not respond by shortening the monitoring windows below what the API will honour; that's already flagged as unverified.

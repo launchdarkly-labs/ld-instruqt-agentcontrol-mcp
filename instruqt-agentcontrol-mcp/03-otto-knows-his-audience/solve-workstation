@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Apply the routing end-state: the Sonnet model config, the otto-premium
+# variation, and the Test targeting rule sending tier=premium to it.
+#
+# No server.py patch and no service restart — this chapter changes nothing in
+# the app. That's the point of it.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-05
+terraform apply -auto-approve
+
+exit 0

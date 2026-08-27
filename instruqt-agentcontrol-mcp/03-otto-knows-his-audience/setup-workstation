@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# Per-challenge setup for ch05 (tier-based model routing). Terraform init only;
+# the learner does the work through Claude Code. Solve applies.
+#
+# Module number follows substantive chapter, not directory order — see
+# CLAUDE.md, "Two numbering schemes".
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-05
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+
+exit 0

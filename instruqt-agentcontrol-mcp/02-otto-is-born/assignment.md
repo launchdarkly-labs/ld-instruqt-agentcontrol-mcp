@@ -3,14 +3,13 @@ slug: otto-is-born
 id: 49vhbkkoxhyb
 type: challenge
 title: Otto is Born
-teaser: Ask for Otto's first AgentControl Config, then wire him into the ToggleWear
-  app.
+teaser: Ask for Otto's first AgentControl Config, then change his mind mid-conversation
+  without a deploy.
 notes:
 - type: text
   contents: Today is Otto's first day. You'll ask Claude Code for his first Config
-    in AgentControl, with a starting prompt and a starting model, and then add the
-    few lines of server code that bring him to life. By the end of this challenge,
-    Otto will say his first words from the ToggleWear storefront.
+    in AgentControl — a starting prompt and a starting model — and then change that
+    prompt while he's running, without deploying anything.
 tabs:
 - id: it1g4gasa915
   title: LaunchDarkly
@@ -27,20 +26,14 @@ tabs:
   hostname: workstation
   port: 8080
 difficulty: basic
-timelimit: 1200
+timelimit: 480
 enhanced_loading: null
 ---
-
 # Meet Otto
 
-ToggleWear wants an AI shopping assistant on the storefront, and we're going to build it. We've named him Otto. Right now he's a placeholder — the chat widget on the [ToggleWear](#tab-1) tab returns a canned "not wired up yet" line. We're going to fix that.
+ToggleWear wants an AI shopping assistant on the storefront. We've named him Otto, and right now he doesn't exist. Try the chat widget on the [ToggleWear](#tab-1) tab and he'll tell you he isn't enabled — the app is asking LaunchDarkly what to say and getting nothing back.
 
-By the end of this challenge:
-
-- Otto exists as a **Config** in AgentControl.
-- He has a starting prompt and a starting model (Claude Haiku 4.5 on Bedrock).
-- The ToggleWear app evaluates the Config on each `/chat` call.
-- Otto says his first real words.
+The app is already built and already knows how to talk to AgentControl. What it doesn't have is a Config to read. That's what you're about to create, and you'll create it by asking.
 
 # Ask for Otto's Config
 
@@ -84,7 +77,7 @@ If a customer asks something these notes don't cover, say you don't know and poi
 Then set the default rule in the Test environment to serve otto-born.
 ```
 
-The keys matter. The app looks up `otto-assistant` by key, and the next challenge attaches a judge to `otto-born` by key. If the agent picks something different, tell it to use the exact keys above.
+The keys matter. The app looks up `otto-assistant` by key, and later chapters add a variation and attach a judge to `otto-born` by key. If the agent picks something different, tell it to use the exact keys above.
 
 Two things worth noticing when it finishes:
 
@@ -99,104 +92,56 @@ An agent will tell you it succeeded either way. Run the following command to see
 Show me the otto-assistant config: its mode, its variations and their keys and models, and what the Test environment is serving.
 ```
 
-You're looking for mode `completion`, one variation keyed `otto-born` on a Haiku 4.5 model, and Test serving that variation rather than the built-in disabled one. If any of this information is wrong, point it out and ask it to fix it specifically. Claude has the tools to correct its own work.
+You're looking for mode `completion`, one variation keyed `otto-born` on a Haiku 4.5 model, and Test serving that variation rather than the built-in disabled one. If any of this information is wrong, point it out and ask Claude to fix it specifically.
 
-This is worth doing every time, not just here. Verifying is the habit; the prompt is the easy part.
-
-# Wire Otto into the app
-
-Open the [Code Editor](#tab-2) tab. Open `server.py`.
-
-You could ask Claude Code to write this part too. We're pasting it by hand because the SDK calls are the part worth reading — this is the whole surface area of talking to AgentControl from an application, and it's about a dozen lines.
-
-Find the block marked:
-
-```python
-# ─────────────────────────────────────────────────────────────────────
-# Challenge 01 paste block — replace this stub with real Otto code.
-```
-
-Replace **everything between the opening marker and the** `# ─── End Challenge 01 paste block ────` **line** with:
-
-```python
-    # ─── Challenge 01: wire Otto to /chat ─────────────────────────────────
-    # Build context, evaluate the otto-assistant Config.
-    context = Context.builder(req.session_id).set("tier", req.user_tier).build()
-    cfg = ai_client.completion_config(OTTO_CONFIG_KEY, context, FALLBACK_CONFIG)
-
-    if not cfg.enabled or cfg.model is None:
-        return JSONResponse(status_code=503, content={
-            "response": "Otto isn't enabled. Check the Config targeting.",
-            "turn": turn, "turn_limit": TURN_LIMIT,
-        })
-
-    # Translate the Config's messages into Bedrock Converse format.
-    system_blocks = []
-    seed_messages = []
-    for m in cfg.messages or []:
-        if m.role == "system":
-            system_blocks.append({"text": m.content})
-        else:
-            seed_messages.append({"role": m.role, "content": [{"text": m.content}]})
-
-    # Merge in this session's prior turns + the new user message.
-    with _state_lock:
-        prior = list(_history[req.session_id])
-    history_blocks = [{"role": m.role, "content": [{"text": m.content}]} for m in prior]
-    bedrock_messages = seed_messages + history_blocks + [
-        {"role": "user", "content": [{"text": req.message}]}
-    ]
-
-    model_id = resolve_bedrock_model(cfg.model.name)
-    tracker = cfg.create_tracker()
-
-    try:
-        response = tracker.track_bedrock_converse_metrics(
-            bedrock.converse(modelId=model_id, messages=bedrock_messages, system=system_blocks)
-        )
-    except ClientError as e:
-        err = e.response.get("Error", {})
-        log.error("Bedrock ClientError code=%s model=%s message=%s",
-                  err.get("Code"), model_id, err.get("Message"))
-        return JSONResponse(status_code=502, content={
-            "response": _bedrock_user_message(err.get("Code")),
-            "turn": turn, "turn_limit": TURN_LIMIT,
-        })
-
-    assistant_text = _extract_text(response)
-
-    usage = response.get("usage") or {}
-    metrics = response.get("metrics") or {}
-    log.info(
-        "chat session=%s tier=%s turn=%d model=%s tokens_in=%s tokens_out=%s latency_ms=%s",
-        req.session_id, req.user_tier, turn, model_id,
-        usage.get("inputTokens"), usage.get("outputTokens"), metrics.get("latencyMs"),
-    )
-```
-
-
-Save the file (⌘ + S/Ctrl + S). The ToggleWear service auto-reloads.
-
-Now read it, because this is the whole AgentControl surface area:
-
-```python
-cfg = ai_client.completion_config(OTTO_CONFIG_KEY, context, FALLBACK_CONFIG)
-```
-
-One call, and `cfg` carries the prompt, the model, and the parameters that whoever edits the Config decided on — resolved fresh on every request, for this specific `context`. `ai_client` was built once at startup, further up the file: `ai_client = LDAIClient(ld_client)`.
-
-Everything after that call is translation. `cfg.messages` becomes Bedrock's `system` and `messages` blocks, `cfg.model.name` becomes a Bedrock model ID, and `cfg.create_tracker()` gives you a tracker that reports tokens and latency back to LaunchDarkly so the Monitoring tab has something in it.
-
-That's the shape worth remembering: LaunchDarkly decides *what* to send, your code decides *how* to send it. Nothing about the prompt or the model is in this file.
+Verifying is the habit. Do it after every prompt in this track.
 
 # Say hi to Otto
 
-Open the [ToggleWear](#tab-1) tab. Click **Chat with Otto** in the bottom-right. Ask him something — try:
+Open the [ToggleWear](#tab-1) tab and click **Chat with Otto** in the bottom-right. Ask him something:
 
 ```text
 Got any t-shirts?
 ```
 
-Otto should answer for real this time. He'll be brief and a little robotic. That's by design: it gives the judge you're about to write something to actually complain about.
+He answers for real now. He'll also be brief and a little robotic — that's deliberate, and it gives the judge you'll write later something to complain about.
 
-When you're satisfied, click **Check** below.
+# The six lines that did that
+
+You didn't touch the app, so it's worth seeing what it's doing. Open `app/server.py` in the [Code Editor](#tab-2) and find the `/chat` handler. The part that matters is one call:
+
+```python
+cfg = ai_client.completion_config(OTTO_CONFIG_KEY, context, FALLBACK_CONFIG)
+```
+
+`cfg` now carries the prompt, the model, and the parameters that whoever edits the Config decided on — resolved fresh on this request, for this `context`. Everything after it is translation: `cfg.messages` becomes Bedrock's `system` and `messages` blocks, `cfg.model.name` becomes a Bedrock model ID, and `cfg.create_tracker()` reports tokens and latency back to LaunchDarkly.
+
+That's the whole integration surface. **LaunchDarkly decides *what* to send; your code decides *how* to send it.** Nothing about Otto's prompt or his model is in that file — which is what makes the next section possible.
+
+# Change his mind without shipping anything
+
+Otto's prompt says free shipping starts at $50. Ask him:
+
+```text
+How much is shipping on a $40 order?
+```
+
+He'll quote you $6. Now marketing drops the threshold to $35 — a one-word change to a fact customers rely on, and in most architectures a deploy.
+
+```
+In the otto-assistant AI Config, update the otto-born variation's system message: change "free shipping over $50" to "free shipping over $35". Change nothing else about the prompt.
+```
+
+Back in [ToggleWear](#tab-1), start a **new** chat and ask again. The $40 order now ships free.
+
+Nothing rebuilt, nothing restarted, and `server.py` is byte-for-byte what it was a minute ago. The prompt was never in the application — the application only ever knew how to go and ask for one.
+
+The "new chat" detail is the one caveat. `completion_config()` resolves on every request, so the change is live immediately, but Otto's earlier replies are still in his history and he'll stay consistent with what he already told you. Stale conversation, not stale config.
+
+Put it back before moving on — leave it and Otto starts contradicting the storefront's own shipping copy:
+
+```
+Change the otto-born system message back: free shipping over $50, not $35.
+```
+
+Click **Check** below.

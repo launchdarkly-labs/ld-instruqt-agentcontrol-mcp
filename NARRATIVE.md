@@ -24,13 +24,16 @@ Each challenge is a beat in Otto's story. The titles and one-line beats:
 |---|---|---|
 | 00 | Welcome to ToggleWear | The shop. The problem. Meet Otto-to-be, and meet the agent you'll build him with. |
 | 01 | Otto is born | First Config, first prompt, first words. Asked for, not clicked. |
-| 02 | Otto sounds like Otto | A judge grades every answer against the brand voice. Otto is being watched. |
-| 03 | Otto asks for help | Otto learns to hand his shaky answers to a human instead of guessing. |
-| 04 | Wrap-up | Otto is graded and governed. What you'd reach for next. |
+| 02 | Otto gets graded | A judge grades every answer against the brand voice. Otto is being watched. |
+| 03 | Otto knows his audience | Premium shoppers get a better Otto. Same personality, stronger model, nobody deploys anything. |
+| 04 | Trust but verify | Someone tries to replace Otto with a cheaper model that talks like a form letter. His own judge throws it out. |
+| 05 | Wrap-up | Otto is graded and governed. What you'd reach for next. |
+
+Those numbers are substantive-chapter numbers, not directory indices. Directory order is `01-meet-togglewear`, `02-otto-is-born`, `03-otto-knows-his-audience`, `04-otto-gets-graded`, `05-trust-but-verify`, `06-wrap-up` — see CLAUDE.md, "Two numbering schemes".
 
 The narrative is light-touch — it lives in section intros and in transitions between challenges. The bulk of each `assignment.md` is still directive prose. But the arc gives the track a center of gravity.
 
-There's a second thread running under Otto's, and it's worth keeping visible: the learner is not clicking through a UI. They're describing what they want to an agent. The track should never make a fuss about that, but it should never obscure it either — the payoff line in `04-wrap-up` is that the resources are ordinary and the judgement calls were still the learner's.
+There's a second thread running under Otto's, and it's worth keeping visible: the learner is not clicking through a UI. They're describing what they want to an agent. The track should never make a fuss about that, but it should never obscure it either — the payoff line in the wrap-up is that the resources are ordinary and the judgement calls were still the learner's.
 
 ## Voice for assignment.md prose
 
@@ -108,9 +111,9 @@ Each product needs:
 
 He is competent and cold, on purpose, and that gap never closes. Otto is never given a warm prompt in this track.
 
-Giving him the catalog matters as much as withholding the tone. An Otto who can't answer "what material is the Rollout Tote?" scores low for being *unhelpful*, which pushes him below challenge 03's suppress threshold and starves the review queue. An Otto who answers it flatly scores mid-band, which is exactly where the chapter needs him — and it makes "edit and approve" real work rather than rubber-stamping an apology.
+Giving him the catalog matters as much as withholding the tone. An Otto who can't answer "what material is the Rollout Tote?" scores low for being *unhelpful* rather than for being cold, which muddies the judge's signal. An Otto who answers it flatly scores mid-band — competent, charmless — and that is the baseline the guarded rollout later measures a challenger against. A baseline already scraping the floor would make any challenger look fine.
 
-This is worth being explicit about, because it's easy to "fix" by accident. Otto stays bland so that the judge in challenge 02 has something real to complain about, and so that challenge 03's middle band actually gets traffic. An Otto who scored 0.95 on everything would make both of those chapters demos of nothing. If someone later adds a prompt-iteration chapter, the review gate needs retuning to compensate.
+This is worth being explicit about, because it's easy to "fix" by accident. Otto stays bland so that the judge in challenge 02 has something real to complain about, and so that the guarded rollout has a believable baseline to compare a challenger against. An Otto who scored 0.95 on everything would make both of those chapters demos of nothing. If someone later adds a prompt-iteration chapter, check what it does to the judge's score distribution before shipping it.
 
 ---
 
@@ -141,11 +144,13 @@ This is worth being explicit about, because it's easy to "fix" by accident. Otto
 > Response to evaluate:
 > {{response}}
 
-The brand-voice paragraph is stated inline here and inline in `terraform/challenge-02/main.tf`. Those two copies must stay in sync. An earlier version of this workshop factored it into a `brand-voice` prompt snippet so one definition drove both Otto's prompt and his grading criteria; snippets are out of scope now, and `04-wrap-up` names the duplication honestly as a reason to go learn about them.
+The brand-voice paragraph is stated inline here and inline in `terraform/challenge-02/main.tf`. Those two copies must stay in sync. An earlier version of this workshop factored it into a `brand-voice` prompt snippet so one definition drove both Otto's prompt and his grading criteria; snippets are out of scope now, and the wrap-up names the duplication honestly as a reason to go learn about them.
 
 Otto's challenge-01 prompt tells him to be "accurate and concise" and says nothing about warmth, so he scores in the middle of this range on purpose. The gap is what makes challenge 03 have something to do.
 
-## The review gate (challenge 03)
+## The review gate (challenge 03) — RETIRED, kept for reference
+
+The human-in-the-loop chapter was cut on 2026-08-27 (see DECISIONS.md, "Track rebuilt around six learning objectives"). The app code, the Terraform module, and the copy below all remain in the repo unreferenced, so the chapter can be restored without reconstructing it. Nothing in the shipping track uses any of this — do not write prose that assumes a learner has seen it.
 
 **Flag key:** `otto-review-thresholds`, JSON.
 
@@ -163,9 +168,24 @@ The held message is deliberately in Otto's voice rather than a system notice. Ot
 
 **The reviewer** is the learner, wearing a staff hat. There's no separate persona and no login — the review queue simply appears on the storefront page. Don't invent a named human reviewer; the point is the role, not a character.
 
+## Otto (Stiff) and the guarded rollout (challenge 04)
+
+**Variation key:** `otto-stiff`, on Amazon Nova Pro. **Control:** `otto-born`. **Metric:** `otto-brand-voice-score`.
+
+The antagonist of this chapter is not the model — it's the prompt. Nova Pro is a perfectly good model being asked to be a form letter. Keep that distinction in the prose: the chapter is about catching a bad *configuration*, not about a bad vendor. Naming a real model as "the bad one" ages badly and isn't true.
+
+**Otto (Stiff)'s voice** is Otto with everything warm removed. Formal greeting, exhaustive explanation, formal sign-off, no contractions, no jokes. The tell a learner should recognise on sight is an opening like *"Dear valued customer,"*. It should be funny in a bleak way — recognisably the same assistant, wearing a suit that doesn't fit.
+
+Two things to keep straight in the prose:
+
+- **The rollout doesn't know anything about brand voice.** It watches a number. The definition of on-brand lives in the judge, written two chapters earlier. That separation is the point of the chapter and the last line of the wrap-up leans on it.
+- **The rollback is not a rescue.** Nobody is watching and nothing is saved at the last moment. The decision was made in advance, when the learner said what "worse" meant. Don't write it as a near-miss.
+
+**The failure is deliberate and should be stated as such.** A learner who thinks they're evaluating a real candidate model will read the outcome as a product recommendation. They're watching a rigged demo on purpose, because a subtle regression needs more traffic than a lab has.
+
 ## Wrap-up / Otto's ending
 
-In the wrap-up, briefly review Otto's arc — he was born plain, got graded by a judge you wrote, and learned to hand his shaky answers to a human. The takeaway: AgentControl lets you treat AI behavior the way LaunchDarkly already lets you treat features — controllable, observable, safe to change — and the MCP server means you can do all of it from wherever you already work.
+In the wrap-up, briefly review Otto's arc — he was born plain, learned to treat premium shoppers differently, got graded by a judge you wrote, and then had that same judge throw out a replacement model on his behalf. The takeaway: AgentControl lets you treat AI behavior the way LaunchDarkly already lets you treat features — controllable, observable, safe to change — and the MCP server means you can do all of it from wherever you already work.
 
 End on Otto's voice — a closing line *as Otto* would be on-theme. Something like:
 

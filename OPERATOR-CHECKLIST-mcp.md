@@ -47,6 +47,9 @@ This track shifts most of the verification burden from *UI drift* to *agent beha
 ## Cross-cutting
 
 - [ ] **Live-fire end to end** against a fresh sandbox: bootstrap → all five chapters by hand → all five solves from fresh state → every check passes both ways.
+- [ ] **Time the whole run with a stopwatch.** The track is budgeted at exactly 35 minutes with zero slack (2100s across six challenges). If it overshoots, do not trim prose further — it's already at ~18 minutes of reading. Drop an objective or raise the budget.
+- [ ] **Confirm the pastes are baked.** `app/server.py` must ship with `/chat` wired and `score_response()` implemented; `check-image.sh` asserts both. A learner never pastes code any more, so an unbaked image makes chapters 2, 4 and 5 fail for reasons none of them can explain.
+- [ ] **Read "The six lines that did that" in chapter 2 as a learner.** It's the only place the SDK integration appears now. If it doesn't land, the workshop teaches LaunchDarkly config without teaching how an app consumes it.
 - [ ] **Time the track-level `setup-workstation`.** It now also renders `.mcp.json` and patches `/root/.claude.json`; should still be well under 60s.
 - [ ] **Confirm `cleanup-workstation` revokes the lab token.** `GET /api/v2/tokens` on the account afterwards should not list a `Lab token: <project>` entry for the destroyed sandbox. This is new — the old script leaked a live token on every run.
 - [ ] Time a full self-paced run. Target ~1 hour.
@@ -73,7 +76,7 @@ For each: paste the assignment's prompt into Claude Code **verbatim** and see wh
 - [ ] Confirm the existing `assets/ch01-create-config.png` is still accurate or replace it — the assignment no longer walks the create-config dialog, so it may want a different shot (the created Config as the agent left it).
 - [ ] Confirm pasting the Challenge 01 block and saving triggers a reload that wires Otto correctly, and that the marker line survives verbatim for challenge 02's patch.
 
-### 02 Otto sounds like Otto
+### 02 Otto gets graded (judge)
 
 - [ ] **Confirm the agent creates the judge in judge mode.** Mode is fixed at creation, so an agent that defaults to completion mode leaves the learner needing to delete and recreate. If it gets this wrong often, the prompt needs to be blunter.
 - [ ] **Confirm `{{response}}` survives into the saved prompt.** This is the silent-failure case: a judge without it grades an empty string and still returns plausible numbers.
@@ -84,20 +87,33 @@ For each: paste the assignment's prompt into Claude Code **verbatim** and see wh
 - [ ] **Measure Otto's actual score distribution and set the bands to match.** `{auto: 0.8, review: 0.5}` are reasoned guesses, not measurements. Run traffic for a few minutes, look at the spread, and confirm a meaningful share lands between the two numbers. If it doesn't, move them — in `terraform/challenge-03/main.tf`, the ch03 assignment, and `DECISIONS.md`, together. This is the single most likely reason challenge 03 falls flat.
 - [ ] Confirm the read-back prompt's output is accurate and readable. It's learner-facing now, so a confusing summary of a Config is a content bug.
 
-### 03 Otto asks for help
+### 03 Otto knows his audience (tier routing)
 
-- [ ] Confirm the agent creates a genuine **JSON** flag with both variations parsing as objects containing `auto` and `review`.
-- [ ] Confirm it turns the flag on in Test and serves Balanced — a flag left off still serves `off_variation`, so the gate appears to work either way and the check has to catch it.
-- [ ] Complete the full review loop as a learner: land a hold, see the placeholder in chat, find the item in the staff panel, approve unedited, approve edited, reject. Each must reach the customer's transcript within a poll cycle.
-- [ ] Confirm `otto-review-outcome` records all three bands and `otto-review-decision` records all three human outcomes.
-- [ ] **Break the judge deliberately** (point its targeting at the disabled variation) and confirm the gate fails open and ships, rather than holding everything.
-- [ ] Switch to **Cautious** mid-session and confirm routing changes with no restart. This is the chapter's payoff; it has to be visible.
-- [ ] **Confirm the Staff Review tab opens `/review` directly.** There's a `VERIFY` marker on the tab's `path:` key — if Instruqt service tabs don't honour it, the learner has to reach the page via the storefront's "Staff review" nav link, and the tab plus every `#tab-3` reference needs rewording.
-- [ ] Check the Staff Review page's appearance in a browser — it's new UI and hasn't been seen rendered.
-- [ ] Confirm the queue shows only the learner's own held responses, and that the "N more from other sessions" line reflects background traffic.
-- [ ] Confirm a learner can reliably reach the middle band with a few messages. If not, adjust the suggested question in the assignment rather than the thresholds.
+- [ ] Confirm the agent uses the attribute **`tier`**, not `userTier`/`user_tier`/`plan`. The app sets `tier`; any other spelling produces a rule that matches nobody and is indistinguishable from one that works.
+- [ ] Confirm it adds a *rule* and leaves the default rule on `otto-born`. A rule that replaces the fallthrough sends everyone to Sonnet — it works perfectly and quietly costs money.
+- [ ] Confirm the context kind on the clause is **user**.
+- [ ] Run the learner path: tail `journalctl -u togglewear -f | grep 'chat session='`, flip the storefront tier switcher, confirm `model=` changes between haiku and sonnet on the same question.
+- [ ] **Resolve the `VERIFY` marker on the tier switcher** — confirm it's present in the baked image and still labelled "Free user" / "Premium user". The prose names those labels exactly.
+- [ ] Confirm `terraform/challenge-05`'s `otto_prompt` local is still byte-identical to `challenge-01`'s `otto_born_prompt`. The chapter claims only the model differs; nothing checks it.
+- [ ] Note the interaction with chapter 02's live-edit section: a learner who edits `otto-born`'s prompt and doesn't revert leaves the two variations genuinely different. Harmless, but confirm it doesn't confuse the comparison.
 
-### 04 Wrap-up
+### 04 Trust but verify
+
+This chapter has the most unverified surface in the track — it was authored against the API spec and a second workshop's notes, not against a live rollout. Work top to bottom.
+
+- [ ] **Confirm the MCP server can actually start a guarded rollout on an AI Config**, and capture the tool's real parameter names. The whole chapter rests on this. Evidence it exists is second-hand: the intro workshop's `PHASES-evaluate.md` Phase 0 notes, and LaunchDarkly's own `aiconfig-targeting` skill, which agree on the payload (`randomizationUnit`, `stages[{rolloutWeight, monitoringWindowMilliseconds}]`, `metrics[{metricKey, regressionThreshold, onRegression:{rollback}}]`). If it can't, the chapter reverts to the UI flow and the track premise takes a dent — decide before publishing.
+- [ ] **Resolve the two `VERIFY` markers in `assignment.md`:** whether the MCP server can report a running rollout's *stage and per-arm metric values* (both read-back prompts assume it can), and whether a ~90-second `monitoringWindowMilliseconds` is accepted or silently floored to a server-side minimum.
+- [ ] **Capture the real fallthrough JSON for a running guarded rollout** and replace the detection in `check-workstation`. It currently guesses across four field names (`experimentAllocation`, `guardedRollout`, `measuredRollout`, `releaseGuardian`) because the response shape was never seen. There's a `VERIFY` marker on the block.
+- [ ] Confirm the agent reuses the existing `otto-brand-voice-score` metric rather than inventing a new one. A fresh metric has no data, so the rollout sits at stage one forever and looks like a hang rather than a mistake.
+- [ ] Confirm the agent gets the arms the right way round — `otto-stiff` as test, `otto-born` as control. Backwards ramps traffic away from the bad model and never regresses.
+- [ ] Confirm `setup-workstation`'s `-target` apply creates the Nova Pro model config and nothing else, and that a variation on it actually serves through Bedrock. The model config's **name** must stay `amazon.nova-pro-v1:0` — `server.py` resolves through `BEDROCK_MODEL_IDS` on that string and passes unknown names through verbatim, so a rename 400s at first serve.
+- [ ] Time the organic path end to end: does the rollback fire from `background_traffic.py` alone inside the 1800s limit? If not, promote the sabotage script from escape hatch to normal step in the prose.
+- [ ] Run `sabotage.py` and confirm it forces a rollback within a minute or two, and that its Stiff-detection (`"nova"` in the served model name) matches what the SDK actually returns.
+- [ ] **Accept or fix the solve gap.** `solve-workstation` produces a plain percentage rollout, not a guarded one, because no public REST instruction starts one — see the DECISIONS.md entry. Skip therefore does not reproduce the learner's end state, the only chapter where that's true. Confirm this is acceptable for delivery, and that a presenter who skips knows the payoff won't appear.
+- [ ] Capture screenshots: the running rollout, the regression event, the post-rollback targeting state, and the Monitoring dip-and-recover if the LaunchDarkly tab is up.
+
+### 05 Wrap-up
 
 - [ ] Confirm the quiz's correct answer (index 1, the attachment-plus-invocation one) is right, and that the three distractors are plausible but clearly wrong to someone who did chapter 02.
 - [ ] Confirm no leftover references to Evaluate, Coordinate, or the deleted chapters.
+- [ ] Confirm guarded rollouts no longer appear in the next-steps list — they're taught now.
