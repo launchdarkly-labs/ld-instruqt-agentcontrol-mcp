@@ -546,3 +546,27 @@ The metadata endpoint is simply not reachable from the sandbox. No role ARN, aud
 **A diagnostic trap worth naming:** the 502 body is `Internal Server Error`, and Firefox's JSON viewer renders that on a dark background. Read as "the tab is black," it looks like the *login* page, which is genuinely `background-color:black` with a "Logging in..." spinner. Those two states are one keystroke apart in appearance and opposite in meaning — one is "no row was written," the other is "everything worked." Check the URL bar's `sandboxId` against the tables before theorising.
 
 **A wrong turn, recorded:** `aws-bedrock-workshop` looked like the workstation's IAM principal and holds a Bedrock-only policy, so "the writes are being denied" was an attractive story. `iam get-access-key-last-used` disproved it — the key that had hit Bedrock that day belonged to `instruqt-api`, which has `AdministratorAccess`. Permissions were never involved. One read-only API call beat the inference.
+
+---
+
+## Guarded rollout added back as a fifth chapter, driven from MCP (2026-08-27)
+
+**Decision:** `05-trust-but-verify` teaches guarded rollouts. This reverses the scope cut recorded above in "Scope cut to one track" (2026-08-14), which named guarded rollouts as one of the things that went, and it removes them from the next-steps list in the wrap-up. The chapter is lifted from the AI Configs intro workshop's `instruqt-evaluate/07-trust-but-verify` (repo `launchdarkly-labs/ld-workshop-ai-configs-intro`, track slug `ld-agentcontrol-evaluate`) and rewired to be driven from the MCP server.
+
+**Rationale:** the cut was made when the track's arc ended at the review gate. It doesn't anymore. The judge from the judge chapter is already a real metric with real values by chapter four, and pointing it at a release is the shortest path from "a number you look at" to "a number that acts." The intro workshop kept this chapter UI-driven only because the guarded rollout API wasn't reachable when it was authored — its own `solve-workstation` says so in a comment. That's no longer true for MCP, so the one thing that made it a bad fit for this track is gone.
+
+**Why the source chapter's structure changed:**
+
+- **The learner creates the risky variation, rather than setup pre-creating it.** The intro version hands `otto-stiff` over and has the learner only configure the rollout, because configuring it meant clicking. Here both are one prompt, which is the shape every other chapter in this track uses.
+- **The rollback is read back through MCP, not watched in the UI.** `01-meet-togglewear` already warns that the sandbox sign-in service isn't always up. Making the chapter's entire payoff depend on it would put the one moment worth seeing behind the least reliable surface in the lab. The UI path is mentioned as a nicety.
+- **The Nova Pro model config is pre-created by `setup-workstation`, with `-target`.** This is the exception to "the learner asks for everything," and it's not stylistic. `server.py` resolves Bedrock model IDs through `BEDROCK_MODEL_IDS`, keyed on the name LaunchDarkly returns, and passes unknown names through verbatim. An agent that reasonably names it "Amazon Nova Pro" produces a variation that reads correctly in every UI and 400s at Bedrock on first serve. The failure is invisible until the rollout starts. Names the app parses are not the agent's to choose.
+
+**The cost, stated plainly: `solve-workstation` cannot reproduce the learner's end state.** This is the only chapter in the track where that's true, and it breaks definition-of-done #3.
+
+No public REST instruction starts a guarded rollout. Verified against `app.launchdarkly.com/api/v2/openapi.json`: `PATCH /projects/{proj}/ai-configs/{key}/targeting` documents 21 semantic-patch instruction kinds, and the only rollout instruction is `updateFallthroughVariationOrRollout`, which takes plain `rolloutWeights`. The regular flag endpoint matches. A `ReleaseGuardianConfiguration` schema exists in the spec but is referenced only from the release-pipeline models, not from flag or AI Config targeting. The MCP server does expose it — that's what the learner drives — but solve must not depend on an LLM, so it can't get there.
+
+So Skip produces the Nova Pro model config, the `otto-stiff` variation, the judge attachment, and a plain 10/90 percentage rollout — the setup, with nothing watching and nothing to roll back. `check-workstation` is deliberately permissive about this: it requires a rollout, and holds it to the metric-and-rollback standard only if it detects a guarded one. Failing the operator's own escape hatch would be worse than a soft check.
+
+**Revisit when** a guarded-rollout instruction ships publicly. At that point replace `null_resource.fallthrough_rollout`, make the check's guard mandatory, and this entry's main cost goes away.
+
+**Also unverified, and marked in the files:** the guarded rollout's response shape on the targeting GET was never confirmed against a live account, so the check's detection is a best guess across four plausible field names. And the assignment's read-back prompts assume the MCP server can report a rollout's current stage and per-arm metric values — if it only exposes start, those prompts need to become the UI path. Both carry `VERIFY` markers.

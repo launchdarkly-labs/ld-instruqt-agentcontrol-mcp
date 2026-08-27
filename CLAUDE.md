@@ -10,7 +10,7 @@ A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product thr
 
 The distinguishing premise: **the learner drives LaunchDarkly through the hosted MCP server, not the UI.** Claude Code runs on the workstation, already connected, and the learner creates Configs, judges, and flags by describing what they want in plain language. The LaunchDarkly UI is used for *looking at* what was built and for reading scores, not for building.
 
-Four challenges, ~1 hour self-paced:
+Five challenges, ~1¼ hours self-paced:
 
 | Dir | Type | Beat |
 |---|---|---|
@@ -18,13 +18,14 @@ Four challenges, ~1 hour self-paced:
 | `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. Then a `server.py` paste wires Otto to Bedrock. |
 | `03-otto-sounds-like-otto` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. A second paste invokes it. |
 | `04-otto-asks-for-help` | challenge | One prompt creates the `otto-review-thresholds` JSON flag. A third paste gates responses into ship / hold-for-human / suppress, and the learner retunes the band live. |
-| `05-wrap-up` | quiz | Recap and one question. |
+| `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and starts a guarded rollout watching `otto-brand-voice-score`. The learner reads the rollback back through MCP. No `server.py` paste. |
+| `06-wrap-up` | quiz | Recap and one question. |
 
 ### Two numbering schemes, deliberately
 
-**Directory index** is presentation order only: `01`..`05`.
+**Directory index** is presentation order only: `01`..`06`.
 
-**Terraform modules and code markers** are numbered by *substantive* chapter, and do not shift: `terraform/challenge-01` is Otto's Config, `challenge-02` the judge, `challenge-03` the review gate. The `server.py` markers (`Challenge 01 paste block`, `Challenge 02 judge: replace this body`, `Challenge 03 review gate: replace this body`) match that scheme, because patch scripts and checks match on those exact strings.
+**Terraform modules and code markers** are numbered by *substantive* chapter, and do not shift: `terraform/challenge-01` is Otto's Config, `challenge-02` the judge, `challenge-03` the review gate, `challenge-04` the guarded rollout. The `server.py` markers (`Challenge 01 paste block`, `Challenge 02 judge: replace this body`, `Challenge 03 review gate: replace this body`) match that scheme, because patch scripts and checks match on those exact strings. The guarded-rollout chapter adds no marker — it touches LaunchDarkly only, which is why it has no `patch-server.py`.
 
 Learner-facing prose names chapters rather than numbering them, so a reorder can't make it wrong.
 
@@ -47,7 +48,7 @@ This track mirrors the structure and conventions of an existing LaunchDarkly Ins
 │   ├── track.yml                   # slug ld-agentcontrol-mcp
 │   ├── config.yml
 │   ├── track_scripts/{setup,cleanup}-workstation
-│   ├── 00-welcome/ … 04-wrap-up/
+│   ├── 01-meet-togglewear/ … 06-wrap-up/
 │   └── assets/                     # images referenced from assignment.md
 ├── app/                            # ToggleWear app, baked into the VM image
 │   ├── server.py                   # FastAPI server + review queue + static
@@ -59,7 +60,8 @@ This track mirrors the structure and conventions of an existing LaunchDarkly Ins
 │   ├── student-bootstrap/          # LD project + test env (track setup)
 │   ├── challenge-01/               # Otto's Config + SDK paste
 │   ├── challenge-02/               # brand-voice judge + metric + attachment
-│   └── challenge-03/               # thresholds flag + review-gate paste
+│   ├── challenge-03/               # thresholds flag + review-gate paste
+│   └── challenge-04/               # Nova Pro + otto-stiff + rollout fallback
 ├── gcp-federation/                 # AWS IAM role + GCP OIDC trust for Bedrock
 ├── traffic-generator/              # background traffic so scores populate
 └── vm-image/                       # inputs for baking the VM image
@@ -183,7 +185,8 @@ When implementing, **verify the latest stable version** before pinning. Don't as
 ## Out of scope
 
 - Re-teaching LaunchDarkly basics. Assume mastery.
-- Prompt snippets, guarded rollouts, experiments, offline evaluations, agent-mode Configs, agent graphs, targeting by user attribute. Each is named in `04-wrap-up` as a next step; none is taught.
+- Prompt snippets, experiments, offline evaluations, agent-mode Configs, agent graphs, targeting by user attribute. Each is named in `06-wrap-up` as a next step; none is taught.
+- **Guarded rollouts were on that list until 2026-08-27 and are now taught** in `05-trust-but-verify`. See the DECISIONS.md entry "Guarded rollout added back as a fifth chapter" — including the one place it forces a compromise, which is that `solve-workstation` can't reproduce the learner's end state.
 - Lecture content. Presenters deliver that via slides.
 - A cart, checkout, or authentication in ToggleWear.
 - Any non-Bedrock LLM provider for the app.

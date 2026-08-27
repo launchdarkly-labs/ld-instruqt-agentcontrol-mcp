@@ -26,7 +26,7 @@ head2 "Repo and app source"
 [ -f "$APP/server.py" ] && ok "app/server.py present" || bad "app/server.py missing" "wrong REPO_REF?"
 [ -f "$APP/.mcp.json.example" ] && ok "app/.mcp.json.example present (setup renders this)" \
   || bad "app/.mcp.json.example missing" "setup-workstation will abort on the sed; you baked an old commit"
-for d in challenge-01 challenge-02 challenge-03 student-bootstrap; do
+for d in challenge-01 challenge-02 challenge-03 challenge-04 student-bootstrap; do
   [ -d "$REPO/terraform/$d" ] && ok "terraform/$d present" || bad "terraform/$d missing" "wrong REPO_REF"
 done
 [ -f "$APP/static/review.html" ] && ok "staff review page present" \

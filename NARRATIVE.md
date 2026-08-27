@@ -26,7 +26,8 @@ Each challenge is a beat in Otto's story. The titles and one-line beats:
 | 01 | Otto is born | First Config, first prompt, first words. Asked for, not clicked. |
 | 02 | Otto sounds like Otto | A judge grades every answer against the brand voice. Otto is being watched. |
 | 03 | Otto asks for help | Otto learns to hand his shaky answers to a human instead of guessing. |
-| 04 | Wrap-up | Otto is graded and governed. What you'd reach for next. |
+| 04 | Trust but verify | Someone tries to replace Otto with a cheaper model that talks like a form letter. His own judge throws it out. |
+| 05 | Wrap-up | Otto is graded and governed. What you'd reach for next. |
 
 The narrative is light-touch — it lives in section intros and in transitions between challenges. The bulk of each `assignment.md` is still directive prose. But the arc gives the track a center of gravity.
 
@@ -163,9 +164,24 @@ The held message is deliberately in Otto's voice rather than a system notice. Ot
 
 **The reviewer** is the learner, wearing a staff hat. There's no separate persona and no login — the review queue simply appears on the storefront page. Don't invent a named human reviewer; the point is the role, not a character.
 
+## Otto (Stiff) and the guarded rollout (challenge 04)
+
+**Variation key:** `otto-stiff`, on Amazon Nova Pro. **Control:** `otto-born`. **Metric:** `otto-brand-voice-score`.
+
+The antagonist of this chapter is not the model — it's the prompt. Nova Pro is a perfectly good model being asked to be a form letter. Keep that distinction in the prose: the chapter is about catching a bad *configuration*, not about a bad vendor. Naming a real model as "the bad one" ages badly and isn't true.
+
+**Otto (Stiff)'s voice** is Otto with everything warm removed. Formal greeting, exhaustive explanation, formal sign-off, no contractions, no jokes. The tell a learner should recognise on sight is an opening like *"Dear valued customer,"*. It should be funny in a bleak way — recognisably the same assistant, wearing a suit that doesn't fit.
+
+Two things to keep straight in the prose:
+
+- **The rollout doesn't know anything about brand voice.** It watches a number. The definition of on-brand lives in the judge, written two chapters earlier. That separation is the point of the chapter and the last line of the wrap-up leans on it.
+- **The rollback is not a rescue.** Nobody is watching and nothing is saved at the last moment. The decision was made in advance, when the learner said what "worse" meant. Don't write it as a near-miss.
+
+**The failure is deliberate and should be stated as such.** A learner who thinks they're evaluating a real candidate model will read the outcome as a product recommendation. They're watching a rigged demo on purpose, because a subtle regression needs more traffic than a lab has.
+
 ## Wrap-up / Otto's ending
 
-In the wrap-up, briefly review Otto's arc — he was born plain, got graded by a judge you wrote, and learned to hand his shaky answers to a human. The takeaway: AgentControl lets you treat AI behavior the way LaunchDarkly already lets you treat features — controllable, observable, safe to change — and the MCP server means you can do all of it from wherever you already work.
+In the wrap-up, briefly review Otto's arc — he was born plain, got graded by a judge you wrote, learned to hand his shaky answers to a human, and then had that same judge throw out a replacement model on his behalf. The takeaway: AgentControl lets you treat AI behavior the way LaunchDarkly already lets you treat features — controllable, observable, safe to change — and the MCP server means you can do all of it from wherever you already work.
 
 End on Otto's voice — a closing line *as Otto* would be on-theme. Something like:
 

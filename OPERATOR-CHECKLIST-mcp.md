@@ -97,7 +97,23 @@ For each: paste the assignment's prompt into Claude Code **verbatim** and see wh
 - [ ] Confirm the queue shows only the learner's own held responses, and that the "N more from other sessions" line reflects background traffic.
 - [ ] Confirm a learner can reliably reach the middle band with a few messages. If not, adjust the suggested question in the assignment rather than the thresholds.
 
-### 04 Wrap-up
+### 04 Trust but verify
+
+This chapter has the most unverified surface in the track — it was authored against the API spec and a second workshop's notes, not against a live rollout. Work top to bottom.
+
+- [ ] **Confirm the MCP server can actually start a guarded rollout on an AI Config**, and capture the tool's real parameter names. The whole chapter rests on this. Evidence it exists is second-hand: the intro workshop's `PHASES-evaluate.md` Phase 0 notes, and LaunchDarkly's own `aiconfig-targeting` skill, which agree on the payload (`randomizationUnit`, `stages[{rolloutWeight, monitoringWindowMilliseconds}]`, `metrics[{metricKey, regressionThreshold, onRegression:{rollback}}]`). If it can't, the chapter reverts to the UI flow and the track premise takes a dent — decide before publishing.
+- [ ] **Resolve the two `VERIFY` markers in `assignment.md`:** whether the MCP server can report a running rollout's *stage and per-arm metric values* (both read-back prompts assume it can), and whether a ~90-second `monitoringWindowMilliseconds` is accepted or silently floored to a server-side minimum.
+- [ ] **Capture the real fallthrough JSON for a running guarded rollout** and replace the detection in `check-workstation`. It currently guesses across four field names (`experimentAllocation`, `guardedRollout`, `measuredRollout`, `releaseGuardian`) because the response shape was never seen. There's a `VERIFY` marker on the block.
+- [ ] Confirm the agent reuses the existing `otto-brand-voice-score` metric rather than inventing a new one. A fresh metric has no data, so the rollout sits at stage one forever and looks like a hang rather than a mistake.
+- [ ] Confirm the agent gets the arms the right way round — `otto-stiff` as test, `otto-born` as control. Backwards ramps traffic away from the bad model and never regresses.
+- [ ] Confirm `setup-workstation`'s `-target` apply creates the Nova Pro model config and nothing else, and that a variation on it actually serves through Bedrock. The model config's **name** must stay `amazon.nova-pro-v1:0` — `server.py` resolves through `BEDROCK_MODEL_IDS` on that string and passes unknown names through verbatim, so a rename 400s at first serve.
+- [ ] Time the organic path end to end: does the rollback fire from `background_traffic.py` alone inside the 1800s limit? If not, promote the sabotage script from escape hatch to normal step in the prose.
+- [ ] Run `sabotage.py` and confirm it forces a rollback within a minute or two, and that its Stiff-detection (`"nova"` in the served model name) matches what the SDK actually returns.
+- [ ] **Accept or fix the solve gap.** `solve-workstation` produces a plain percentage rollout, not a guarded one, because no public REST instruction starts one — see the DECISIONS.md entry. Skip therefore does not reproduce the learner's end state, the only chapter where that's true. Confirm this is acceptable for delivery, and that a presenter who skips knows the payoff won't appear.
+- [ ] Capture screenshots: the running rollout, the regression event, the post-rollback targeting state, and the Monitoring dip-and-recover if the LaunchDarkly tab is up.
+
+### 05 Wrap-up
 
 - [ ] Confirm the quiz's correct answer (index 1, the attachment-plus-invocation one) is right, and that the three distractors are plausible but clearly wrong to someone who did chapter 02.
 - [ ] Confirm no leftover references to Evaluate, Coordinate, or the deleted chapters.
+- [ ] Confirm guarded rollouts no longer appear in the next-steps list — they're taught now.

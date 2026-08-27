@@ -57,7 +57,7 @@ refresh_repo() {
     rm -f "${REPO_DIR}"/CLAUDE.md "${REPO_DIR}"/DECISIONS.md "${REPO_DIR}"/PHASES.md \
           "${REPO_DIR}"/NARRATIVE.md "${REPO_DIR}"/OPERATOR-CHECKLIST-mcp.md
     # terraform init for anything the fetch added or changed.
-    for ch in student-bootstrap challenge-01 challenge-02 challenge-03; do
+    for ch in student-bootstrap challenge-01 challenge-02 challenge-03 challenge-04; do
         [ -d "${REPO_DIR}/terraform/${ch}" ] || continue
         (cd "${REPO_DIR}/terraform/${ch}" && terraform init -input=false -upgrade=false >/dev/null)
     done
