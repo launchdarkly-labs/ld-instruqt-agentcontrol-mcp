@@ -47,6 +47,9 @@ This track shifts most of the verification burden from *UI drift* to *agent beha
 ## Cross-cutting
 
 - [ ] **Live-fire end to end** against a fresh sandbox: bootstrap → all five chapters by hand → all five solves from fresh state → every check passes both ways.
+- [ ] **Time the whole run with a stopwatch.** The track is budgeted at exactly 35 minutes with zero slack (2100s across six challenges). If it overshoots, do not trim prose further — it's already at ~18 minutes of reading. Drop an objective or raise the budget.
+- [ ] **Confirm the pastes are baked.** `app/server.py` must ship with `/chat` wired and `score_response()` implemented; `check-image.sh` asserts both. A learner never pastes code any more, so an unbaked image makes chapters 2, 4 and 5 fail for reasons none of them can explain.
+- [ ] **Read "The six lines that did that" in chapter 2 as a learner.** It's the only place the SDK integration appears now. If it doesn't land, the workshop teaches LaunchDarkly config without teaching how an app consumes it.
 - [ ] **Time the track-level `setup-workstation`.** It now also renders `.mcp.json` and patches `/root/.claude.json`; should still be well under 60s.
 - [ ] **Confirm `cleanup-workstation` revokes the lab token.** `GET /api/v2/tokens` on the account afterwards should not list a `Lab token: <project>` entry for the destroyed sandbox. This is new — the old script leaked a live token on every run.
 - [ ] Time a full self-paced run. Target ~1 hour.

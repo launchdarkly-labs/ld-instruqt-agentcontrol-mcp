@@ -162,8 +162,62 @@ def score_response(
 
     The judge chapter replaces this body.
     """
-    # ─── Challenge 02 judge: replace this body ───────────────────────────────
-    return None
+    # ─── Challenge 02: brand-voice judge ─────────────────────────────────────
+    # Score Otto's answer 0.0-1.0 with the otto-brand-voice-judge Config, emit
+    # it as an otto-brand-voice-score metric event, and return it.
+    #
+    # Errors are swallowed and return None — a judge failure should not poison a
+    # customer's chat. The next challenge decides what None means.
+    try:
+        bv_ctx = Context.builder(req.session_id).set("tier", req.user_tier).build()
+        bv_cfg = ai_client.judge_config(
+            "otto-brand-voice-judge",
+            bv_ctx,
+            variables={"response": assistant_text},
+        )
+        if not (bv_cfg.enabled and bv_cfg.model is not None):
+            return None
+
+        bv_system: list[dict] = []
+        bv_messages: list[dict] = []
+        for m in (bv_cfg.messages or []):
+            if m.role == "system":
+                bv_system.append({"text": m.content})
+            else:
+                bv_messages.append({"role": m.role, "content": [{"text": m.content}]})
+
+        # Bedrock's Converse API requires the conversation to start with a user
+        # turn. A LaunchDarkly judge variation normally carries only a system
+        # message — the answer being judged is interpolated into it as
+        # {{response}} — so bv_messages is empty here and the call would fail with
+        # ValidationException: "A conversation must start with a user message."
+        if not bv_messages:
+            bv_messages = [
+                {"role": "user", "content": [{"text": "Score the response. Reply with only the number."}]}
+            ]
+
+        bv_kwargs = {
+            "modelId": resolve_bedrock_model(bv_cfg.model.name),
+            "messages": bv_messages,
+            "inferenceConfig": {"maxTokens": 8, "temperature": 0.0},
+        }
+        if bv_system:
+            bv_kwargs["system"] = bv_system
+
+        bv_text = _extract_text(bedrock.converse(**bv_kwargs)).strip()
+        score = float(bv_text.split()[0])
+        if not 0.0 <= score <= 1.0:
+            return None
+
+        ld_client.track("otto-brand-voice-score", bv_ctx, None, score)
+        log.info(
+            "brand-voice-judge session=%s otto_model=%s score=%.2f",
+            req.session_id, model_id, score,
+        )
+        return score
+    except Exception:  # noqa: BLE001
+        log.exception("Brand-voice judge eval failed (non-fatal)")
+        return None
 
 
 def gate_response(
@@ -340,20 +394,59 @@ def chat(req: ChatRequest):
             },
         )
 
-    # ─────────────────────────────────────────────────────────────────────
-    # Challenge 01 paste block — replace this stub with real Otto code.
-    # The lab instructions tell you exactly what to put between these
-    # markers. Until you do, Otto returns a canned not-wired-up response.
-    # ─────────────────────────────────────────────────────────────────────
-    assistant_text = (
-        "Otto isn't wired up yet. Complete Challenge 01 to bring him to life."
-    )
-    model_id = "(unwired)"
+    # ─── Challenge 01: wire Otto to /chat ─────────────────────────────────
+    # Build context, evaluate the otto-assistant Config.
+    context = Context.builder(req.session_id).set("tier", req.user_tier).build()
+    cfg = ai_client.completion_config(OTTO_CONFIG_KEY, context, FALLBACK_CONFIG)
+
+    if not cfg.enabled or cfg.model is None:
+        return JSONResponse(status_code=503, content={
+            "response": "Otto isn't enabled. Check the Config targeting.",
+            "turn": turn, "turn_limit": TURN_LIMIT,
+        })
+
+    # Translate the Config's messages into Bedrock Converse format.
+    system_blocks = []
+    seed_messages = []
+    for m in cfg.messages or []:
+        if m.role == "system":
+            system_blocks.append({"text": m.content})
+        else:
+            seed_messages.append({"role": m.role, "content": [{"text": m.content}]})
+
+    # Merge in this session's prior turns + the new user message.
+    with _state_lock:
+        prior = list(_history[req.session_id])
+    history_blocks = [{"role": m.role, "content": [{"text": m.content}]} for m in prior]
+    bedrock_messages = seed_messages + history_blocks + [
+        {"role": "user", "content": [{"text": req.message}]}
+    ]
+
+    model_id = resolve_bedrock_model(cfg.model.name)
+    tracker = cfg.create_tracker()
+
+    try:
+        response = tracker.track_bedrock_converse_metrics(
+            bedrock.converse(modelId=model_id, messages=bedrock_messages, system=system_blocks)
+        )
+    except ClientError as e:
+        err = e.response.get("Error", {})
+        log.error("Bedrock ClientError code=%s model=%s message=%s",
+                  err.get("Code"), model_id, err.get("Message"))
+        return JSONResponse(status_code=502, content={
+            "response": _bedrock_user_message(err.get("Code")),
+            "turn": turn, "turn_limit": TURN_LIMIT,
+        })
+
+    assistant_text = _extract_text(response)
+
+    usage = response.get("usage") or {}
+    metrics = response.get("metrics") or {}
     log.info(
-        "chat session=%s tier=%s turn=%d model=%s",
+        "chat session=%s tier=%s turn=%d model=%s tokens_in=%s tokens_out=%s latency_ms=%s",
         req.session_id, req.user_tier, turn, model_id,
+        usage.get("inputTokens"), usage.get("outputTokens"), metrics.get("latencyMs"),
     )
-    # ─── End Challenge 01 paste block ────────────────────────────────────
 
     # Grade it (Challenge 02), then decide who sees it (Challenge 03). Both are
     # no-ops until those challenges fill in the stubs above.

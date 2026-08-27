@@ -607,3 +607,27 @@ So an offline-eval chapter could not be MCP-driven, could not be asserted by `ch
 **The alternative, if the objective needs to be met:** `GET /projects/{proj}/ai-configs/{key}/metrics-by-variation` exists and returns usage metrics split by variation. With `otto-born`, `otto-premium`, and `otto-brand-voice-score` all live by chapter four, that supports a genuine side-by-side comparison of two agents on the same judge — API-backed, MCP-drivable, and checkable. It is *not* an offline evaluation against a labeled dataset: it compares live traffic, and there are no row-level scores against expected outputs. Whether that satisfies the objective is a product call, not a technical one.
 
 **The budget is now load-bearing.** 600 + 1200 + 900 + 1200 + 1200 + 300 = 5400. There is no slack. The first lever if a live run overshoots is pre-baking the two `server.py` pastes into the VM image so the learner only ever touches LaunchDarkly — roughly 15 minutes back, and it sharpens the MCP premise. That was considered for this pass and deferred: it changes the app, the patch scripts, and two checks, and it removes the one place the track shows how the SDK actually resolves a Config.
+
+---
+
+## Cut to 35 minutes: the server.py pastes are pre-baked (2026-08-27)
+
+**Decision:** the track's budget drops from 90 minutes to 35. Both `server.py` paste sections are removed from the assignments and their code is baked into the VM image, so the app ships fully wired and the learner touches LaunchDarkly only. All six chapters and all five objectives survive; prose is cut roughly in half.
+
+New budget: 240 + 480 + 360 + 300 + 600 + 120 = 2100 seconds. Prose is ~3,700 words (~18 min reading), leaving ~17 minutes for agent round-trips and waiting.
+
+**Why pre-baking was the only lever big enough.** The pastes were ~13 minutes of the 90 — the largest single recoverable block, and the only one that could be removed without dropping an objective. `CLAUDE.md` and the previous DECISIONS entry had both already named it as the first lever to pull if timing overshot; at 35 minutes it stopped being a lever and became a prerequisite. Everything else came from prose.
+
+**What it costs.** The learner never writes the integration. That was the one place the track showed how `completion_config()` resolves a Config and how the result maps onto a Bedrock call — genuinely the most transferable thing in the workshop for someone going home to wire up their own app. Mitigated with a ~90-second read-only walkthrough in `02-otto-is-born` ("The six lines that did that"): the same code, shown rather than typed. That keeps the teaching and drops both the typing time and the paste-error failure mode, which was a real source of check failures.
+
+**What it gains beyond time.** It sharpens the premise. A track whose thesis is "you drive LaunchDarkly from your agent, not the UI" was spending a quarter of its runtime on neither — a learner hand-editing Python. Now every minute is either MCP or observing the result.
+
+**How it was applied.** Not by hand — by running `terraform/challenge-01/patch-server.py` and `challenge-02/patch-server.py` against the repo copy of `server.py`, so the baked result is byte-identical to what a solve would have produced. Both are `SIGNATURE`-guarded and now no-op ("already wired — no patch needed"), which was verified by re-running them. They're kept rather than deleted so solve still works if someone bakes from an older commit.
+
+**Three things inverted with it, and getting any of them wrong ships a broken lab:**
+
+- `vm-image/check-image.sh` asserted the *stub markers* were intact. It now asserts the *implementations* are present. The old assertion would pass on a correctly-baked image only by accident and fail loudly the moment the bake is right.
+- The paste assertions in `02` and `04`'s `check-workstation` are retained but re-worded: they can now only fire because of a bad image, so they tell the learner to talk to the operator rather than to paste code that is already there.
+- `gate_response()`'s stub marker stays. The review-gate chapter is cut, so the stub *is* the shipping behaviour, and `terraform/challenge-03/patch-server.py` still matches on it.
+
+**The remaining risk is `05-trust-but-verify`.** ~5 minutes of reading inside a 10-minute limit, leaving ~5 for the guarded rollout to actually detect a regression and revert. `sabotage.py` compresses it and is now the normal path rather than an escape hatch, but the detector's timing is not ours to control. If a live run overshoots, trimming more prose will not fix it — the honest options are dropping an objective or accepting a longer track. Do not respond by shortening the monitoring windows below what the API will honour; that's already flagged as unverified.

@@ -88,15 +88,17 @@ if [ "$METRIC" != "200" ]; then
   exit 1
 fi
 
+# The judge invocation is PRE-BAKED into the VM image — the learner creates the
+# judge Config, not the code that calls it. Both assertions stay, because a
+# stubbed score_response() returns None for everything and would make this
+# chapter and the guarded rollout fail for reasons neither one can explain.
 if ! grep -q 'otto-brand-voice-judge' /opt/ld/ai-configs-intro/app/server.py; then
-  fail-message "Your server code doesn't invoke the judge yet. Replace the body of \`score_response()\` in \`server.py\` with the block from the assignment."
+  fail-message "The app isn't invoking the judge, which is a problem with the lab image rather than anything you did. Tell your operator that \`server.py\` shipped without the Challenge 02 block."
   exit 1
 fi
 
-# The stub returns None unconditionally. If it's still there, the judge never runs
-# no matter what else is in the file.
 if grep -q 'Challenge 02 judge: replace this body' /opt/ld/ai-configs-intro/app/server.py; then
-  fail-message "\`score_response()\` still has its placeholder body. Replace the marker comment and the \`return None\` below it with the judge block from the assignment."
+  fail-message "\`score_response()\` still has its placeholder body, so nothing is ever scored. This is a lab image problem — tell your operator the Challenge 02 patch wasn't applied at bake time."
   exit 1
 fi
 

@@ -72,9 +72,13 @@ if [ -z "$BORN_ID" ] || [ "$FALLTHROUGH_ID" != "$BORN_ID" ]; then
   exit 1
 fi
 
-# 5. The learner has pasted the SDK code into server.py.
+# 5. The app is wired to AgentControl.
+#
+# This is PRE-BAKED into the VM image — the learner never pastes it. If this
+# fires, the image is wrong, not the learner. Keep the assertion anyway: a
+# silently unwired app makes every later chapter fail in confusing ways.
 if ! grep -q 'ai_client.completion_config(OTTO_CONFIG_KEY' /opt/ld/ai-configs-intro/app/server.py; then
-  fail-message "Your server code still has the placeholder. Replace the **Challenge 01 paste block** in \`server.py\` with the code from the lab."
+  fail-message "The ToggleWear app isn't wired to AgentControl, which is a problem with the lab image rather than anything you did. Tell your operator that \`server.py\` shipped without the Challenge 01 block."
   exit 1
 fi
 
@@ -99,7 +103,10 @@ REPLY=$(printf '%s' "$CHAT" | jq -r '.response // ""')
 
 case "$REPLY" in
   *"isn't wired up yet"*)
-    fail-message "Otto is still returning the placeholder response, so the app is running code from before your paste. Save \`server.py\` and give it a few seconds to reload, then press Check again."
+    # Only reachable on an image baked before the pastes were pre-baked
+    # (2026-08-27). Kept so that failure names itself instead of looking like a
+    # LaunchDarkly problem.
+    fail-message "The app is running the old unwired stub, which means the lab image predates this version of the track. Tell your operator the image needs rebaking."
     exit 1 ;;
   *"isn't enabled"*)
     fail-message "Otto's Config evaluated to disabled. Ask Claude Code to set the default rule in the Test environment to serve otto-born."

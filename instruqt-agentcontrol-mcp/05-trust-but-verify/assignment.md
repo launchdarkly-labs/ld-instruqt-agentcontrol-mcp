@@ -28,23 +28,19 @@ tabs:
   hostname: workstation
   port: 8080
 difficulty: intermediate
-timelimit: 1200
+timelimit: 600
 enhanced_loading: null
 ---
 
 # The question you can't answer in advance
 
-Amazon Nova Pro is cheaper than the Haiku model Otto runs on now, and someone in a meeting has noticed. The honest answer to "will it still sound like Otto?" is that nobody knows until customers are talking to it.
+Amazon Nova Pro is cheaper than the Haiku model Otto runs on, and someone in a meeting has noticed. The honest answer to "will it still sound like Otto?" is that nobody knows until customers are talking to it.
 
-That's not a reason to refuse. It's a reason to not make the decision by hand.
+That's not a reason to refuse. It's a reason not to make the decision by hand.
 
-You already have the instrument. The brand-voice judge scores every one of Otto's answers, and `otto-brand-voice-score` is a real metric with real values in it. A guarded rollout points that metric at a release: send a slice of traffic to the new model, watch the score, and roll back automatically if it regresses. Nobody has to be watching at 2am.
+You already have the instrument. `otto-brand-voice-score` is a real metric with real values in it. A guarded rollout points that metric at a release: send a slice of traffic to the new model, watch the score, roll back automatically if it regresses. Nobody has to be awake for it.
 
-This chapter ships a model that is *going to fail*, on purpose, so you can watch the failure get handled.
-
-# What you're rolling out
-
-The candidate is deliberately bad. Its prompt is stiff, formal, and corporate — the precise opposite of what your judge grades for. In a real rollout you'd hope for a coin flip; here you want a landslide, because a subtle regression takes more traffic and more time than a lab has.
+This chapter ships a model that is *going to fail*, on purpose, so you can watch the failure get handled. Its prompt is stiff, formal and corporate — the precise opposite of what your judge grades for. A real rollout is a coin flip; here you want a landslide, because a subtle regression needs more traffic than a lab has.
 
 | Thing | Value |
 |---|---|
@@ -54,7 +50,7 @@ The candidate is deliberately bad. Its prompt is stiff, formal, and corporate �
 | Metric to watch | `otto-brand-voice-score` |
 | Rollback | Automatic, on regression |
 
-The Nova Pro model config is already in your project — setup put it there, because the app resolves Bedrock model IDs from that exact name and a near-miss would just fail to answer. Everything else on this list, you're about to ask for.
+The Nova Pro model config is already there — setup created it, because the app resolves Bedrock model IDs from that exact name and a near-miss just fails to answer. Everything else, you're about to ask for.
 
 # Ask for the rollout
 
@@ -86,12 +82,10 @@ Show me the guarded rollout on otto-assistant in Test: which variation is the te
 
 Four things to confirm:
 
-- The test arm is `otto-stiff` and the control is `otto-born`. Backwards is a rollout that ramps traffic *away* from the bad model and never regresses.
+- Test arm is `otto-stiff`, control is `otto-born`. Backwards ramps traffic *away* from the bad model and never regresses.
 - The metric is `otto-brand-voice-score`.
-- On regression it **rolls back**, not just notifies. Notify-only is a pager at 2am; rollback is the point of this chapter.
+- On regression it **rolls back**, not just notifies. Notify-only is a pager at 2am.
 - It's actually running, at the first stage.
-
-If any of that is wrong, point it out and ask Claude to fix that specific thing.
 
 # Watch it fail
 
@@ -128,7 +122,7 @@ A model nobody had tested reached real users, got measured against a standard yo
 
 That's the difference between a metric and a guardrail. Until now `otto-brand-voice-score` was something you looked at. Here it was something that acted. The judge didn't change at all; you just gave its output somewhere to go.
 
-Worth sitting with: the thing that made this safe wasn't the rollback. It was having written down what "good" means, in a judge, before you needed it. The rollback is just plumbing attached to that definition.
+What made this safe wasn't the rollback. It was having written down what "good" means, in a judge, before you needed it. The rollback is plumbing attached to that definition.
 
 Click **Check** when the guarded rollout is running.
 

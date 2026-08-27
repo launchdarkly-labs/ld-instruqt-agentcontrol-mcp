@@ -27,25 +27,25 @@ tabs:
   hostname: workstation
   port: 8080
 difficulty: basic
-timelimit: 900
+timelimit: 360
 enhanced_loading: null
 ---
 
 # One Otto is not enough
 
-Otto runs on Haiku, which is fast and cheap and good enough for "do the socks come in large."
+Otto runs on Haiku — fast, cheap, fine for "do the socks come in large."
 
-It's not obviously good enough for a customer with a full cart and a complicated question about international returns. Those are the customers you'd happily spend more inference on — and right now every one of them gets the same model as everyone else.
+It's less obviously fine for a customer with a full cart and a complicated question about international returns. Those are the customers you'd happily spend more inference on, and right now they get the same model as everyone else.
 
 The instinct is to branch in code: check the tier, pick a model. Don't. That puts a pricing decision inside a deploy cycle, and the person who wants to change it isn't the person who can ship it.
 
-The app already tells LaunchDarkly who's asking. Every request builds a context with a `tier` attribute on it:
+The app already tells LaunchDarkly who's asking — every request builds a context with a `tier` attribute:
 
 ```python
 context = Context.builder(req.session_id).set("tier", req.user_tier).build()
 ```
 
-That one line is all the app will ever need to know about this. Everything else happens in LaunchDarkly.
+That's all the app will ever need to know about this. Everything else happens in LaunchDarkly.
 
 # What you're building
 
@@ -56,7 +56,7 @@ That one line is all the app will ever need to know about this. Everything else 
 | Rule | `tier` is `premium` → serve `otto-premium` |
 | Everyone else | Falls through to `otto-born`, unchanged |
 
-Otto's *personality* stays identical — same system prompt, same catalog, same voice. Only the model underneath changes. That's deliberate: it keeps this chapter about routing, and it means the judge two chapters from now is comparing models rather than prompts.
+Otto's *personality* stays identical — same system prompt, same catalog, same voice. Only the model underneath changes. That's deliberate: it keeps this chapter about routing, and it means the judge in the next chapter is comparing models rather than prompts.
 
 # Ask for the rule
 
@@ -104,12 +104,11 @@ Switch the dropdown to **Premium user** and ask again. Same question, same app, 
 
 Nothing was redeployed. Nothing was restarted. The app made the same call both times and LaunchDarkly answered it differently.
 
-# What you'd reach for next
+# One step further
 
-You targeted an attribute the app happened to send. Two things extend naturally from here, both out of scope today but worth knowing exist:
+You targeted an attribute the app happened to send. In production you'd more often match a **segment** — "is in the Enterprise Accounts list" — a reusable cohort maintained once and referenced by many flags and Configs. Same mechanism, better fit when the cohort is a business fact rather than a request attribute.
 
-- **Segments.** Instead of `tier is premium`, you'd match "is in the *Enterprise Accounts* segment" — a reusable list maintained once and referenced by many flags and Configs. Better when the cohort is a business fact rather than a request attribute.
-- **Percentage rollouts on a rule.** A rule can serve a split rather than a single variation, which is how you'd try Sonnet on a *fraction* of premium users. You'll do exactly that in the last chapter, with a guardrail attached.
+A rule can also serve a *split* rather than a single variation, which is how you'd try a model on a fraction of premium users. You'll do exactly that in the last chapter, with a guardrail attached.
 
 Click **Check** when premium traffic is routing to `otto-premium`.
 

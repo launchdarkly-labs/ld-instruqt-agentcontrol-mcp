@@ -10,18 +10,26 @@ A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product thr
 
 The distinguishing premise: **the learner drives LaunchDarkly through the hosted MCP server, not the UI.** Claude Code runs on the workstation, already connected, and the learner creates Configs, judges, and flags by describing what they want in plain language. The LaunchDarkly UI is used for *looking at* what was built and for reading scores, not for building.
 
-Five challenges, 90 minutes self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
+Five challenges, **35 minutes** self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
 
 | Dir | Type | Beat |
 |---|---|---|
 | `01-meet-togglewear` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
-| `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A `server.py` paste wires Otto to Bedrock. Then a live prompt edit changes a shipping policy mid-session with no deploy. |
+| `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A read-only walkthrough of the six SDK lines, then a live prompt edit changes a shipping policy mid-session with no deploy. |
 | `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet and a `tier is premium` targeting rule. No app change at all — the chapter's point. |
-| `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. A second paste invokes it. |
+| `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. The app already invokes it. |
 | `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and starts a guarded rollout watching `otto-brand-voice-score`. The rollback is read back through MCP. No paste. |
 | `06-wrap-up` | quiz | Recap and one question. |
 
-**The 90 minutes is a hard budget and it is fully spent** — 600 + 1200 + 900 + 1200 + 1200 + 300 = 5400, exactly `track.yml`'s `timelimit`. Adding a chapter means taking the time from another one. If a live run overshoots, the lever to pull first is pre-baking the `server.py` pastes into the VM image so the learner only touches LaunchDarkly; that buys back roughly 15 minutes and sharpens the MCP premise rather than diluting it.
+**35 minutes is a hard budget and it is fully spent** — 240 + 480 + 360 + 300 + 600 + 120 = 2100, exactly `track.yml`'s `timelimit`. Prose is about 3,700 words, or ~18 minutes of reading, leaving ~17 for agent round-trips and waiting. Adding anything means taking the time from another chapter.
+
+**There are no `server.py` pastes any more.** Both were pre-baked into the VM image on 2026-08-27 to buy the time — see DECISIONS.md, "Cut to 35 minutes". The learner touches LaunchDarkly only. Consequences worth knowing before you edit anything:
+
+- `app/server.py` ships with `/chat` wired and `score_response()` implemented. `terraform/challenge-01` and `challenge-02`'s `patch-server.py` are now idempotent no-ops on a correctly baked image, and are kept so solve still works if someone bakes from an older commit.
+- `vm-image/check-image.sh` asserts the *implementations* are present. It used to assert the stubs were. Inverting that back would silently ship an unwired app.
+- The paste assertions in `02`'s and `04`'s `check-workstation` are retained but their `fail-message` text now blames the image, not the learner — because that's the only thing that can cause them to fire.
+
+**The tightest chapter is `05-trust-but-verify`**: ~5 minutes of reading inside a 10-minute limit, leaving ~5 for the rollback to actually fire. That number is not fully under our control. If a live run overshoots, the honest fix is dropping an objective rather than trimming prose further.
 
 ### Two numbering schemes, deliberately
 

@@ -6,42 +6,42 @@ title: Wrap-Up
 teaser: Otto is built, graded, and governed. One question before you go.
 notes:
 - type: text
-  contents: You started with a placeholder line in server.py and ended with an AI
-    assistant that grades its own answers, knows when to hand one to a human, and
-    can withdraw a bad model on its own — and you built almost all of it by asking,
-    not clicking. One last question, then you're done.
+  contents: You started with an app that had nothing to read and ended with an AI
+    assistant that routes by customer tier, grades its own answers, and can withdraw
+    a bad model on its own — built entirely by asking, not clicking. One last
+    question, then you're done.
 answers:
 - Attaching a judge to a variation makes LaunchDarkly run it automatically, so no
   application code is needed.
 - Attaching the judge records the intent and the sampling rate in LaunchDarkly, but
-  this app invokes the judge itself, because the AI SDK has no Bedrock provider to
-  run it through.
+  this app has to invoke the judge itself, because the AI SDK has no Bedrock provider
+  to run it through.
 - The judge runs inside the MCP server, which calls Bedrock on the app's behalf.
 - Judges only run during offline evaluations against a dataset, never on live traffic.
 solution:
 - 1
 difficulty: basic
-timelimit: 300
+timelimit: 120
 enhanced_loading: null
 ---
 # Otto's arc
 
-Otto started as a placeholder line in `server.py`. From there:
+Otto started as an app with nothing to read:
 
-- **Otto is Born** — One prompt to Claude Code produced his Config, his variation, and a targeting rule, and a few lines of SDK code gave him his first words. Then you changed his shipping policy mid-conversation without deploying anything.
-- **Otto Knows His Audience** — Premium shoppers got routed to a stronger model by a targeting rule, while the app carried on making exactly the same call.
-- **Otto Gets Graded** — A custom judge in judge mode now scores every one of his answers against ToggleWear's brand voice.
-- **Trust But Verify** — That same judge became a release gate. A risky model went out behind it, scored badly on real traffic, and LaunchDarkly took it back without anyone deciding to.
+- **Otto is Born** — One prompt produced his Config, his variation, and a targeting rule. Then you changed his shipping policy mid-conversation without deploying anything.
+- **Otto Knows His Audience** — Premium shoppers got routed to a stronger model, while the app carried on making exactly the same call.
+- **Otto Gets Graded** — A custom judge now scores every one of his answers against ToggleWear's brand voice.
+- **Trust But Verify** — That judge became a release gate. A risky model went out behind it, scored badly on real traffic, and LaunchDarkly took it back without anyone deciding to.
 
 Two things are worth taking away, and neither is about shopping assistants.
 
-**The resources were ordinary.** Nothing Claude Code created is a special kind of Config, flag, or metric. It's the same project you'd have built by clicking, which is exactly why this works: the MCP server is a different interface onto the same product, not a parallel one.
+**The resources were ordinary.** Nothing Claude Code created is a special kind of Config, flag, or metric. It's the same project you'd have built by clicking — which is the point. The MCP server is a different interface onto the same product, not a parallel one.
 
-**The interesting decisions were still yours.** The agent wrote the Config and started the rollout. It didn't decide which customers deserve a more expensive model, or what "on-brand" means — and that second one is what the guarded rollout ultimately enforced on your behalf. Those are the parts that needed a person, and they're the parts that will differ for your use case.
+**The interesting decisions were still yours.** The agent wrote the Config and started the rollout. It didn't decide which customers deserve a more expensive model, or what "on-brand" means — and that second one is what the guarded rollout ultimately enforced on your behalf.
 
 # One last question
 
-You attached the brand-voice judge to Otto's variation, and then you also pasted a block of code into `server.py` that calls the judge. Why both?
+You attached the brand-voice judge to Otto's variation in LaunchDarkly. But if you look in `server.py`, the app *also* contains code that calls that judge itself. Why both?
 
 # Where to go from here
 
