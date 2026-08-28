@@ -126,7 +126,7 @@ Otto's prompt says free shipping starts at $50. Ask him:
 How much is shipping on a $40 order?
 ```
 
-He'll quote you $6. Now marketing drops the threshold to $35 — a one-word change to a fact customers rely on, and in most architectures a deploy.
+He'll quote you $6. Now marketing drops the threshold to $35 — a one-word change to a fact customers rely on, and in most architectures a deploy. Paste this into your `claude` session:
 
 ```
 In the otto-assistant AI Config, update the otto-born variation's system message: change "free shipping over $50" to "free shipping over $35". Change nothing else about the prompt.
@@ -138,7 +138,7 @@ Nothing rebuilt, nothing restarted, and `server.py` is byte-for-byte what it was
 
 The "new chat" detail is the one caveat. `completion_config()` resolves on every request, so the change is live immediately, but Otto's earlier replies are still in his history and he'll stay consistent with what he already told you. Stale conversation, not stale config.
 
-Put it back before moving on — leave it and Otto starts contradicting the storefront's own shipping copy:
+Put it back before moving on — leave it and Otto starts contradicting the storefront's own shipping copy. Paste this into your `claude` session:
 
 ```
 Change the otto-born system message back: free shipping over $50, not $35.
