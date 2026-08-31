@@ -58,7 +58,7 @@ That's all the app will ever need to know about this. Everything else happens in
 
 Otto's *personality* stays identical — same system prompt, same catalog, same voice. Only the model underneath changes. That's deliberate: it keeps this chapter about routing, and it means the judge in the next chapter is comparing models rather than prompts.
 
-# Ask for the rule
+# Ask for the variation
 
 In your `claude` session:
 
@@ -66,14 +66,16 @@ In your `claude` session:
 In my LaunchDarkly project, add a second variation to the otto-assistant AI Config.
 
 Key it otto-premium, name it "Otto (Premium)", and back it with the Bedrock model anthropic.claude-sonnet-4-5-20250929-v1:0. Give it exactly the same system message as the otto-born variation — copy it across unchanged.
-
-Then, in the Test environment, add a targeting rule to otto-assistant: when the user context's tier attribute is "premium", serve otto-premium. Leave the default rule serving otto-born so everyone else is unaffected.
 ```
 
-Then read it back:
+# Ask for the rule
+
+A separate prompt, deliberately. Adding a variation and changing targeting are two different writes to two different endpoints, and an agent asked for both in one breath will often report success for both once the easier one lands.
 
 ```
-Show me otto-assistant's targeting in Test: every rule in order, what each one matches on, what it serves, and what the default rule serves.
+Now change otto-assistant's targeting in the Test environment: add a rule that serves the otto-premium variation when the user context's tier attribute equals "premium". Leave the default rule serving otto-born so everyone else is unaffected.
+
+Then read the targeting back out of LaunchDarkly and show me what is actually stored — every rule in order, what each one matches on, what it serves, and what the default rule serves. If the write was rejected, show me the error rather than summarising it.
 ```
 
 Three things to confirm, and the third is the one that bites:
@@ -81,6 +83,8 @@ Three things to confirm, and the third is the one that bites:
 - There's a rule matching `tier` equals `premium`, serving `otto-premium`.
 - The default rule still serves `otto-born`. A rule that accidentally replaces the fallthrough sends *everyone* to Sonnet, which works perfectly and quietly costs you money.
 - The attribute is `tier`, not `userTier` or `user_tier`. The app sets `tier`. An agent guessing a plausible-looking variant produces a rule that matches nobody, and a rule that matches nobody looks exactly like a rule that's working.
+
+If the read-back shows *no* rules in Test, the write didn't go wrong — it didn't happen. Say so plainly: *"Test still has no targeting rules. Add the rule and read it back to confirm it's there."*
 
 # Watch it route
 

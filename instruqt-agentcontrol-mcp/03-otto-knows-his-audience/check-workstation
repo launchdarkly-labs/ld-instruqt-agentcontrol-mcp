@@ -34,7 +34,7 @@ while [ $i -lt 5 ]; do
 done
 
 if [ "$PREMIUM" != "otto-premium" ]; then
-  fail-message "No variation keyed **otto-premium** on otto-assistant. Ask Claude Code for it using the prompt under **Ask for the rule** — the key matters, because this check and the next chapter both look for it."
+  fail-message "No variation keyed **otto-premium** on otto-assistant. Ask Claude Code for it using the prompt under **Ask for the variation** — the key matters, because this check and the next chapter both look for it."
   exit 1
 fi
 
@@ -59,6 +59,22 @@ while [ $i -lt 5 ]; do
   i=$((i + 1))
   sleep 2
 done
+
+# Two lab-problem guards before any learner-blaming message, mirroring
+# 02-otto-is-born. Without them a failed request or a missing `test` key falls
+# through to the "no targeting rules" branch below, which tells the learner to
+# ask the agent for something the agent already did. `curl -f` above means a
+# non-2xx leaves TARGETING empty rather than holding a readable error body.
+if ! printf '%s' "$TARGETING" | jq -e . >/dev/null 2>&1; then
+  fail-message "Couldn't read otto-assistant's targeting from LaunchDarkly. That's a lab problem rather than anything you did — tell your operator."
+  exit 1
+fi
+
+if [ "$(printf '%s' "$TARGETING" | jq -r 'has("environments") and (.environments | has("test"))')" != "true" ]; then
+  ENVS=$(printf '%s' "$TARGETING" | jq -r '.environments // {} | keys | join(", ")')
+  fail-message "otto-assistant has no **test** environment targeting. Environments found: \`${ENVS:-none}\`. This is a lab setup problem — tell your operator."
+  exit 1
+fi
 
 # Resolve otto-premium's INDEX in the targeting endpoint's variations array.
 #
@@ -112,9 +128,16 @@ MATCHING=$(printf '%s' "$TARGETING" | jq --argjson vidx "$PREMIUM_IDX" --arg vid
 if [ "${MATCHING:-0}" -lt 1 ]; then
   # Distinguish "no rule at all" from "rule on the wrong attribute", because
   # the fix is different and the symptom is identical: nobody gets routed.
+  #
+  # By the time we reach here the response is known-good — the two guards above
+  # ran, and PREMIUM_IDX resolved out of this same payload — so an empty rules
+  # array means the targeting write never landed, not that we misread it. The
+  # observed cause is an agent that creates the variation, reports success for
+  # the whole prompt, and never issues the targeting patch. Hence "read it back"
+  # rather than "ask again".
   ANY_RULE=$(printf '%s' "$TARGETING" | jq '[.environments.test.rules[]?] | length' 2>/dev/null)
   if [ "${ANY_RULE:-0}" -lt 1 ]; then
-    fail-message "otto-assistant has no targeting rules in Test. Ask Claude Code to add one: when the user context's **tier** attribute is **premium**, serve **otto-premium**."
+    fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the targeting change never landed. Ask Claude Code again, on its own: add a rule to otto-assistant in the **Test** environment serving **otto-premium** when the user context's **tier** attribute is **premium**, then read the targeting back and show what's actually stored."
   else
     WRONG_ATTRS=$(printf '%s' "$TARGETING" | jq -r '[.environments.test.rules[]?.clauses[]?.attribute] | unique | join(", ")' 2>/dev/null)
     fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Ask Claude Code to fix the attribute name."
