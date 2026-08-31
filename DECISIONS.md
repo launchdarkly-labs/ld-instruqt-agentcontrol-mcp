@@ -658,3 +658,23 @@ Rules are matched on either `.variation` (index) or `.variationId`, because the 
 **Also confirmed while here:** there is still **no guarded-rollout semantic patch instruction**. The docs list 21 instruction kinds and rollouts exist only as `rolloutWeights` on `addRule` / `updateFallthroughVariationOrRollout`. The gap recorded in "Guarded rollout added back as a fifth chapter" stands.
 
 **Rule of thumb for anyone adding a check:** read variation identity from `/ai-configs/{key}`, never from `/targeting`. Treat every variation reference inside a `/targeting` response as an index until proven otherwise.
+
+---
+
+## The tier-routing prompt is split in two, because a bundled prompt loses the second write (2026-08-31)
+
+**The symptom.** `03-otto-knows-his-audience` failed its check with *"otto-assistant has no targeting rules in Test"* on a live run, immediately after the index-vs-ID fix above landed. The obvious reading — another jq bug on the targeting read path — is wrong, and the check's own control flow proves it: `PREMIUM_IDX` had already resolved out of that same payload, which cannot happen unless the `GET .../targeting` response is valid JSON with a populated `variations[]`. The rules array really was empty.
+
+**The cause.** The chapter asked for two different writes in one prompt block: create the `otto-premium` variation, *then* add a targeting rule. The variation landed; the targeting patch never did. That fits what the MCP surface looks like from the agent's side — the variation tool is fully typed, while the targeting tool is a thin passthrough whose `instructions` parameter is an unschema'd `Array<{[k: string]: any}>` with a one-line description. The agent has to invent the `addRule` semantic-patch shape from nothing, and the AgentControl tools are already documented above as inconsistent in exactly this area (`env` vs `environmentKey`, variation-matching by name rather than key, `toggle-agentcontrol-config` emitting an instruction the endpoint rejects). The 2026-08-14 spike verified creating variations and setting the fallthrough; it never verified adding a *rule*. This is that untested edge.
+
+**Decision.** Three changes, none of which name an MCP tool:
+
+- **Split the prompt.** `# Ask for the variation` and `# Ask for the rule` are now separate blocks. An agent asked for two writes in one breath reports success for both once the easier one lands; asked for one write, it has nothing to conflate. This is the general lesson, not a workaround for one endpoint.
+- **Make the read-back adversarial rather than descriptive.** The prompt now asks the agent to read the targeting back out of LaunchDarkly and show what is *actually stored*, and to surface the error rather than summarise it if the write was rejected. The old read-back asked it to describe the rules, which an agent will happily do from intent.
+- **Port `02`'s two lab-problem guards into `03`'s check.** `03` validated neither that the response parsed nor that `environments.test` existed, so both failure modes fell through to the "no targeting rules" branch and told the learner to ask the agent for something the agent had already done. `02` has had these guards since the index-vs-ID fix; `03` should never have shipped without them.
+
+The "no targeting rules" fail-message now says the targeting change never landed and tells the learner to re-issue the rule request on its own with a read-back, which is the fix that actually works.
+
+**Rejected:** naming the semantic-patch instruction kinds in the assignment. It would probably raise the success rate, and it violates "never name MCP tools" for something that changes between server versions — and a learner who needs to know `addRule` to use the product from an agent has learned the wrong thing. If the split prompt still isn't reliable across live runs, the honest escalation is filing the unschema'd `instructions` parameter as an MCP server bug, not teaching around it.
+
+**Still unverified:** whether the split prompt actually fixes it. This was diagnosed from the check's control flow, the OpenAPI schema, and the published MCP server's tool definitions — not from watching a second live run. The guards are correct regardless; the prompt split is the hypothesis.
