@@ -131,16 +131,18 @@ if [ "${MATCHING:-0}" -lt 1 ]; then
   #
   # By the time we reach here the response is known-good — the two guards above
   # ran, and PREMIUM_IDX resolved out of this same payload — so an empty rules
-  # array means the targeting write never landed, not that we misread it. The
-  # observed cause is an agent that creates the variation, reports success for
-  # the whole prompt, and never issues the targeting patch. Hence "read it back"
-  # rather than "ask again".
+  # array means the rule was never saved, not that we misread it.
+  #
+  # This chapter builds the rule in the UI rather than through MCP, so both
+  # messages point at the Targeting tab. Two live runs failed here on the MCP
+  # path: the agent creates the variation, reports success for the whole prompt,
+  # and never issues the targeting patch. See DECISIONS.md.
   ANY_RULE=$(printf '%s' "$TARGETING" | jq '[.environments.test.rules[]?] | length' 2>/dev/null)
   if [ "${ANY_RULE:-0}" -lt 1 ]; then
-    fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the targeting change never landed. Ask Claude Code again, on its own: add a rule to otto-assistant in the **Test** environment serving **otto-premium** when the user context's **tier** attribute is **premium**, then read the targeting back and show what's actually stored."
+    fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the rule was never saved. In the LaunchDarkly tab, go to **Agents → Configs → Otto Assistant → Targeting**, confirm the environment picker says **Test**, and work through the steps under **Build the rule by hand**. The most common miss is landing on the wrong environment, or leaving the rule builder without clicking **Review and save**."
   else
     WRONG_ATTRS=$(printf '%s' "$TARGETING" | jq -r '[.environments.test.rules[]?.clauses[]?.attribute] | unique | join(", ")' 2>/dev/null)
-    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Ask Claude Code to fix the attribute name."
+    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Edit the rule on the **Targeting** tab: **Attribute** must be exactly \`tier\`, and the **Select...** menu at the end of the rule must be on **Otto (Premium)**."
   fi
   exit 1
 fi
@@ -172,7 +174,7 @@ fi
 case "$ROUTED" in
   *sonnet*) : ;;
   *)
-    fail-message "A premium request was served by a model that isn't Sonnet. The rule exists but isn't taking effect. Check that the rule's context kind is **user** — the app builds a user context — and ask Claude Code to read the rule back. Saw: ${ROUTED}"
+    fail-message "A premium request was served by a model that isn't Sonnet. The rule exists but isn't taking effect. On the **Targeting** tab, check the rule's **Context kind** is **user** — the app builds a user context, and a rule on any other kind matches nobody. Saw: ${ROUTED}"
     exit 1 ;;
 esac
 
