@@ -1,6 +1,6 @@
 ---
 slug: otto-knows-his-audience
-id: j1zmpwqg927i
+id: icpxesnpl5mi
 type: challenge
 title: Otto Knows His Audience
 teaser: Put premium shoppers on a stronger model and leave everyone else where they
@@ -8,20 +8,20 @@ teaser: Put premium shoppers on a stronger model and leave everyone else where t
 notes:
 - type: text
   contents: Not every customer is worth the same amount of inference. In this challenge
-    you'll give Otto a second variation on a bigger model and route only premium
-    shoppers to it, using the same targeting rules you'd use on any LaunchDarkly
-    flag. The app doesn't change. It never learns there are two Ottos.
+    you'll give Otto a second variation on a bigger model and route only premium shoppers
+    to it, using the same targeting rules you'd use on any LaunchDarkly flag. The
+    app doesn't change. It never learns there are two Ottos.
 tabs:
-- id: bqts141cvpml
+- id: lncmuarxyqdc
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: kgcvo84rh0mh
+- id: ezi7hdhuavtv
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: 8gbkebqxgzfb
+- id: mxzfcbjihqqg
   title: Code Editor
   type: service
   hostname: workstation

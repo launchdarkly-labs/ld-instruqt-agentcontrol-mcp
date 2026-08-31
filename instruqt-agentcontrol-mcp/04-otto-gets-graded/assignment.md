@@ -10,8 +10,8 @@ notes:
   contents: Otto works, but nobody is checking whether he's any good. In this challenge
     you'll ask Claude Code for a custom judge — a Config in judge mode that scores
     each of Otto's answers from 0.0 to 1.0 on whether he sounds like ToggleWear wants
-    him to sound. The app already knows how to invoke it — the moment the judge
-    exists, the scores start arriving.
+    him to sound. The app already knows how to invoke it — the moment the judge exists,
+    the scores start arriving.
 tabs:
 - id: 4lxawjevq4ic
   title: LaunchDarkly

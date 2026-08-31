@@ -8,8 +8,8 @@ notes:
 - type: text
   contents: You started with an app that had nothing to read and ended with an AI
     assistant that routes by customer tier, grades its own answers, and can withdraw
-    a bad model on its own — built entirely by asking, not clicking. One last
-    question, then you're done.
+    a bad model on its own — built entirely by asking, not clicking. One last question,
+    then you're done.
 answers:
 - Attaching a judge to a variation makes LaunchDarkly run it automatically, so no
   application code is needed.

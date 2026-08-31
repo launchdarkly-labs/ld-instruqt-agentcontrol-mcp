@@ -1,6 +1,6 @@
 ---
 slug: trust-but-verify
-id: zx6httops1n8
+id: bof3dmko7nuj
 type: challenge
 title: Trust But Verify
 teaser: Roll a risky new model out behind the judge you wrote, and let LaunchDarkly
@@ -9,20 +9,20 @@ notes:
 - type: text
   contents: A new model landed and someone wants Otto on it. You can't know whether
     it keeps him sounding like himself until real traffic hits it — and by then the
-    damage is done. So don't decide. Ship it behind the brand-voice judge, give
-    LaunchDarkly a threshold, and let the rollout revert itself if the scores fall.
-    The judge you wrote in the last chapter is about to become a release gate.
+    damage is done. So don't decide. Ship it behind the brand-voice judge, give LaunchDarkly
+    a threshold, and let the rollout revert itself if the scores fall. The judge you
+    wrote in the last chapter is about to become a release gate.
 tabs:
-- id: m6cbm4xg6v7u
+- id: cpjylmwnssyh
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: rkea5xu1jjvv
+- id: teld17ut9yvh
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: fdz8q99f7n6b
+- id: 2homnxuspxnm
   title: Code Editor
   type: service
   hostname: workstation
