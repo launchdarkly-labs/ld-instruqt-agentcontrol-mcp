@@ -118,26 +118,20 @@ if [ -z "$PREMIUM_IDX" ]; then
   exit 1
 fi
 
-# Match on the documented rule shape: clauses. If the live payload also
-# carries an undocumented variation reference (flag-shaped), require it to
-# point at otto-premium. If it doesn't, the clause match is enough — step 4
-# proves the rule actually serves Sonnet.
-MATCHING=$(printf '%s' "$TARGETING" | jq --argjson vidx "$PREMIUM_IDX" --arg vid "$PREMIUM_VAR_ID" '
+# GET rules document only `clauses` and `trackEvents` — no variation pointer.
+# A live addRule that worked still failed Check when we required .variation /
+# .variationId to equal otto-premium: the rule was on `tier` and the serve
+# field was missing or not the write-path id. Match the clause; step 4 proves
+# a premium request actually gets Sonnet.
+# Docs: launchdarkly.com/docs/api/agent-control/get-ai-config-targeting
+MATCHING=$(printf '%s' "$TARGETING" | jq '
   [.environments.test.rules[]?
     | select([.clauses[]?
         | select(.attribute == "tier")
-        | select([.values[]? | ascii_downcase] | index("premium"))]
+        | select((.values | length) == 0
+                 or ([.values[]? | ascii_downcase] | index("premium")))]
       | length > 0)
-  ] as $hits
-  | if ($hits | length) == 0 then 0
-    elif [$hits[] | select(has("variation") or has("variationId"))] | length > 0 then
-      [$hits[]
-        | select((.variation == $vidx)
-                 or (($vid != "") and (.variationId == $vid)))]
-      | length
-    else
-      $hits | length
-    end' 2>/dev/null)
+  ] | length' 2>/dev/null)
 
 if [ "${MATCHING:-0}" -lt 1 ]; then
   # Distinguish "no rule at all" from "rule on the wrong attribute", because
@@ -151,7 +145,7 @@ if [ "${MATCHING:-0}" -lt 1 ]; then
     fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the rule was never saved. Paste the block under **Add the rule** into a terminal in the Code Editor. If \`PREMIUM_ID\` is empty, the otto-premium variation isn't there yet — do **Ask for the variation** first."
   else
     WRONG_ATTRS=$(printf '%s' "$TARGETING" | jq -r '[.environments.test.rules[]?.clauses[]?.attribute] | unique | join(", ")' 2>/dev/null)
-    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Re-run the paste under **Add the rule**; the clause attribute must be exactly \`tier\`."
+    fail-message "There are targeting rules in Test, but none matches the **tier** attribute. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Re-run the paste under **Add the rule**."
   fi
   exit 1
 fi
