@@ -721,3 +721,21 @@ The first 03 check required `.variationId` and `select(.key==...)` on the target
 **MCP is primary again.** The split prompt from the earlier entry is restored. The UI click-path stays as recovery if the targeting write still no-ops — that failure is real and recorded above — but it is no longer the chapter's happy path, and the LaunchDarkly tab is optional again. `01-meet-togglewear` is corrected back.
 
 **Still unverified against a live GET body.** The published schema may be thinner than production (flag rules historically carry `.variation`). The check accepts both shapes. A live targeting payload pasted from a lab would let us drop the undocumented branch.
+
+---
+
+## Chapter 03's targeting rule is a REST paste (2026-08-31)
+
+**Decision:** `03-otto-knows-his-audience` creates `otto-premium` through MCP, then the learner pastes a `curl` semantic patch into the Code Editor terminal to add the `tier is premium` rule. No MCP targeting prompt. No UI click-path.
+
+**Why.** Confirmed on a live lab the same day:
+
+- `get-agentcontrol-config-targeting` works. `create-agentcontrol-config-variation` works.
+- There is no registered `update-agentcontrol-config-targeting`. The getter's description names it.
+- `update-targeting-rules` (flag tool) returns `401: AI flags may not be modified directly`.
+- The LaunchDarkly virtual-browser tab is not reliably interactive — login lambda or pointer capture — so it cannot be the learner path either.
+- The same `PATCH .../ai-configs/otto-assistant/targeting` `addRule` body that `terraform/challenge-05` uses succeeded when pasted on the workstation.
+
+`LD_API_TOKEN` and `LD_PROJECT_KEY` come from `app/.env` (`set -a && . ...`). That token is the per-lab scoped token, already on the box.
+
+**What this costs.** The chapter is no longer "describe the rule to the agent." It teaches the actual write the MCP server is missing. The agent is still used to create the variation and to read the rule back. Restore the MCP prompt only after ai-tooling ships a typed add-rule tool.

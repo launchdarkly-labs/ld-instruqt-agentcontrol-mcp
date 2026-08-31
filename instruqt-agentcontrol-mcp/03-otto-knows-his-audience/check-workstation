@@ -148,10 +148,10 @@ if [ "${MATCHING:-0}" -lt 1 ]; then
   # array means the rule was never saved, not that we misread it.
   ANY_RULE=$(printf '%s' "$TARGETING" | jq '[.environments.test.rules[]?] | length' 2>/dev/null)
   if [ "${ANY_RULE:-0}" -lt 1 ]; then
-    fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the rule was never saved. Re-issue the prompt under **Ask for the rule** on its own, then have the agent read the targeting back. If the write still doesn't land, build the rule on the **Targeting** tab (environment picker on **Test**) using the steps under **If the agent can't write the rule**."
+    fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the rule was never saved. Paste the block under **Add the rule** into a terminal in the Code Editor. If \`PREMIUM_ID\` is empty, the otto-premium variation isn't there yet — do **Ask for the variation** first."
   else
     WRONG_ATTRS=$(printf '%s' "$TARGETING" | jq -r '[.environments.test.rules[]?.clauses[]?.attribute] | unique | join(", ")' 2>/dev/null)
-    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Ask Claude Code to set the attribute to exactly \`tier\` and serve otto-premium."
+    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Re-run the paste under **Add the rule**; the clause attribute must be exactly \`tier\`."
   fi
   exit 1
 fi
@@ -192,7 +192,7 @@ fi
 case "$ROUTED" in
   *sonnet*) : ;;
   *)
-    fail-message "A premium request was served by a model that isn't Sonnet. The rule exists but isn't taking effect. On the **Targeting** tab, check the rule's **Context kind** is **user** — the app builds a user context, and a rule on any other kind matches nobody. Saw: ${ROUTED}"
+    fail-message "A premium request was served by a model that isn't Sonnet. The rule exists but isn't taking effect. Re-run the paste under **Add the rule** and confirm the clause's context kind is **user** — the app builds a user context. Saw: ${ROUTED}"
     exit 1 ;;
 esac
 
