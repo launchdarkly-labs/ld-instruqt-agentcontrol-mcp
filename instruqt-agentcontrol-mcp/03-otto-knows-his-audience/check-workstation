@@ -60,11 +60,52 @@ while [ $i -lt 5 ]; do
   sleep 2
 done
 
-PREMIUM_VAR_ID=$(printf '%s' "$TARGETING" | jq -r '.variations[]? | select(.key=="otto-premium") | ._id // ""')
+# Resolve otto-premium's INDEX in the targeting endpoint's variations array.
+#
+# READ THIS BEFORE CHANGING THE JQ. The two AI Config endpoints disagree about
+# how a variation is identified:
+#
+#   GET  /ai-configs/{key}            variations carry `key` AND `_id`
+#   GET  /ai-configs/{key}/targeting  variations carry `_id`, `name`, `value`
+#                                     and NO `key`; fallthrough, rules and
+#                                     rollouts all reference an INTEGER INDEX
+#                                     into that array
+#   PATCH /ai-configs/{key}/targeting writes take `variationId`, a string
+#
+# You write by ID and read back an index. The first version of this check used
+# the write-path field names on the read path — `select(.key==...)` against the
+# targeting variations and `.fallthrough.variationId` — so it failed 100% of the
+# time, and the fallthrough guard below silently never ran because both sides
+# of its comparison were empty.
+#
+# Join config -> targeting on `_id`, falling back to `name`; the two endpoints
+# are not documented to share an id space. Matching `name` is not asserting a
+# particular display name, only lining the two arrays up.
+#
+# Docs: launchdarkly.com/docs/api/agent-control/get-ai-config-targeting
+resolve_idx() {
+  jq -n --argjson cfg "$CONFIG" --argjson tgt "$TARGETING" --arg key "$1" '
+    first($cfg.variations[]? | select(.key == $key)) as $v
+    | [ ($tgt.variations // []) | to_entries[]
+        | select(.value._id == $v._id or .value.name == $v.name)
+        | .key ]
+    | first // empty' 2>/dev/null
+}
 
-MATCHING=$(printf '%s' "$TARGETING" | jq --arg vid "$PREMIUM_VAR_ID" '
+PREMIUM_IDX=$(resolve_idx otto-premium)
+PREMIUM_VAR_ID=$(printf '%s' "$CONFIG" | jq -r 'first(.variations[]? | select(.key=="otto-premium") | ._id) // ""')
+
+if [ -z "$PREMIUM_IDX" ]; then
+  fail-message "Couldn't line up the **otto-premium** variation with otto-assistant's targeting. Ask Claude Code to show you otto-assistant's variations and confirm one is keyed exactly \`otto-premium\`."
+  exit 1
+fi
+
+# Accept either shape for the rule's variation reference. The docs show
+# fallthrough and offVariation as integer indices and don't document the field
+# on a rule at all, so match an index OR an id rather than guessing.
+MATCHING=$(printf '%s' "$TARGETING" | jq --argjson vidx "$PREMIUM_IDX" --arg vid "$PREMIUM_VAR_ID" '
   [ .environments.test.rules[]?
-    | select(.variationId == $vid)
+    | select((.variation == $vidx) or (($vid != "") and (.variationId == $vid)))
     | select([ .clauses[]? | select(.attribute == "tier") | select([.values[]? | ascii_downcase] | index("premium")) ] | length > 0)
   ] | length' 2>/dev/null)
 
@@ -81,10 +122,10 @@ if [ "${MATCHING:-0}" -lt 1 ]; then
   exit 1
 fi
 
-FALLTHROUGH_ID=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variationId // ""')
-BORN_ID=$(printf '%s' "$TARGETING" | jq -r '.variations[]? | select(.key=="otto-born") | ._id // ""')
+FALLTHROUGH_IDX=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
+BORN_IDX=$(resolve_idx otto-born)
 
-if [ -n "$FALLTHROUGH_ID" ] && [ -n "$BORN_ID" ] && [ "$FALLTHROUGH_ID" != "$BORN_ID" ]; then
+if [ -n "$FALLTHROUGH_IDX" ] && [ -n "$BORN_IDX" ] && [ "$FALLTHROUGH_IDX" != "$BORN_IDX" ]; then
   fail-message "The premium rule is in place, but the default rule no longer serves **otto-born** — so everyone, not just premium shoppers, is getting the expensive model. Ask Claude Code to set the default rule back to otto-born."
   exit 1
 fi

@@ -631,3 +631,30 @@ New budget: 240 + 480 + 360 + 300 + 600 + 120 = 2100 seconds. Prose is ~3,700 wo
 - `gate_response()`'s stub marker stays. The review-gate chapter is cut, so the stub *is* the shipping behaviour, and `terraform/challenge-03/patch-server.py` still matches on it.
 
 **The remaining risk is `05-trust-but-verify`.** ~5 minutes of reading inside a 10-minute limit, leaving ~5 for the guarded rollout to actually detect a regression and revert. `sabotage.py` compresses it and is now the normal path rather than an escape hatch, but the detector's timing is not ours to control. If a live run overshoots, trimming more prose will not fix it — the honest options are dropping an objective or accepting a longer track. Do not respond by shortening the monitoring windows below what the API will honour; that's already flagged as unverified.
+
+---
+
+## AI Config targeting: you write by ID and read back an index (2026-08-31)
+
+**The trap.** The two AI Config targeting endpoints identify a variation in different, incompatible ways, and nothing in the naming warns you:
+
+| | `GET /ai-configs/{key}` | `GET /ai-configs/{key}/targeting` | `PATCH .../targeting` |
+|---|---|---|---|
+| Variation object | `key`, `_id`, `name`, … | `_id`, `name`, `description`, `value` — **no `key`** | n/a |
+| How a variation is referenced | — | **integer index** into `variations[]` (`fallthrough.variation`, `offVariation`, `rollout.variations[].variation`) | **`variationId`**, a string |
+
+So the write path takes an ID and the read path hands back an array position, and the array you index into has no `key` to search by. Confirmed against `launchdarkly.com/docs/api/agent-control/{get,patch}-ai-config-targeting` and the OpenAPI spec.
+
+**What it broke.** Three places, all written by reflex from the write path:
+
+- `02-otto-is-born/check-workstation` compared an `_id` from the config endpoint against an `_id` from the targeting endpoint. Those are not documented to share an identifier space, so it could fail while targeting was perfectly correct. This is the check a learner actually hit.
+- `03-otto-knows-his-audience/check-workstation` used `select(.key==...)` against the targeting variations and read `.fallthrough.variationId`. It failed 100% of the time — and worse, its fallthrough guard silently never ran, because that guard skips when both sides are empty and both sides were always empty.
+- `terraform/challenge-04/main.tf` resolved `otto-born` by `key` from the targeting endpoint. It always matched nothing, so the resource hit its "challenge-01 not applied" branch and **skipped creating the rollout entirely** — meaning Skip on the guarded-rollout chapter could never satisfy that chapter's own check.
+
+**The fix, and why it isn't just "use the right field".** Resolving a variation key against the targeting endpoint means finding its *position*, and there's no key to match on. So: pull the variation from the config endpoint, then locate it in the targeting array by `_id`, falling back to `name`. The fallback exists because the two endpoints are not documented to share an id space — and matching on `name` is not asserting a display name, it only lines the two arrays up, so it stays within "assert on keys, not names".
+
+Rules are matched on either `.variation` (index) or `.variationId`, because the docs show `fallthrough` and `offVariation` as integer indices but don't document the field on a rule at all. Guessing one would have been another silent always-fail.
+
+**Also confirmed while here:** there is still **no guarded-rollout semantic patch instruction**. The docs list 21 instruction kinds and rollouts exist only as `rolloutWeights` on `addRule` / `updateFallthroughVariationOrRollout`. The gap recorded in "Guarded rollout added back as a fifth chapter" stands.
+
+**Rule of thumb for anyone adding a check:** read variation identity from `/ai-configs/{key}`, never from `/targeting`. Treat every variation reference inside a `/targeting` response as an index until proven otherwise.
