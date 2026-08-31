@@ -56,18 +56,71 @@ if [ -z "$SYSTEM_MSG" ]; then
   exit 1
 fi
 
-# 4. The `test` environment is actually serving otto-born rather than the
-#    built-in disabled variation. Resolve the fallthrough index to a variation
-#    id and compare ids, so a renamed variation doesn't break the check.
+# 4. The `test` environment is actually serving otto-born.
+#
+# READ THIS BEFORE CHANGING THE JQ. The two AI Config endpoints identify a
+# variation differently, and conflating them is what broke the first version of
+# this check:
+#
+#   GET  /ai-configs/{key}            variations carry `key` AND `_id`
+#   GET  /ai-configs/{key}/targeting  variations carry `_id`, `name`, `value`
+#                                     and NO `key`; every reference to one
+#                                     (fallthrough, rules, rollout) is an
+#                                     INTEGER INDEX into that array
+#   PATCH /ai-configs/{key}/targeting writes take `variationId`, a string
+#
+# So you write by ID and read back an index. The old version compared an `_id`
+# from the config endpoint against an `_id` from the targeting endpoint; those
+# are not documented to be the same identifier space, and the comparison could
+# fail while the targeting was perfectly correct.
+#
+# Resolving otto-born now means finding its POSITION in the targeting array,
+# which has no key to match on. Join on `_id`, falling back to `name` — both
+# endpoints describe the same underlying variation, so at least one holds.
+# Matching `name` is not asserting a particular display name; it's only used to
+# line the two arrays up.
+#
+# Docs: launchdarkly.com/docs/api/agent-control/get-ai-config-targeting
 TARGETING=$(curl -s -X GET \
   "${CONFIG_URL}/targeting" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
   -H 'LD-API-Version: beta')
-BORN_ID=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | ._id // empty')
-FALLTHROUGH_IDX=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
-FALLTHROUGH_ID=$(printf '%s' "$TARGETING" | jq -r ".variations[${FALLTHROUGH_IDX}]._id // empty")
 
-if [ -z "$BORN_ID" ] || [ "$FALLTHROUGH_ID" != "$BORN_ID" ]; then
+if ! printf '%s' "$TARGETING" | jq -e . >/dev/null 2>&1; then
+  fail-message "Couldn't read otto-assistant's targeting from LaunchDarkly. That's a lab problem rather than anything you did — tell your operator."
+  exit 1
+fi
+
+if [ "$(printf '%s' "$TARGETING" | jq -r 'has("environments") and (.environments | has("test"))')" != "true" ]; then
+  ENVS=$(printf '%s' "$TARGETING" | jq -r '.environments // {} | keys | join(", ")')
+  fail-message "otto-assistant has no **test** environment targeting. Environments found: \`${ENVS:-none}\`. This is a lab setup problem — tell your operator."
+  exit 1
+fi
+
+BORN_IDX=$(jq -n --argjson cfg "$CONFIG" --argjson tgt "$TARGETING" '
+  first($cfg.variations[]? | select(.key=="otto-born")) as $v
+  | [ ($tgt.variations // []) | to_entries[]
+      | select(.value._id == $v._id or .value.name == $v.name)
+      | .key ]
+  | first // empty' 2>/dev/null)
+
+FALLTHROUGH_IDX=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
+FALLTHROUGH_ROLLOUT=$(printf '%s' "$TARGETING" | jq -c '.environments.test.fallthrough.rollout // empty')
+
+if [ -z "$BORN_IDX" ]; then
+  fail-message "Couldn't line up the **otto-born** variation with otto-assistant's targeting. Ask Claude Code to show you the variations on otto-assistant and confirm one is keyed exactly \`otto-born\`."
+  exit 1
+fi
+
+# A rollout on the fallthrough is a different failure from the wrong variation,
+# and it has a different fix. Chapter 5's solve leaves a 10/90 split here, so a
+# learner who skipped ahead and came back lands in exactly this state.
+if [ -z "$FALLTHROUGH_IDX" ] && [ -n "$FALLTHROUGH_ROLLOUT" ]; then
+  fail-message "Otto's **Test** default rule is serving a percentage rollout rather than a single variation, so this chapter's check can't confirm otto-born is being served. Ask Claude Code to set the default rule in Test to serve otto-born on its own."
+  exit 1
+fi
+
+if [ "$FALLTHROUGH_IDX" != "$BORN_IDX" ]; then
   fail-message "Otto's **Test** environment isn't serving the otto-born variation, so the app gets nothing back. Ask Claude Code to set the default rule in the Test environment to serve otto-born."
   exit 1
 fi

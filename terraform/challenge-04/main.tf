@@ -142,12 +142,19 @@ resource "null_resource" "fallthrough_rollout" {
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      TARGETING=$(curl -fsS -X GET \
-        'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/otto-assistant/targeting' \
+      # Read otto-born's id from the CONFIG endpoint, not the targeting one.
+      # Targeting variations expose `_id`, `name` and `value` but NO `key`, so
+      # `select(.key==...)` there always matches nothing — which made this
+      # resource skip the rollout silently and left Skip unable to satisfy
+      # check-workstation. The config endpoint carries both, and the semantic
+      # patch below wants a variationId, which is what `_id` is.
+      # Docs: launchdarkly.com/docs/api/agent-control/get-ai-config-targeting
+      CONFIG=$(curl -fsS -X GET \
+        'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/otto-assistant' \
         -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
         -H 'LD-API-Version: beta')
 
-      BORN_ID=$(printf '%s' "$TARGETING" | jq -r '.variations[]? | select(.key=="otto-born") | ._id')
+      BORN_ID=$(printf '%s' "$CONFIG" | jq -r 'first(.variations[]? | select(.key=="otto-born") | ._id) // empty')
       STIFF_ID='${launchdarkly_ai_config_variation.otto_stiff.variation_id}'
 
       if [ -z "$BORN_ID" ] || [ "$BORN_ID" = "null" ]; then
