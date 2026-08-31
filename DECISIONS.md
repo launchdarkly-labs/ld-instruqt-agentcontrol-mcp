@@ -678,3 +678,23 @@ The "no targeting rules" fail-message now says the targeting change never landed
 **Rejected:** naming the semantic-patch instruction kinds in the assignment. It would probably raise the success rate, and it violates "never name MCP tools" for something that changes between server versions — and a learner who needs to know `addRule` to use the product from an agent has learned the wrong thing. If the split prompt still isn't reliable across live runs, the honest escalation is filing the unschema'd `instructions` parameter as an MCP server bug, not teaching around it.
 
 **Still unverified:** whether the split prompt actually fixes it. This was diagnosed from the check's control flow, the OpenAPI schema, and the published MCP server's tool definitions — not from watching a second live run. The guards are correct regardless; the prompt split is the hypothesis.
+
+---
+
+## Tier-routing rule moves to the UI (2026-08-31)
+
+**Decision:** `03-otto-knows-his-audience` splits across two surfaces. The `otto-premium` variation is still created by prompting the agent; the `tier is premium` targeting rule is built by hand on the config's **Targeting** tab. The agent then reads the rule back, so the verification habit survives the switch.
+
+**Why.** The split-prompt fix recorded above did not work. A second live run failed identically: variation created, `environments.test.rules` empty. Two runs is enough to stop treating this as a prompting problem. The MCP server's AI Config targeting write is not reliable enough to gate a chapter on, and the reason is visible in the tool surface — the variation tool is fully typed, while the targeting tool is a passthrough whose `instructions` parameter is an unschema'd `Array<{[k: string]: any}>` with a one-line description. The agent has to invent the `addRule` semantic patch unaided, and it doesn't.
+
+**Why this doesn't break the premise, and where it does.** It doesn't, on the teaching: DECISIONS already argues that the resources MCP produces are indistinguishable from clicked ones, and that the server is "another interface onto the same product, not a parallel one." A chapter that builds one resource each way demonstrates that claim rather than undermining it, and the assignment says so in as many words. What it *does* break is the marketing line that a learner never touches the UI. That was the operator's call, made after the second failure, and it is recorded here rather than argued with.
+
+**What it costs, stated plainly:**
+
+- **The sandbox sign-in is now load-bearing.** `01-meet-togglewear` promised the LaunchDarkly tab was optional throughout and that nothing needed it; that sentence is now false and has been corrected. The sign-in service is documented elsewhere in this file as unreliable — it is the reason `05-trust-but-verify` reads its rollback through MCP rather than the Monitoring page. Gating a *pass condition* on it is a real regression in reliability, mitigated but not removed by the fallback prompt the chapter now carries.
+- **The chapter is UI-drafted, so it's unverified.** Per CLAUDE.md, Claude Code cannot drive a browser. Every label in the click-path — the `Agents → Configs` nav, the Targeting tab, the `+` / **Build a custom rule** affordance, the **Context kind** / **Attribute** / **Operator** / **Values** fields, the **Select...** variation menu, **Review and save** — is drafted from `launchdarkly.com/docs/home/agentcontrol/target` and carries a `VERIFY` marker. Nav wording mirrors what `02` and `05` already use.
+- **Timing.** Clicking a rule is slower than sending a prompt. Net maybe +60s against a 360s limit that was already accounted for in a fully-spent 2100s budget. Not changed here, because taking the time from another chapter is a call for whoever watches the next live run.
+
+**Unchanged:** `terraform/challenge-05` still creates the rule over REST, so `solve-workstation` is unaffected and still doesn't depend on an LLM or a browser. The check is unchanged in what it asserts — it reads the API, so it cannot tell how the rule got there — only its `fail-message` text now points at the Targeting tab instead of at the agent.
+
+**The bigger exposure, not fixed here.** `05-trust-but-verify` starts its guarded rollout through the same AI Config targeting write. If that write is broken generally rather than specifically for `addRule`, chapter 5 fails the same way and has no UI fallback drafted. Worth checking on the next live run before assuming this chapter was the only casualty. The right long-term fix is upstream: that `instructions` parameter should be schema'd, or the server should expose a typed add-rule tool. Teaching around it is what we are doing, not what we should keep doing.
