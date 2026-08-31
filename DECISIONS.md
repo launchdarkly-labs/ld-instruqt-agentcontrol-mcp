@@ -698,3 +698,26 @@ The "no targeting rules" fail-message now says the targeting change never landed
 **Unchanged:** `terraform/challenge-05` still creates the rule over REST, so `solve-workstation` is unaffected and still doesn't depend on an LLM or a browser. The check is unchanged in what it asserts — it reads the API, so it cannot tell how the rule got there — only its `fail-message` text now points at the Targeting tab instead of at the agent.
 
 **The bigger exposure, not fixed here.** `05-trust-but-verify` starts its guarded rollout through the same AI Config targeting write. If that write is broken generally rather than specifically for `addRule`, chapter 5 fails the same way and has no UI fallback drafted. Worth checking on the next live run before assuming this chapter was the only casualty. The right long-term fix is upstream: that `instructions` parameter should be schema'd, or the server should expose a typed add-rule tool. Teaching around it is what we are doing, not what we should keep doing.
+
+---
+
+## GET targeting rules have no variation field (2026-08-31)
+
+**The spec, read carefully this time.** [Show an AI Config's targeting](https://launchdarkly.com/docs/api/agent-control/get-ai-config-targeting) and [Update AI Config targeting](https://launchdarkly.com/docs/api/agent-control/patch-ai-config-targeting) agree on project key + config key, and they disagree on how a variation is named:
+
+- PATCH `addRule` / `updateFallthroughVariationOrRollout` take `variationId` (UUID).
+- GET `fallthrough.variation`, `offVariation`, `targets[].variation`, and `rollout.variations[].variation` are integers into `variations[]`.
+- GET `variations[]` exposes `_id`, `name`, `description`, `value` — **no `key`**.
+- GET `rules[]` documents **only `clauses` and `trackEvents`**. No `variation`, no `variationId`.
+
+The first 03 check required `.variationId` and `select(.key==...)` on the targeting payload — write-path names on the read path, fail 100%. The index-based rewrite still required `.variation` or `.variationId` on each rule, which the GET schema does not give. A correctly saved rule that matches the published response would still fail.
+
+**Decision.** Both checks now follow the GET schema:
+
+- Variation identity comes from `GET /ai-configs/{key}` (has `key`). Targeting references are treated as indices. Resolve by `_id`, then `name`, then the config-array index.
+- 03 matches a rule on its **clauses** (`attribute == tier` and a `premium` value). If the live payload also carries an undocumented variation reference, that reference must point at `otto-premium`. If it doesn't, the clause match is enough and the chat assertion proves Sonnet is what fired.
+- Fallthrough comparison is numeric (`jq --argjson`), not a string compare of `jq -r` against a jq number, and a fallthrough rollout is diagnosed separately from a wrong single variation.
+
+**MCP is primary again.** The split prompt from the earlier entry is restored. The UI click-path stays as recovery if the targeting write still no-ops — that failure is real and recorded above — but it is no longer the chapter's happy path, and the LaunchDarkly tab is optional again. `01-meet-togglewear` is corrected back.
+
+**Still unverified against a live GET body.** The published schema may be thinner than production (flag rules historically carry `.variation`). The check accepts both shapes. A live targeting payload pasted from a lab would let us drop the undocumented branch.

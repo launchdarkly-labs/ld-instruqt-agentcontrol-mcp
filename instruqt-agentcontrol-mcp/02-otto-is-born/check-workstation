@@ -97,14 +97,22 @@ if [ "$(printf '%s' "$TARGETING" | jq -r 'has("environments") and (.environments
   exit 1
 fi
 
+# Index, not id. GET targeting documents fallthrough.variation as an integer
+# into targeting.variations[] (no `key` on those objects). PATCH writes
+# variationId. Same-order config index is the last fallback if `_id`/`name`
+# don't line up.
+# Docs: launchdarkly.com/docs/api/agent-control/get-ai-config-targeting
 BORN_IDX=$(jq -n --argjson cfg "$CONFIG" --argjson tgt "$TARGETING" '
   first($cfg.variations[]? | select(.key=="otto-born")) as $v
-  | [ ($tgt.variations // []) | to_entries[]
-      | select(.value._id == $v._id or .value.name == $v.name)
-      | .key ]
-  | first // empty' 2>/dev/null)
+  | ($cfg.variations | to_entries[] | select(.value.key=="otto-born") | .key) as $cfg_idx
+  | (
+      [ ($tgt.variations // []) | to_entries[]
+        | select(.value._id == $v._id or .value.name == $v.name)
+        | .key ]
+      | first
+    ) // $cfg_idx // empty' 2>/dev/null)
 
-FALLTHROUGH_IDX=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
+FALLTHROUGH_HAS=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough | has("variation")')
 FALLTHROUGH_ROLLOUT=$(printf '%s' "$TARGETING" | jq -c '.environments.test.fallthrough.rollout // empty')
 
 if [ -z "$BORN_IDX" ]; then
@@ -115,12 +123,13 @@ fi
 # A rollout on the fallthrough is a different failure from the wrong variation,
 # and it has a different fix. Chapter 5's solve leaves a 10/90 split here, so a
 # learner who skipped ahead and came back lands in exactly this state.
-if [ -z "$FALLTHROUGH_IDX" ] && [ -n "$FALLTHROUGH_ROLLOUT" ]; then
+if [ "$FALLTHROUGH_HAS" != "true" ] && [ -n "$FALLTHROUGH_ROLLOUT" ]; then
   fail-message "Otto's **Test** default rule is serving a percentage rollout rather than a single variation, so this chapter's check can't confirm otto-born is being served. Ask Claude Code to set the default rule in Test to serve otto-born on its own."
   exit 1
 fi
 
-if [ "$FALLTHROUGH_IDX" != "$BORN_IDX" ]; then
+if [ "$FALLTHROUGH_HAS" != "true" ] || ! printf '%s' "$TARGETING" | jq -e --argjson born "$BORN_IDX" \
+     '.environments.test.fallthrough.variation == $born' >/dev/null 2>&1; then
   fail-message "Otto's **Test** environment isn't serving the otto-born variation, so the app gets nothing back. Ask Claude Code to set the default rule in the Test environment to serve otto-born."
   exit 1
 fi

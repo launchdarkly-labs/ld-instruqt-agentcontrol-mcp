@@ -76,36 +76,38 @@ if [ "$(printf '%s' "$TARGETING" | jq -r 'has("environments") and (.environments
   exit 1
 fi
 
-# Resolve otto-premium's INDEX in the targeting endpoint's variations array.
+# Resolve a variation KEY to an INDEX in the targeting endpoint's array.
 #
-# READ THIS BEFORE CHANGING THE JQ. The two AI Config endpoints disagree about
-# how a variation is identified:
+# Confirmed against the published GET/PATCH targeting docs (2026-08-31):
+#   https://launchdarkly.com/docs/api/agent-control/get-ai-config-targeting
+#   https://launchdarkly.com/docs/api/agent-control/patch-ai-config-targeting
 #
 #   GET  /ai-configs/{key}            variations carry `key` AND `_id`
 #   GET  /ai-configs/{key}/targeting  variations carry `_id`, `name`, `value`
-#                                     and NO `key`; fallthrough, rules and
-#                                     rollouts all reference an INTEGER INDEX
-#                                     into that array
-#   PATCH /ai-configs/{key}/targeting writes take `variationId`, a string
+#                                     and NO `key`. fallthrough.variation,
+#                                     offVariation, targets[].variation, and
+#                                     rollout.variations[].variation are
+#                                     INTEGER INDICES into that array.
+#   PATCH .../targeting               writes take `variationId`, a UUID
 #
-# You write by ID and read back an index. The first version of this check used
-# the write-path field names on the read path — `select(.key==...)` against the
-# targeting variations and `.fallthrough.variationId` — so it failed 100% of the
-# time, and the fallthrough guard below silently never ran because both sides
-# of its comparison were empty.
+#   GET rules[] documents only `clauses` and `trackEvents`. It does not
+#   document `variation` or `variationId`. The first two versions of this
+#   check required those write-path fields on the read path, so a correctly
+#   saved rule that matched the published schema failed 100% of the time.
 #
-# Join config -> targeting on `_id`, falling back to `name`; the two endpoints
-# are not documented to share an id space. Matching `name` is not asserting a
-# particular display name, only lining the two arrays up.
-#
-# Docs: launchdarkly.com/docs/api/agent-control/get-ai-config-targeting
+# Join config -> targeting on `_id`, then `name`, then the config-array
+# index (same order is the usual LD model). Matching `name` is not asserting
+# a display name; it only lines the two arrays up.
 resolve_idx() {
   jq -n --argjson cfg "$CONFIG" --argjson tgt "$TARGETING" --arg key "$1" '
     first($cfg.variations[]? | select(.key == $key)) as $v
-    | [ ($tgt.variations // []) | to_entries[]
-        | select(.value._id == $v._id or .value.name == $v.name)
-        | .key ]
-    | first // empty' 2>/dev/null
+    | ($cfg.variations | to_entries[] | select(.value.key == $key) | .key) as $cfg_idx
+    | (
+        [ ($tgt.variations // []) | to_entries[]
+          | select(.value._id == $v._id or .value.name == $v.name)
+          | .key ]
+        | first
+      ) // $cfg_idx // empty' 2>/dev/null
 }
 
 PREMIUM_IDX=$(resolve_idx otto-premium)
@@ -116,14 +118,26 @@ if [ -z "$PREMIUM_IDX" ]; then
   exit 1
 fi
 
-# Accept either shape for the rule's variation reference. The docs show
-# fallthrough and offVariation as integer indices and don't document the field
-# on a rule at all, so match an index OR an id rather than guessing.
+# Match on the documented rule shape: clauses. If the live payload also
+# carries an undocumented variation reference (flag-shaped), require it to
+# point at otto-premium. If it doesn't, the clause match is enough — step 4
+# proves the rule actually serves Sonnet.
 MATCHING=$(printf '%s' "$TARGETING" | jq --argjson vidx "$PREMIUM_IDX" --arg vid "$PREMIUM_VAR_ID" '
-  [ .environments.test.rules[]?
-    | select((.variation == $vidx) or (($vid != "") and (.variationId == $vid)))
-    | select([ .clauses[]? | select(.attribute == "tier") | select([.values[]? | ascii_downcase] | index("premium")) ] | length > 0)
-  ] | length' 2>/dev/null)
+  [.environments.test.rules[]?
+    | select([.clauses[]?
+        | select(.attribute == "tier")
+        | select([.values[]? | ascii_downcase] | index("premium"))]
+      | length > 0)
+  ] as $hits
+  | if ($hits | length) == 0 then 0
+    elif [$hits[] | select(has("variation") or has("variationId"))] | length > 0 then
+      [$hits[]
+        | select((.variation == $vidx)
+                 or (($vid != "") and (.variationId == $vid)))]
+      | length
+    else
+      $hits | length
+    end' 2>/dev/null)
 
 if [ "${MATCHING:-0}" -lt 1 ]; then
   # Distinguish "no rule at all" from "rule on the wrong attribute", because
@@ -132,27 +146,31 @@ if [ "${MATCHING:-0}" -lt 1 ]; then
   # By the time we reach here the response is known-good — the two guards above
   # ran, and PREMIUM_IDX resolved out of this same payload — so an empty rules
   # array means the rule was never saved, not that we misread it.
-  #
-  # This chapter builds the rule in the UI rather than through MCP, so both
-  # messages point at the Targeting tab. Two live runs failed here on the MCP
-  # path: the agent creates the variation, reports success for the whole prompt,
-  # and never issues the targeting patch. See DECISIONS.md.
   ANY_RULE=$(printf '%s' "$TARGETING" | jq '[.environments.test.rules[]?] | length' 2>/dev/null)
   if [ "${ANY_RULE:-0}" -lt 1 ]; then
-    fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the rule was never saved. In the LaunchDarkly tab, go to **Agents → Configs → Otto Assistant → Targeting**, confirm the environment picker says **Test**, and work through the steps under **Build the rule by hand**. The most common miss is landing on the wrong environment, or leaving the rule builder without clicking **Review and save**."
+    fail-message "otto-assistant has no targeting rules in Test — the variation exists, but the rule was never saved. Re-issue the prompt under **Ask for the rule** on its own, then have the agent read the targeting back. If the write still doesn't land, build the rule on the **Targeting** tab (environment picker on **Test**) using the steps under **If the agent can't write the rule**."
   else
     WRONG_ATTRS=$(printf '%s' "$TARGETING" | jq -r '[.environments.test.rules[]?.clauses[]?.attribute] | unique | join(", ")' 2>/dev/null)
-    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Edit the rule on the **Targeting** tab: **Attribute** must be exactly \`tier\`, and the **Select...** menu at the end of the rule must be on **Otto (Premium)**."
+    fail-message "There are targeting rules in Test, but none matches the **tier** attribute and serves **otto-premium**. Found rules on: \`${WRONG_ATTRS}\`. The app sets \`tier\` on the context — a rule on any other spelling matches nobody. Ask Claude Code to set the attribute to exactly \`tier\` and serve otto-premium."
   fi
   exit 1
 fi
 
-FALLTHROUGH_IDX=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
 BORN_IDX=$(resolve_idx otto-born)
+FALLTHROUGH_ROLLOUT=$(printf '%s' "$TARGETING" | jq -c '.environments.test.fallthrough.rollout // empty')
+FALLTHROUGH_HAS=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough | has("variation")')
 
-if [ -n "$FALLTHROUGH_IDX" ] && [ -n "$BORN_IDX" ] && [ "$FALLTHROUGH_IDX" != "$BORN_IDX" ]; then
-  fail-message "The premium rule is in place, but the default rule no longer serves **otto-born** — so everyone, not just premium shoppers, is getting the expensive model. Ask Claude Code to set the default rule back to otto-born."
+if [ "$FALLTHROUGH_HAS" != "true" ] && [ -n "$FALLTHROUGH_ROLLOUT" ]; then
+  fail-message "The premium rule is in place, but the default rule is a percentage rollout rather than **otto-born**, so everyone is in a split. Ask Claude Code to set the default rule in Test to serve otto-born on its own."
   exit 1
+fi
+
+if [ -n "$BORN_IDX" ] && [ "$FALLTHROUGH_HAS" = "true" ]; then
+  if ! printf '%s' "$TARGETING" | jq -e --argjson born "$BORN_IDX" \
+       '.environments.test.fallthrough.variation == $born' >/dev/null 2>&1; then
+    fail-message "The premium rule is in place, but the default rule no longer serves **otto-born** — so everyone, not just premium shoppers, is getting the expensive model. Ask Claude Code to set the default rule back to otto-born."
+    exit 1
+  fi
 fi
 
 # ─── 4. It actually routes ─────────────────────────────────────────────────
