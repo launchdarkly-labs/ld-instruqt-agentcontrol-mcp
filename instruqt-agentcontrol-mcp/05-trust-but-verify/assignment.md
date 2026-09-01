@@ -52,9 +52,9 @@ This chapter ships a model that is *going to fail*, on purpose, so you can watch
 
 The Nova Pro model config is already there — setup created it, because the app resolves Bedrock model IDs from that exact name and a near-miss just fails to answer. Everything else, you're about to ask for.
 
-# Ask for the rollout
+# Ask for the risky variation
 
-One prompt creates the risky variation and starts the guarded rollout that will judge it. In your `claude` session:
+The agent builds the variation and wires the judge to it. In your `claude` session:
 
 ```
 In my LaunchDarkly project, add a new variation to the otto-assistant AI Config.
@@ -66,25 +66,49 @@ Give it this system prompt:
 You are a customer service representative for ToggleWear. Assist customers with their inquiries in a professional and formal manner. Always greet the customer formally, provide thorough and complete explanations, and conclude each response with a formal sign-off. Maintain a corporate tone at all times. Avoid contractions, humour, and informality.
 
 Attach the otto-brand-voice-judge to this variation at 100% sampling, the same way otto-born has it.
-
-Then start a guarded rollout in the Test environment with otto-stiff as the test variation and otto-born as the control. Watch the otto-brand-voice-score metric and roll back automatically if it regresses. Use short monitoring windows — about 90 seconds per stage — and start the first stage at 10% of traffic.
 ```
 
-The keys matter here for the same reason they've mattered all track: `otto-stiff` is what the sabotage script below looks for, and `otto-brand-voice-score` is the metric your judge has been filling since the judge chapter. If the agent invents a new metric instead of reusing that one, the rollout will watch a metric with nothing in it and sit at stage one forever.
+The key matters for the same reason keys have mattered all track: `otto-stiff` is what the sabotage script below looks for. Read it back before moving on:
 
-Short monitoring windows are a lab concession, and worth naming as one. Ninety seconds is far too short to trust in production — you'd want hours, and enough samples that a quiet Tuesday doesn't read as a regression. You're compressing the clock so the lesson fits in a lab.
+```
+Show me the otto-stiff variation on otto-assistant: its model, its system prompt, and which judges are attached at what sampling rate.
+```
+
+# Start the guarded rollout
+
+This part you click, and the reason is worth a sentence. The public API can put *weights* on a rollout — 10% here, 90% there — and that's all. Nothing in it attaches a metric, sets a monitoring window, or arms a rollback. The thing that makes a rollout *guarded* has no endpoint, so it has no MCP tool either. This is where the agent hands over.
+
+Open the [LaunchDarkly](#tab-0) tab and go to **Agents → Configs → Otto Assistant → Targeting**. Confirm the environment picker says **Test**.
+
+1. Click the **Default rule** — the fallthrough at the bottom of the targeting list. You should see **Start guarded rollout**.
+2. **Test variation** is **Otto (Stiff)**; **Control variation** is **Otto (Born)**. Backwards ramps traffic *away* from the bad model and never regresses.
+3. **Metric to watch**: **otto-brand-voice-score**. That's the one your judge has been filling since the judge chapter — point it at anything else and there's no data to regress on.
+4. **Regression direction**: lower is worse. The metric's success criteria is HigherThanBaseline.
+5. **Stages**: start at 10% and take whatever ramp the UI offers. Set each stage's monitoring window to the shortest length it accepts.
+6. **On regression**: choose **Roll back**, not notify. Notify-only is a pager at 2am.
+7. Click **Start**.
+
+Short monitoring windows are a lab concession, and worth naming as one. A minute or two is far too short to trust in production — you'd want hours, and enough samples that a quiet Tuesday doesn't read as a regression. You're compressing the clock so the lesson fits in a lab.
+
+<!-- VERIFY: this click-path is lifted from the UI-driven original at launchdarkly-labs/ld-workshop-ai-configs-intro, instruqt-evaluate/07-trust-but-verify, so the rollout dialog's fields ran in a real lab — but that track said "Configs → Otto Assistant" where this one says "Agents → Configs → Otto Assistant" (the wording 02 and 03 already use). Confirm the nav, and confirm the shortest monitoring window the dialog accepts; the original asked for 1-2 minutes without recording whether that was honoured. -->
+
+<!-- VERIFY: if the sandbox sign-in is down there is no fallback — a guarded rollout cannot be started any other way, and solve-workstation produces only a plain percentage rollout. Decide with the operator whether that warrants a Skip instruction in the prose. -->
 
 # Check its work
 
+The rollout is a UI object, so read it back where you made it. On the **Targeting** tab you should see the default rule replaced by a running rollout at its first stage, 10% to Stiff.
+
+The agent can confirm the shape of it, which is worth doing — it's the same targeting endpoint every other chapter has read:
+
 ```
-Show me the guarded rollout on otto-assistant in Test: which variation is the test arm, which is the control, what metric it's watching, what it does on regression, and what stage it's currently in.
+Show me otto-assistant's default rule in the Test environment. Is it serving a single variation or a percentage rollout, and what are the weights?
 ```
 
 Four things to confirm:
 
-- Test arm is `otto-stiff`, control is `otto-born`. Backwards ramps traffic *away* from the bad model and never regresses.
+- Test arm is `otto-stiff`, control is `otto-born`.
 - The metric is `otto-brand-voice-score`.
-- On regression it **rolls back**, not just notifies. Notify-only is a pager at 2am.
+- On regression it **rolls back**, not just notifies.
 - It's actually running, at the first stage.
 
 # Watch it fail
@@ -100,21 +124,22 @@ Background traffic has been running since the challenge started, so the metric i
 
 That evaluates 600 contexts, lets LaunchDarkly bucket each one into whichever arm the rollout assigns, and scores it accordingly — near-zero for Stiff, healthy for Born. It's a real regression signal delivered fast, not a fake one: the events are attributed to the arms exactly the way organic traffic is. You're speeding up the clock, not rigging the result.
 
-While it runs, ask for the status, and keep asking:
-
-```
-What stage is the otto-assistant guarded rollout at now, and what is the brand-voice score for each arm?
-```
+While it runs, watch the rollout on the **Targeting** tab, and the scores on **Monitoring** with **otto-brand-voice-score** selected.
 
 You're watching for the two arms to separate. Born sits around 0.8 — roughly where you saw it in the judge chapter. Stiff drags along the bottom. When the gap is wide enough for long enough, the rollout calls it.
 
 When it fires:
 
-- The rollout's status changes to rolled back, with a regression recorded against `otto-brand-voice-score`.
-- The Test environment goes back to serving `otto-born` to everyone.
+- A **regression detected** event appears on the rollout's timeline, against `otto-brand-voice-score`.
+- Traffic snaps back to 100% `otto-born`. The Stiff arm is dropped.
+- The Monitoring graph shows the dip during the rollout and the recovery after it.
 - Nobody approved that. It's the part worth noticing.
 
-If the [LaunchDarkly](#tab-0) tab signs you in, **Agents → Configs → Otto Assistant → Monitoring** draws the same story as a graph, with the dip and the recovery. Nice if it works; the read-back prompt is the reliable path.
+You can confirm the end state through the agent too — the default rule is a single variation again:
+
+```
+Show me otto-assistant's default rule in the Test environment now. Single variation or rollout?
+```
 
 # What just happened
 
@@ -126,6 +151,14 @@ What made this safe wasn't the rollback. It was having written down what "good" 
 
 Click **Check** when the guarded rollout is running.
 
-<!-- VERIFY: the guarded-rollout read-back prompts assume the MCP server can report a rollout's current stage and per-arm metric values. If it only exposes create/start and not status, replace the two read-back prompts with the LaunchDarkly UI Monitoring path and demote the MCP prompt to a confirmation that the rollout exists. -->
+<!-- Both of the VERIFY notes that used to sit here are resolved and removed. The
+     first asked whether MCP could report a rollout's stage and per-arm scores;
+     the question is moot now that the rollout is started and watched in the UI.
+     The second asked whether 90-second monitoring windows were accepted; the
+     prose no longer names a number, and what the dialog actually allows is
+     folded into the VERIFY on the click-path above. -->
 
-<!-- VERIFY: confirm 90-second monitoring windows are accepted. The API takes monitoringWindowMilliseconds, but there may be a server-side minimum that silently rounds up — if so, state the real minimum here and adjust the sabotage guidance to match. -->
+<!-- VERIFY: timing. This chapter's 600s limit was set when the rollout was one
+     MCP prompt. It now includes a UI dialog, and the UI-driven original this
+     click-path came from allowed 1200s. If a live run overshoots, the budget
+     has to come from somewhere — CLAUDE.md records 2100s as fully spent. -->
