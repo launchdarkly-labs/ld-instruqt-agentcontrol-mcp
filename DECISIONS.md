@@ -766,3 +766,27 @@ A guarded rollout is not reachable from the public REST API. The hosted MCP serv
 **The check is unchanged in what it asserts** and stays permissive about the guard, for the reason already documented: `solve-workstation` can only produce a plain percentage rollout, so requiring a guarded one would fail the operator's own Skip path. Only the `fail-message` text moved from "ask Claude Code" to the Targeting tab.
 
 **Consequence worth tracking.** Two of five substantive chapters now touch the UI, both because the MCP server cannot write AI Config targeting. The premise recorded in "MCP server replaces the LaunchDarkly UI as the build interface" is no longer literally true, and pretending otherwise in the marketing would be a lie a learner discovers in chapter three. The upstream fix is a typed add-rule tool and a guarded-rollout endpoint; until those exist, the honest framing is "drive what you can from the agent, and know where the edges are."
+
+---
+
+## Chapter 05 adopts the intro track's format wholesale (2026-08-31)
+
+**Decision:** `05-trust-but-verify` is restructured to match `ld-agentcontrol-intro`'s `07-trust-but-verify`: setup pre-builds everything, the learner tours the pieces in the UI and starts the rollout, and **there is no agent prompt in the chapter at all**. The operator asked for "little to no more MCP … just like the ld-agentcontrol-intro". Little would have meant keeping the variation prompt; the intro track keeps nothing, so neither do we.
+
+**Finding the source.** The track is not in a repo I could locate — `gh search code`, and listing every repo in `launchdarkly-labs`, turned up nothing carrying that slug. `ld-workshop-ai-configs-intro` and `ld-instruqt` hold `ld-agentcontrol-{build,evaluate,coordinate}` and `ld-codecontrol-build`, none of them `-intro`. It was pulled straight from the platform instead:
+
+```
+instruqt track pull launchdarkly/ld-agentcontrol-intro
+```
+
+Worth remembering: **the CLI will pull any track by slug into an empty directory**, so a missing repo is not a dead end. That is also how the remote/local diff in "Adopt the remote checksum" was done.
+
+**Its click-path supersedes the one in "Guarded rollouts have no API".** That entry sourced its steps from `ld-agentcontrol-evaluate` ch07, which says **Start guarded rollout** with **Test variation** / **Control variation**. The intro track — newer — says **Serve → Guarded rollout** with **Initial variation** / **New variation** / **Roll back on regression: On** / **Stages: leave the defaults** / **Start rollout**. Two tracks disagreeing about a dialog means at least one is stale, and the newer one wins by default. Both still carry `VERIFY` markers.
+
+**What setup now pre-builds.** `05/setup-workstation` applies `terraform/challenge-04` with `-target` on the Nova Pro model config, the `otto_stiff` variation, and `attach_judge_to_otto_stiff`. It deliberately does **not** apply `null_resource.fallthrough_rollout` — that is solve's plain percentage rollout, and applying it at setup would hand the learner a fallthrough that already reads as a rollout, so `check-workstation` would pass before they touched anything.
+
+**The judge chapter survives, and that matters.** The intro track pre-builds its judge too; we do not, because `04-otto-gets-graded` is where the learner writes the rubric. Keeping it is what keeps this chapter's closing line true — *"What made this safe wasn't the rollback. It was having written down what 'good' means, in a judge, before you needed it."* Pre-build the judge and that sentence becomes a lie.
+
+**The budget moved: 2100 → 2400.** Chapter 05 goes 600s → 900s. The operator's question was whether `04-otto-gets-graded` earns its 300s against the six-objective abstract, and it does not — DECISIONS' own objectives table omits it, because the abstract folds "model-as-judge" into the guarded-rollout objective. But 04's limit *is* 300s, so moving 300s out of it means cutting the chapter, not trimming it. Four options were put to the operator — cut 04 and pre-build the judge; halve 04 and take the rest from 02; take all 300s from 02; extend the track — and the choice was to extend. Nothing else loses time. The track is a 40-minute session now, and `track.yml`, `CLAUDE.md` and this file all say so.
+
+**Still unverified, and it is the same gap as everywhere else in this chapter.** The intro track's tour has the learner confirm an **Evaluation metric** on the assistant Config's Settings tab, which is what pre-selects the metric in the rollout dialog. This track sets `evaluation_metric_key` on the *judge* Config instead (`terraform/challenge-02`), not on `otto-assistant`. So our dialog may open with no metric selected. The rollout step is written out explicitly rather than saying "should already be selected", which is correct either way — but if the dialog turns out to require the wiring, add it to `challenge-01` rather than making the learner hunt.

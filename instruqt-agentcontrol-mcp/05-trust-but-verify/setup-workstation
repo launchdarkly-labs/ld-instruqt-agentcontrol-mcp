@@ -2,16 +2,30 @@
 
 # Per-challenge setup for ch04 (guarded rollout).
 #
-# Two jobs, and one of them is not like the others.
+# Two jobs.
 #
-# 1. Pre-create the Nova Pro model config, with -target so nothing else in the
-#    module gets applied. The learner builds the variation and the rollout
-#    through Claude Code — that's the chapter — but the model config's `name`
-#    is load-bearing for the app: server.py resolves Bedrock model IDs out of
-#    BEDROCK_MODEL_IDS keyed on the name LaunchDarkly returns, and passes
-#    unknown names through verbatim. An agent that names it "Amazon Nova Pro"
-#    produces a variation that looks correct everywhere and 400s at Bedrock the
-#    moment it serves. Not a thing worth failing a learner on.
+# 1. Pre-build everything the rollout needs: the Nova Pro model config, the
+#    otto-stiff variation, and the brand-voice judge attached to it. The
+#    learner's only job in this chapter is starting the guarded rollout in the
+#    UI, which is the one thing no API and no MCP tool can do — see
+#    DECISIONS.md, "Guarded rollouts have no API".
+#
+#    This mirrors the intro track (slug ld-agentcontrol-intro, chapter
+#    07-trust-but-verify), whose setup pre-builds its variation, judge and
+#    metric for the same reason: the rollout is the lesson, and everything
+#    else is scaffolding that can go wrong on the way to it.
+#
+#    -target is still used, and deliberately: null_resource.fallthrough_rollout
+#    must NOT be applied here. That resource is the solve path's plain
+#    percentage rollout, and applying it at setup would hand the learner a
+#    fallthrough that already looks like a rollout — check-workstation would
+#    pass before they touched anything.
+#
+#    The model config's `name` is load-bearing regardless of who creates it:
+#    server.py resolves Bedrock model IDs out of BEDROCK_MODEL_IDS keyed on the
+#    name LaunchDarkly returns, and passes unknown names through verbatim.
+#    "amazon.nova-pro-v1:0" is a row in that table; "Amazon Nova Pro" is not,
+#    and would 400 at Bedrock the moment it served.
 #
 # 2. Start background traffic so the metric has something in it before the
 #    learner starts the rollout. A guarded rollout with no baseline data sits
@@ -22,7 +36,10 @@ set -e
 cd /opt/ld/ai-configs-intro/terraform/challenge-04
 echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
 terraform init -input=false
-terraform apply -auto-approve -target=launchdarkly_model_config.nova_pro
+terraform apply -auto-approve \
+  -target=launchdarkly_model_config.nova_pro \
+  -target=launchdarkly_ai_config_variation.otto_stiff \
+  -target=null_resource.attach_judge_to_otto_stiff
 
 # The judge chapter's generator drives real /chat calls, which are expensive
 # and no longer needed. background_traffic.py emits synthetic

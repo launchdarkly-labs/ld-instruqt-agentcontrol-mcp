@@ -17,7 +17,7 @@ The distinguishing premise: **the learner drives LaunchDarkly through the hosted
 
 See DECISIONS.md for both. The upstream fix is a typed add-rule tool and a guarded-rollout endpoint; until then, don't write prose that promises a learner never touches the UI.
 
-Five challenges, **35 minutes** self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
+Five challenges, **40 minutes** self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
 
 | Dir | Type | Beat |
 |---|---|---|
@@ -25,10 +25,10 @@ Five challenges, **35 minutes** self-paced. The chapter set is driven by six lea
 | `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A read-only walkthrough of the six SDK lines, then a live prompt edit changes a shipping policy mid-session with no deploy. |
 | `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet; a terminal paste adds the `tier is premium` targeting rule via REST. No app change at all — the chapter's point. |
 | `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. The app already invokes it. |
-| `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and attaches the judge. The guarded rollout is started **in the UI** — it has no API — and watched there. |
+| `05-trust-but-verify` | challenge | Setup pre-builds the `otto-stiff` Nova Pro variation and the judge attachment. The learner tours them and starts the guarded rollout **in the UI** — it has no API. No agent prompt in the chapter at all. |
 | `06-wrap-up` | quiz | Recap and one question. |
 
-**35 minutes is a hard budget and it is fully spent** — 240 + 480 + 360 + 300 + 600 + 120 = 2100, exactly `track.yml`'s `timelimit`. Prose is about 3,700 words, or ~18 minutes of reading, leaving ~17 for agent round-trips and waiting. Adding anything means taking the time from another chapter.
+**The budget is 40 minutes and it is fully spent** — 240 + 480 + 360 + 300 + 900 + 120 = 2400, exactly `track.yml`'s `timelimit`. It was 35 minutes / 2100s until 2026-08-31, when `05-trust-but-verify` went from 600s to 900s: it became a UI chapter with a tour and a rollout dialog, and the rollback needs clock to fire. The operator chose to extend the track rather than take the time from another chapter — the alternatives, and why each was worse, are in DECISIONS.md. Adding anything now means taking the time from another chapter or extending again.
 
 **There are no `server.py` pastes any more.** Both were pre-baked into the VM image on 2026-08-27 to buy the time — see DECISIONS.md, "Cut to 35 minutes". The learner touches LaunchDarkly only. Consequences worth knowing before you edit anything:
 
@@ -36,7 +36,7 @@ Five challenges, **35 minutes** self-paced. The chapter set is driven by six lea
 - `vm-image/check-image.sh` asserts the *implementations* are present. It used to assert the stubs were. Inverting that back would silently ship an unwired app.
 - The paste assertions in `02`'s and `04`'s `check-workstation` are retained but their `fail-message` text now blames the image, not the learner — because that's the only thing that can cause them to fire.
 
-**The tightest chapter is `05-trust-but-verify`**: ~5 minutes of reading inside a 10-minute limit, leaving ~5 for the rollback to actually fire. That number is not fully under our control. If a live run overshoots, the honest fix is dropping an objective rather than trimming prose further.
+**The tightest chapter is still `05-trust-but-verify`**, even at 900s: a UI tour, a rollout dialog, and then waiting for a regression detector we do not control. The comparable chapter in the `ld-agentcontrol-intro` track allows 1200s for the same content. If a live run overshoots, that is the next number to move.
 
 ### Two numbering schemes, deliberately
 

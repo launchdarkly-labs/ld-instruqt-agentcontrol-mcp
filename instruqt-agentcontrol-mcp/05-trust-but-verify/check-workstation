@@ -9,10 +9,21 @@
 #   4. If that something is a recognisable guarded rollout, it watches
 #      otto-brand-voice-score and rolls back on regression.
 #
+# 1 and 2 are SETUP'S work, not the learner's — setup-workstation applies the
+# otto-stiff variation and the judge attachment so the chapter is nothing but
+# the rollout. Their fail-messages therefore point at the operator, not at the
+# learner, in the same way 02's and 04's paste assertions do. They are kept
+# because a silently missing test arm makes 3 and 4 pass against a rollout that
+# is measuring nothing.
+#
+# 3 is the only thing the learner does, and it is done in the UI: starting a
+# guarded rollout has no API and no MCP tool. See DECISIONS.md, "Guarded
+# rollouts have no API".
+#
 # Assertion 4 is conditional on purpose. See the HAS_GUARD block below.
 #
 # Not asserted: variation display names, the prompt wording, stage weights, or
-# monitoring-window length. The agent gets to choose all of those.
+# monitoring-window length — the UI chooses most of those from its defaults.
 
 #
 # NOTE: this is /bin/sh, which is dash on Ubuntu, and dash's builtin `echo`
@@ -36,7 +47,7 @@ while [ $i -lt 5 ]; do
 done
 
 if [ "$STIFF" != "otto-stiff" ]; then
-  fail-message "No variation keyed **otto-stiff** on the otto-assistant Config. Ask Claude Code for it using the prompt under **Ask for the risky variation** — the key matters, because the sabotage script and this check both look for it."
+  fail-message "The **otto-stiff** variation is missing. Setup creates it, so this is a lab problem rather than anything you did — tell your operator, or re-run setup for this challenge."
   exit 1
 fi
 
@@ -46,7 +57,7 @@ STIFF_MODEL=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto
 case "$(printf '%s' "$STIFF_MODEL" | tr '[:upper:]' '[:lower:]')" in
   *nova*) : ;;
   *)
-    fail-message "**otto-stiff** is backed by \`${STIFF_MODEL}\`, not a Nova model. The chapter needs a model that scores badly against the brand voice — ask Claude Code to point it at the existing Nova Pro model config named amazon.nova-pro-v1:0."
+    fail-message "**otto-stiff** is backed by \`${STIFF_MODEL}\`, not a Nova model. Setup points it at amazon.nova-pro-v1:0, so this is a lab problem — tell your operator."
     exit 1 ;;
 esac
 
@@ -61,7 +72,7 @@ JUDGED=$(printf '%s' "$CONFIG" | jq -r '
   | .judgeConfiguration.judges[]? | select(.judgeConfigKey=="otto-brand-voice-judge") | .judgeConfigKey' 2>/dev/null)
 
 if [ "$JUDGED" != "otto-brand-voice-judge" ]; then
-  fail-message "The **otto-brand-voice-judge** isn't attached to **otto-stiff**, so the arm you're testing isn't being graded the way otto-born is. Ask Claude Code to attach it at 100% sampling."
+  fail-message "The **otto-brand-voice-judge** isn't attached to **otto-stiff**, so the arm you're testing isn't being graded the way otto-born is. Setup attaches it — tell your operator. (If you skipped the judge chapter, go back and finish it first: the judge has to exist before it can be attached.)"
   exit 1
 fi
 
@@ -81,7 +92,7 @@ done
 
 HAS_ROLLOUT=$(printf '%s' "$FALLTHROUGH" | jq -r '.rollout // empty' 2>/dev/null)
 if [ -z "$HAS_ROLLOUT" ]; then
-  fail-message "The Test environment's default rule still serves a single variation, so no rollout is running. Start it in the LaunchDarkly tab: **Agents → Configs → Otto Assistant → Targeting**, confirm the environment is **Test**, click the **Default rule** and choose **Start guarded rollout**. Full steps are under **Start the guarded rollout**. The agent can't do this one — a guarded rollout has no API."
+  fail-message "The Test environment's default rule still serves a single variation, so no rollout is running. In the LaunchDarkly tab, open **Agents → Configs → Otto Assistant → Targeting**, confirm the environment is **Test**, click the **Default rule**, and set **Serve** to **Guarded rollout**. Full steps are under **Start the guarded rollout**."
   exit 1
 fi
 
@@ -116,14 +127,14 @@ if [ -n "$HAS_GUARD" ]; then
   case "$GUARD" in
     *otto-brand-voice-score*) : ;;
     *)
-      fail-message "The rollout is running but isn't watching **otto-brand-voice-score**. That's the metric your judge has been filling since the judge chapter — a rollout pointed at anything else has no data to regress on. Stop the rollout on the **Targeting** tab and start it again with that metric selected."
+      fail-message "The rollout is running but isn't watching **otto-brand-voice-score**. That's the metric your judge has been filling since the judge chapter — a rollout pointed at anything else has no data to regress on. Stop the rollout on the **Targeting** tab and start it again with that metric selected in the **Metric** field."
       exit 1 ;;
   esac
 
   case "$GUARD" in
     *'"rollback":true'*|*'"rollback": true'*|*rollbackOnRegression*) : ;;
     *)
-      fail-message "The rollout watches the right metric but doesn't roll back on regression — it'll only notify. Restart it on the **Targeting** tab with **Roll back** selected under *On regression*."
+      fail-message "The rollout watches the right metric but doesn't roll back on regression — it'll only notify. Restart it on the **Targeting** tab with **Roll back on regression** set to **On**."
       exit 1 ;;
   esac
 fi
