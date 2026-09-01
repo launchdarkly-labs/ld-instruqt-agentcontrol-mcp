@@ -9,8 +9,16 @@
 # CAVEAT, and it's a real one: that last piece is a plain percentage rollout,
 # not a guarded rollout. No public REST instruction starts a guarded rollout —
 # see the long comment on null_resource.fallthrough_rollout in the module for
-# the verification behind that claim. Solve must not depend on an LLM, so it
-# can't reach the MCP tool the learner uses.
+# the verification behind that claim.
+#
+# This comment used to end "solve can't reach the MCP tool the learner uses."
+# There is no such tool. Re-verified 2026-08-31 against the OpenAPI spec: AI
+# Config and flag targeting PATCH both expose only rolloutWeights /
+# rolloutContextKind / rolloutBucketBy, and ReleaseGuardianConfiguration and
+# GuardedReleaseConfig are referenced from other schemas but from no path. The
+# learner now starts the rollout in the UI, which is the only thing that can.
+# So the gap below is not solve falling short of MCP — it is solve and MCP
+# alike falling short of the UI.
 #
 # So Skip leaves the workstation with the risky variation live and traffic
 # split, but nothing watching the metric and nothing to roll it back. A learner

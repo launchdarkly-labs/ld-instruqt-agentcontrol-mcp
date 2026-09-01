@@ -120,9 +120,13 @@ resource "null_resource" "attach_judge_to_otto_stiff" {
 # referenced only from the release-pipeline models, not from flag or AI Config
 # targeting. Verified against app.launchdarkly.com/api/v2/openapi.json.
 #
-# The MCP server does expose a guarded rollout — that's what the learner drives
-# in the assignment — but solve must not depend on an LLM (see CLAUDE.md), so
-# it can't go through MCP to get it.
+# This comment used to continue "The MCP server does expose a guarded rollout —
+# that's what the learner drives in the assignment." That was an assumption, it
+# was never verified, and it is wrong. Re-verified 2026-08-31: the spec findings
+# above are the whole story, and the hosted MCP server is generated from that
+# same surface. The learner now starts the rollout in the LaunchDarkly UI, which
+# is the only interface that can. Solve still must not depend on an LLM (see
+# CLAUDE.md) — but that is no longer why solve falls short here.
 #
 # The consequence: a learner who clicks Skip lands on Stiff taking 10% of
 # traffic with no regression detection and no auto-rollback. That is NOT the
