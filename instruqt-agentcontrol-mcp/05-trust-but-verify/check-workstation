@@ -36,7 +36,7 @@ while [ $i -lt 5 ]; do
 done
 
 if [ "$STIFF" != "otto-stiff" ]; then
-  fail-message "No variation keyed **otto-stiff** on the otto-assistant Config. Ask Claude Code for it using the prompt under **Ask for the rollout** — the key matters, because the sabotage script and this check both look for it."
+  fail-message "No variation keyed **otto-stiff** on the otto-assistant Config. Ask Claude Code for it using the prompt under **Ask for the risky variation** — the key matters, because the sabotage script and this check both look for it."
   exit 1
 fi
 

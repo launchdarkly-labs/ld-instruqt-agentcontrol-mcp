@@ -37,7 +37,7 @@ Two things are worth taking away, and neither is about shopping assistants.
 
 **The resources were ordinary.** Nothing Claude Code created is a special kind of Config, flag, or metric. It's the same project you'd have built by clicking — which is the point. The MCP server is a different interface onto the same product, not a parallel one.
 
-**The interesting decisions were still yours.** The agent wrote the Config and started the rollout. It didn't decide which customers deserve a more expensive model, or what "on-brand" means — and that second one is what the guarded rollout ultimately enforced on your behalf.
+**The interesting decisions were still yours.** The agent wrote the Config, the variations and the judge; you set the targeting rule and armed the rollout yourself. Neither of you decided which customers deserve a more expensive model, or what "on-brand" means — those were judgement calls, and the second one is what the guarded rollout ultimately enforced on your behalf.
 
 # One last question
 
