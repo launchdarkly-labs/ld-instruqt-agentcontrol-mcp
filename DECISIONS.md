@@ -739,3 +739,30 @@ The first 03 check required `.variationId` and `select(.key==...)` on the target
 `LD_API_TOKEN` and `LD_PROJECT_KEY` come from `app/.env` (`set -a && . ...`). That token is the per-lab scoped token, already on the box.
 
 **What this costs.** The chapter is no longer "describe the rule to the agent." It teaches the actual write the MCP server is missing. The agent is still used to create the variation and to read the rule back. Restore the MCP prompt only after ai-tooling ships a typed add-rule tool.
+
+---
+
+## Guarded rollouts have no API, so chapter 05 starts one in the UI (2026-08-31)
+
+**Verified, not inferred.** Three checks against the live OpenAPI spec:
+
+- **AI Config targeting `PATCH`** — the complete rollout vocabulary is `rolloutWeights`, `rolloutContextKind`, `rolloutBucketBy`. No metric, no monitoring window, no rollback-on-regression.
+- **Flag targeting `PATCH`** — identical. Same three fields, nothing guarded.
+- **`ReleaseGuardianConfiguration`, `ReleaseGuardianConfigurationInput`, `GuardedReleaseConfig`, `DependentMeasuredRolloutRep`** — all four schemas exist; grepping every path shows they are referenced only from other *schemas*, never from an endpoint.
+
+A guarded rollout is not reachable from the public REST API. The hosted MCP server is generated from that same surface, which is also why it could not `addRule` in chapter 03 — same root cause, one layer up.
+
+**This reverses a claim made in "Guarded rollout added back as a fifth chapter" (2026-08-27).** That entry correctly recorded that no REST instruction starts a guarded rollout, then added: *"The MCP server does expose it — that's what the learner drives."* That clause was never verified and is now the load-bearing error in the chapter. The version this chapter was lifted from — `launchdarkly-labs/ld-workshop-ai-configs-intro`, `instruqt-evaluate/07-trust-but-verify` — was UI-driven for exactly this reason, and its own `solve-workstation` says so. The rewrite assumed that had changed. It had not.
+
+**Decision.** The chapter splits like `03` does. The agent creates `otto-stiff` and attaches the judge — both typed tools, both verified in the 2026-08-14 spike. The rollout is started in the UI, and watched there.
+
+**The click-path is not a draft.** It is lifted from the original track's `assignment.md`, which ran in real labs: **Targeting** tab → click the **Default rule** → **Start guarded rollout** → test/control variations, metric, regression direction, stages, **On regression: Roll back** → **Start**. Two things still carry `VERIFY` markers: the original said `Configs → Otto Assistant` where this track says `Agents → Configs → Otto Assistant`, and the original asked for 1-2 minute monitoring windows without recording whether the dialog honoured them. The prose therefore no longer names a window length — it says "the shortest length it accepts".
+
+**What it costs:**
+
+- **No fallback.** Unlike `03`, there is no other way to do this. If the sandbox sign-in is down the chapter cannot be completed, and `solve-workstation` produces only a plain percentage rollout. `01-meet-togglewear` has been corrected again — it claimed nothing in the track depends on that sign-in, which was briefly true after chapter 03 moved to a REST paste and is false again now.
+- **Timing.** The 600s limit was set when the rollout was one prompt. The UI-driven original allowed 1200s. Not changed here: CLAUDE.md records the 2100s total as fully spent, so buying time means taking it from another chapter, which is the operator's call after a live run. Marked with a `VERIFY`.
+
+**The check is unchanged in what it asserts** and stays permissive about the guard, for the reason already documented: `solve-workstation` can only produce a plain percentage rollout, so requiring a guarded one would fail the operator's own Skip path. Only the `fail-message` text moved from "ask Claude Code" to the Targeting tab.
+
+**Consequence worth tracking.** Two of five substantive chapters now touch the UI, both because the MCP server cannot write AI Config targeting. The premise recorded in "MCP server replaces the LaunchDarkly UI as the build interface" is no longer literally true, and pretending otherwise in the marketing would be a lie a learner discovers in chapter three. The upstream fix is a typed add-rule tool and a guarded-rollout endpoint; until those exist, the honest framing is "drive what you can from the agent, and know where the edges are."

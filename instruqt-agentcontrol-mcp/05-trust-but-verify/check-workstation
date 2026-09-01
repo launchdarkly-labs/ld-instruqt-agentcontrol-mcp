@@ -81,7 +81,7 @@ done
 
 HAS_ROLLOUT=$(printf '%s' "$FALLTHROUGH" | jq -r '.rollout // empty' 2>/dev/null)
 if [ -z "$HAS_ROLLOUT" ]; then
-  fail-message "The Test environment's default rule still serves a single variation, so no rollout is running. Ask Claude Code to start a guarded rollout with **otto-stiff** as the test arm and **otto-born** as the control, watching **otto-brand-voice-score**."
+  fail-message "The Test environment's default rule still serves a single variation, so no rollout is running. Start it in the LaunchDarkly tab: **Agents → Configs → Otto Assistant → Targeting**, confirm the environment is **Test**, click the **Default rule** and choose **Start guarded rollout**. Full steps are under **Start the guarded rollout**. The agent can't do this one — a guarded rollout has no API."
   exit 1
 fi
 
@@ -116,14 +116,14 @@ if [ -n "$HAS_GUARD" ]; then
   case "$GUARD" in
     *otto-brand-voice-score*) : ;;
     *)
-      fail-message "The rollout is running but isn't watching **otto-brand-voice-score**. That's the metric your judge has been filling since the judge chapter — a rollout pointed at anything else has no data to regress on. Ask Claude Code to point it at otto-brand-voice-score."
+      fail-message "The rollout is running but isn't watching **otto-brand-voice-score**. That's the metric your judge has been filling since the judge chapter — a rollout pointed at anything else has no data to regress on. Stop the rollout on the **Targeting** tab and start it again with that metric selected."
       exit 1 ;;
   esac
 
   case "$GUARD" in
     *'"rollback":true'*|*'"rollback": true'*|*rollbackOnRegression*) : ;;
     *)
-      fail-message "The rollout watches the right metric but doesn't roll back on regression — it'll only notify. Ask Claude Code to set the rollout to roll back automatically when otto-brand-voice-score regresses."
+      fail-message "The rollout watches the right metric but doesn't roll back on regression — it'll only notify. Restart it on the **Targeting** tab with **Roll back** selected under *On regression*."
       exit 1 ;;
   esac
 fi

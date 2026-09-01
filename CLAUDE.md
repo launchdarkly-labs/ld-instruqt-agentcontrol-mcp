@@ -10,7 +10,12 @@ A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product thr
 
 The distinguishing premise: **the learner drives LaunchDarkly through the hosted MCP server, not the UI.** Claude Code runs on the workstation, already connected, and the learner creates Configs, judges, and flags by describing what they want in plain language. The LaunchDarkly UI is used for *looking at* what was built and for reading scores, not for building.
 
-**`03-otto-knows-his-audience` creates the variation through MCP and the targeting rule through a REST paste.** The hosted MCP server has no write tool for a custom AI Config rule (flag `update-targeting-rules` returns `401: AI flags may not be modified directly`; `update-agentcontrol-config-targeting` is named in the getter and not registered). The LaunchDarkly tab is not reliable enough to gate the chapter. The paste is the same `addRule` semantic patch `terraform/challenge-05` uses. See DECISIONS.md.
+**Two chapters no longer hold to that, both because AI Config targeting cannot be written from an agent.**
+
+- **`03-otto-knows-his-audience`** creates the variation through MCP and the targeting rule through a REST paste. The hosted MCP server has no write tool for a custom AI Config rule (flag `update-targeting-rules` returns `401: AI flags may not be modified directly`; `update-agentcontrol-config-targeting` is named in the getter and not registered). The LaunchDarkly tab is not reliable enough to gate the chapter. The paste is the same `addRule` semantic patch `terraform/challenge-05` uses.
+- **`05-trust-but-verify`** creates the variation through MCP and starts the guarded rollout **in the UI**, because a guarded rollout has no endpoint at all. Verified against the spec: AI Config and flag targeting `PATCH` both expose only `rolloutWeights` / `rolloutContextKind` / `rolloutBucketBy`, and `ReleaseGuardianConfiguration` / `GuardedReleaseConfig` are referenced from other schemas but from no path. Unlike `03` there is **no fallback** — if the sandbox sign-in is down the chapter cannot be completed.
+
+See DECISIONS.md for both. The upstream fix is a typed add-rule tool and a guarded-rollout endpoint; until then, don't write prose that promises a learner never touches the UI.
 
 Five challenges, **35 minutes** self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
 
@@ -20,7 +25,7 @@ Five challenges, **35 minutes** self-paced. The chapter set is driven by six lea
 | `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A read-only walkthrough of the six SDK lines, then a live prompt edit changes a shipping policy mid-session with no deploy. |
 | `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet; a terminal paste adds the `tier is premium` targeting rule via REST. No app change at all — the chapter's point. |
 | `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. The app already invokes it. |
-| `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and starts a guarded rollout watching `otto-brand-voice-score`. The rollback is read back through MCP. No paste. |
+| `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and attaches the judge. The guarded rollout is started **in the UI** — it has no API — and watched there. |
 | `06-wrap-up` | quiz | Recap and one question. |
 
 **35 minutes is a hard budget and it is fully spent** — 240 + 480 + 360 + 300 + 600 + 120 = 2100, exactly `track.yml`'s `timelimit`. Prose is about 3,700 words, or ~18 minutes of reading, leaving ~17 for agent round-trips and waiting. Adding anything means taking the time from another chapter.
