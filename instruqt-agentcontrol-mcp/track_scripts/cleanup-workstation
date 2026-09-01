@@ -48,5 +48,28 @@ if sandbox:
     )
 PY
 
+# Remove the Writer we invited for this sandbox. DynamoDB is already gone, so
+# a leftover LoginUrl cannot JIT a replacement Reader. If the id file is
+# missing (older image, invite failed mid-setup), look the email up.
+revoke_lab_member() {
+    local id email json
+    if [ -f /opt/ld/.lab-member-id ]; then
+        id=$(cat /opt/ld/.lab-member-id)
+    elif [ -n "${LD_PROJECT_KEY:-}" ]; then
+        email="instruqt+${LD_PROJECT_KEY}@launchdarkly.com"
+        json=$(curl -sS -G "https://app.launchdarkly.com/api/v2/members" \
+          -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+          --data-urlencode "filter=email:${email}") || return 0
+        id=$(printf '%s' "$json" | jq -r --arg e "$email" \
+          '.items[]? | select(.email == $e) | ._id' | head -n1)
+    fi
+    [ -n "${id:-}" ] || return 0
+    curl -fsS -X DELETE \
+      "https://app.launchdarkly.com/api/v2/members/${id}" \
+      -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" || true
+    rm -f /opt/ld/.lab-member-id
+}
+revoke_lab_member
+
 cd /opt/ld/terraform-ld-student
 terraform destroy -auto-approve

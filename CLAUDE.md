@@ -197,7 +197,7 @@ Four, deliberately separated by security boundary. Don't conflate them.
 
 ### Track-level setup script
 
-`track_scripts/setup-workstation` runs once at lab start as root. It applies `terraform/student-bootstrap/`, pulls the SDK/client/project keys, mints `LD_API_TOKEN`, writes them into `~/.profile`, `~/.bashrc`, and `app/.env`, renders `app/.mcp.json` and patches the token into `/root/.claude.json`, then stop/starts `togglewear` (`restart` only sends SIGHUP, which the app doesn't handle, so env vars wouldn't refresh).
+`track_scripts/setup-workstation` runs once at lab start as root. It applies `terraform/student-bootstrap/`, pulls the SDK/client/project keys, mints `LD_API_TOKEN`, invites `instruqt+<project-key>@launchdarkly.com` as Writer (so the SAML tab does not JIT-provision a Reader), writes them into `~/.profile`, `~/.bashrc`, and `app/.env`, renders `app/.mcp.json` and patches the token into `/root/.claude.json`, then stop/starts `togglewear` (`restart` only sends SIGHUP, which the app doesn't handle, so env vars wouldn't refresh). `cleanup-workstation` revokes the token and deletes that member.
 
 ## Tech stack — pinned versions
 

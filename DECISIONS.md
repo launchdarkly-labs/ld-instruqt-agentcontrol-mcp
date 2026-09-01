@@ -790,3 +790,23 @@ Worth remembering: **the CLI will pull any track by slug into an empty directory
 **The budget moved: 2100 → 2400.** Chapter 05 goes 600s → 900s. The operator's question was whether `04-otto-gets-graded` earns its 300s against the six-objective abstract, and it does not — DECISIONS' own objectives table omits it, because the abstract folds "model-as-judge" into the guarded-rollout objective. But 04's limit *is* 300s, so moving 300s out of it means cutting the chapter, not trimming it. Four options were put to the operator — cut 04 and pre-build the judge; halve 04 and take the rest from 02; take all 300s from 02; extend the track — and the choice was to extend. Nothing else loses time. The track is a 40-minute session now, and `track.yml`, `CLAUDE.md` and this file all say so.
 
 **Still unverified, and it is the same gap as everywhere else in this chapter.** The intro track's tour has the learner confirm an **Evaluation metric** on the assistant Config's Settings tab, which is what pre-selects the metric in the rollout dialog. This track sets `evaluation_metric_key` on the *judge* Config instead (`terraform/challenge-02`), not on `otto-assistant`. So our dialog may open with no metric selected. The rollout step is written out explicitly rather than saying "should already be selected", which is correct either way — but if the dialog turns out to require the wiring, add it to `challenge-01` rather than making the learner hunt.
+
+---
+
+## Invite the lab SSO user as Writer (2026-09-01)
+
+**Decision:** `setup-workstation` invites `instruqt+<project-key>@launchdarkly.com` as **Writer** via `POST /api/v2/members` *before* writing the DynamoDB SSO rows. `cleanup-workstation` deletes that member. Do **not** change the workshops-account SSO default role.
+
+**Why this exists.** The LaunchDarkly tab's SAML assertion carries only an email (see "The SAML recipient is hardcoded"). Unique `LoginEmail` every sandbox means every lab is a first-time SSO user. LaunchDarkly JIT-provisions them with the account default, which is **Reader**. A Reader cannot add a custom targeting rule or start a guarded rollout — the two UI writes chapters 03 (recovery) and 05 actually need. Confirmed 2026-09-01 on a live lab: `instruqt+agentcontrol-intro-bsllyroc8fgv@launchdarkly.com`, Member role Reader.
+
+**Why not the SSO default.** Gear → Security → SSO → Default initial role offers Reader / No access / custom role. It does not offer base Writer. Raising the default to a custom Writer-equivalent would give every JIT user on that account write access, including anyone who lands there outside this track. Per-sandbox invite keeps the blast radius at one throwaway email.
+
+**Invite before first SAML, not PATCH after.** The members PATCH docs warn that with SAML enabled, the IdP can override a role update on the next login. Inviting Writer *before* the DynamoDB `LoginUrl` exists means the first SSO hit matches an existing member. The IdP does not send `role`, so leaving it blank is supposed to let the LD-managed role stick. The 400 `email_already_exists_in_account` path still PATCHes to Writer for re-used emails and already-running sandboxes; if a later SAML login resets them to Reader, that is the override the docs warn about.
+
+**Token.** `LAUNCHDARKLY_ACCESS_TOKEN` (account admin). `LD_API_TOKEN` is `proj/<key>` scoped and cannot `createMember`.
+
+**Invite email.** LaunchDarkly will send an invitation to the plus-address. It may bounce. That is fine — the member record is what SSO needs, not the mailbox.
+
+**Current live labs.** This only helps sandboxes whose setup runs after the change is on the image's `REPO_REF` (usually `main`). A session that already JIT'd as Reader stays Reader until someone Assigns access in Members, or the learner starts a new lab.
+
+**SCIM.** `POST /api/v2/members` is blocked when SCIM is on. This account is SAML, not SCIM. The UI invite path is disabled under SSO; the API invite is the supported escape hatch.

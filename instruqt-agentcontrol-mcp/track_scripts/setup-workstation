@@ -284,6 +284,79 @@ sed -i 's|^LD_API_TOKEN=.*|LD_API_TOKEN='"${LD_API_TOKEN}"'|g' "$APP_ENV"
 sed -i 's|^AWS_REGION=.*|AWS_REGION='"${AWS_REGION}"'|g' "$APP_ENV"
 
 # ---------------------------------------------------------------------------
+# LaunchDarkly UI tab: invite the SAML email as Writer, then provision SSO.
+#
+# LoginEmail is unique per sandbox. The IdP assertion carries only that email
+# — no role — so a first-time SAML hit JIT-provisions a Reader (the account's
+# SSO default). Readers cannot add targeting rules or start guarded rollouts.
+# Inviting as Writer *before* the DynamoDB rows exist means the first SSO hit
+# matches an existing member instead of creating a Reader.
+#
+# Must use LAUNCHDARKLY_ACCESS_TOKEN (account admin). LD_API_TOKEN is project-
+# scoped and cannot create members. Non-fatal: a failure leaves the tab as
+# Reader and the rest of the lab still runs.
+# ---------------------------------------------------------------------------
+LOGIN_EMAIL="instruqt+${LD_PROJECT_KEY}@launchdarkly.com"
+
+invite_lab_writer() {
+    local email="$1"
+    local tmp http json id role patch_http
+    tmp=$(mktemp)
+    http=$(curl -sS -o "$tmp" -w '%{http_code}' -X POST \
+      "https://app.launchdarkly.com/api/v2/members" \
+      -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      --data-raw "$(jq -n --arg e "$email" '[{email: $e, role: "writer"}]')") || {
+        rm -f "$tmp"
+        return 1
+    }
+    json=$(cat "$tmp")
+    rm -f "$tmp"
+
+    case "$http" in
+      201)
+        id=$(printf '%s' "$json" | jq -r '.items[0]._id // empty')
+        ;;
+      400|409)
+        # email_already_exists_in_account (or equivalent): find them and
+        # promote to Writer unless they are already writer/admin/owner.
+        json=$(curl -sS -G "https://app.launchdarkly.com/api/v2/members" \
+          -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+          --data-urlencode "filter=email:${email}") || return 1
+        id=$(printf '%s' "$json" | jq -r --arg e "$email" \
+          '.items[]? | select(.email == $e) | ._id' | head -n1)
+        [ -n "$id" ] || return 1
+        role=$(printf '%s' "$json" | jq -r --arg e "$email" \
+          '.items[]? | select(.email == $e) | .role' | head -n1)
+        case "$role" in
+          writer|admin|owner) ;;
+          *)
+            patch_http=$(curl -sS -o /dev/null -w '%{http_code}' -X PATCH \
+              "https://app.launchdarkly.com/api/v2/members/${id}" \
+              -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data-raw '[{"op":"replace","path":"/role","value":"writer"}]') || return 1
+            [ "$patch_http" = "200" ] || return 1
+            ;;
+        esac
+        ;;
+      *)
+        echo "invite_lab_writer: HTTP ${http}: $(printf '%s' "$json" | head -c 400)" >&2
+        return 1
+        ;;
+    esac
+    [ -n "$id" ] || return 1
+    printf '%s\n' "$id" > /opt/ld/.lab-member-id
+}
+
+if invite_lab_writer "$LOGIN_EMAIL"; then
+    echo "Invited ${LOGIN_EMAIL} as Writer."
+else
+    echo "WARNING: could not invite ${LOGIN_EMAIL} as Writer. The LaunchDarkly" >&2
+    echo "         tab will SAML-JIT as Reader and targeting edits will fail." >&2
+fi
+
+# ---------------------------------------------------------------------------
 # LaunchDarkly UI tab: provision this sandbox's SSO login.
 #
 # The `launchdarkly` virtual browser points at instruqt-login-redirector, which
@@ -332,6 +405,7 @@ provision_ld_login() {
 
     env -u AWS_PROFILE \
         LD_PROJECT_KEY="$LD_PROJECT_KEY" \
+        LOGIN_EMAIL="$LOGIN_EMAIL" \
         SANDBOX_ID="$_SANDBOX_ID" \
         "$PY" - <<'PY'
 import hashlib, hmac, os, secrets, sys, time
@@ -357,7 +431,7 @@ ddb.put_item(
         "ProjectName": {"S": f"instruqt-workshop - {project}"},
         "LoginSecret": {"S": login_secret},
         "LoginExpiresAt": {"N": str(expires)},
-        "LoginEmail": {"S": f"instruqt+{project}@launchdarkly.com"},
+        "LoginEmail": {"S": os.environ["LOGIN_EMAIL"]},
         "StudentEmail": {"S": "workshops@launchdarkly.com"},
         "StudentOrganizationKey": {"S": "workshop-org"},
     },
