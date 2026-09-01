@@ -10,7 +10,7 @@ A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product thr
 
 The distinguishing premise: **the learner drives LaunchDarkly through the hosted MCP server, not the UI.** Claude Code runs on the workstation, already connected, and the learner creates Configs, judges, and flags by describing what they want in plain language. The LaunchDarkly UI is used for *looking at* what was built and for reading scores, not for building.
 
-**One deliberate exception, added 2026-08-31:** `03-otto-knows-his-audience` builds its targeting rule in the UI. The MCP server's AI Config targeting write failed two live runs — the agent creates the variation, reports success, and never issues the semantic patch. See DECISIONS.md, "Tier-routing rule moves to the UI". This makes the sandbox sign-in load-bearing for the first time; the chapter carries an MCP fallback prompt for when it's down, and `05-trust-but-verify` is exposed to the same underlying failure.
+**`03-otto-knows-his-audience` creates the variation through MCP and the targeting rule through a REST paste.** The hosted MCP server has no write tool for a custom AI Config rule (flag `update-targeting-rules` returns `401: AI flags may not be modified directly`; `update-agentcontrol-config-targeting` is named in the getter and not registered). The LaunchDarkly tab is not reliable enough to gate the chapter. The paste is the same `addRule` semantic patch `terraform/challenge-05` uses. See DECISIONS.md.
 
 Five challenges, **35 minutes** self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
 
@@ -18,7 +18,7 @@ Five challenges, **35 minutes** self-paced. The chapter set is driven by six lea
 |---|---|---|
 | `01-meet-togglewear` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
 | `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A read-only walkthrough of the six SDK lines, then a live prompt edit changes a shipping policy mid-session with no deploy. |
-| `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet; the `tier is premium` targeting rule is then built **in the UI**, the one hand-built resource in the track. No app change at all — the chapter's point. |
+| `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet; a terminal paste adds the `tier is premium` targeting rule via REST. No app change at all — the chapter's point. |
 | `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. The app already invokes it. |
 | `05-trust-but-verify` | challenge | One prompt creates the `otto-stiff` Nova Pro variation and starts a guarded rollout watching `otto-brand-voice-score`. The rollback is read back through MCP. No paste. |
 | `06-wrap-up` | quiz | Recap and one question. |

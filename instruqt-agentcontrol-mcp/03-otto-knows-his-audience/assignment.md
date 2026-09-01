@@ -9,8 +9,8 @@ notes:
 - type: text
   contents: Not every customer is worth the same amount of inference. In this challenge
     you'll give Otto a second variation on a bigger model and route only premium shoppers
-    to it, using the same targeting rules you'd use on any LaunchDarkly flag. The
-    app doesn't change. It never learns there are two Ottos.
+    to it. The variation is asked for; the targeting rule is a REST paste — the hosted
+    MCP server cannot write a custom AI Config rule. The app doesn't change.
 tabs:
 - id: lncmuarxyqdc
   title: LaunchDarkly
@@ -68,32 +68,43 @@ In my LaunchDarkly project, add a second variation to the otto-assistant AI Conf
 Key it otto-premium, name it "Otto (Premium)", and back it with the Bedrock model anthropic.claude-sonnet-4-5-20250929-v1:0. Give it exactly the same system message as the otto-born variation — copy it across unchanged.
 ```
 
-# Build the rule by hand
+# Add the rule
 
-Now switch surfaces. The variation you just asked for; the rule you're going to click.
+The agent can create the variation. It cannot add a custom targeting rule on an AI Config — the hosted MCP server has no write for that. The same semantic patch the UI would send works over REST. Paste this in a terminal in the [Code Editor](#tab-2):
 
-Targeting is the one thing in this track worth building by hand at least once. A rule is a small pile of decisions — which context kind, which attribute, which operator, what happens to everyone the rule doesn't match — and the rule builder puts all of them in front of you at the same time. Describing that in a sentence is easy; describing it *precisely* is not, which is exactly why it's the piece most worth seeing laid out.
+```bash
+set -a && . /opt/ld/ai-configs-intro/app/.env && set +a
 
-Nothing is lost by switching. The rule you build here is the same object the agent would have written — same API underneath, same shape on the wire. That's the premise of this track running in reverse: the MCP server was never a parallel product, just another way in. Use whichever door fits the job.
+PREMIUM_ID=$(curl -sS \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
+  -H "Authorization: ${LD_API_TOKEN}" \
+  -H "LD-API-Version: beta" \
+  | jq -r '.variations[] | select(.key=="otto-premium") | ._id')
 
-Open the [LaunchDarkly](#tab-0) tab and go to **Agents → Configs → Otto Assistant → Targeting**. Make sure the environment picker at the top says **Test**.
+curl -sS -X PATCH \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/targeting" \
+  -H "Authorization: ${LD_API_TOKEN}" \
+  -H "LD-API-Version: beta" \
+  -H "Content-Type: application/json; domain-model=launchdarkly.semanticpatch" \
+  --data-raw "{
+    \"environmentKey\": \"test\",
+    \"instructions\": [{
+      \"kind\": \"addRule\",
+      \"variationId\": \"${PREMIUM_ID}\",
+      \"clauses\": [{
+        \"contextKind\": \"user\",
+        \"attribute\": \"tier\",
+        \"op\": \"in\",
+        \"values\": [\"premium\"],
+        \"negate\": false
+      }]
+    }]
+  }"
+```
 
-Then:
+That adds a Test rule: `tier` is `premium` → `otto-premium`. The default rule is left alone, so everyone else still gets `otto-born`. If `PREMIUM_ID` prints empty, the variation from the previous step isn't there yet.
 
-1. Click the **+** button between the existing rules and choose **Build a custom rule**.
-2. Set **Context kind** to `user`.
-3. Set **Attribute** to `tier`. Type it exactly — the app sets `tier`, and `userTier` or `user_tier` produces a rule that matches nobody.
-4. Leave **Operator** on **is one of**.
-5. Type `premium` into **Values**.
-6. In the **Select...** menu at the end of the rule, pick **Otto (Premium)**.
-7. Check that **Default rule** below still serves **Otto (Born)** — if the rule you just built landed on the default instead, *everyone* goes to Sonnet, which works perfectly and quietly costs you money.
-8. Click **Review and save**.
-
-<!-- VERIFY: confirm the whole path against a live sandbox — the "Agents → Configs" nav (mirrors the wording already used in 02 and 05), the Targeting tab, the environment picker, the "+" / "Build a custom rule" affordance, the default Operator label ("is one of"), the "Select..." variation menu, and "Review and save". Labels are drafted from launchdarkly.com/docs/home/agentcontrol/target. Also confirm the variations show by display name ("Otto (Premium)") rather than key in the Select menu; step 6 assumes they do. -->
-
-# Have the agent read it back
-
-You built it by clicking. Verify it the way you've verified everything else — same object, other door:
+Then have the agent read it back:
 
 ```
 Show me otto-assistant's targeting in the Test environment: every rule in order, what each one matches on, what it serves, and what the default rule serves.
@@ -102,15 +113,7 @@ Show me otto-assistant's targeting in the Test environment: every rule in order,
 Two things to confirm:
 
 - There's a rule matching `tier` equals `premium`, serving `otto-premium`.
-- The default rule still serves `otto-born`.
-
-If the agent reports no rules at all, the save didn't take — go back to the **Targeting** tab and check that the environment picker was on **Test**.
-
-**If the LaunchDarkly tab won't sign you in.** That sandbox sign-in service isn't always up. Ask the agent to build the rule instead, then check its read-back against the two points above:
-
-```
-Change otto-assistant's targeting in the Test environment: add a rule that serves the otto-premium variation when the user context's tier attribute equals "premium". Leave the default rule serving otto-born. Then read the targeting back and show me what is actually stored, and if the write was rejected show me the error rather than summarising it.
-```
+- The default rule still serves `otto-born`. A rule that accidentally replaces the fallthrough sends *everyone* to Sonnet, which works perfectly and quietly costs you money.
 
 # Watch it route
 
