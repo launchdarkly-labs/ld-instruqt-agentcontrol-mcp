@@ -54,4 +54,4 @@
         usage.get("inputTokens"), usage.get("outputTokens"), metrics.get("latencyMs"),
     )
 
-    # ─── Challenge 07 judge injects below this marker ──────────────────────
+    # ─── Brand-voice judge injects below this marker ────────────────────────

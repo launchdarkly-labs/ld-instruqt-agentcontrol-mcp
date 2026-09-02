@@ -11,7 +11,7 @@ import sys
 REPO_ROOT = pathlib.Path("/opt/ld/ai-configs-intro")
 SERVER_PY = REPO_ROOT / "app" / "server.py"
 PASTE_FILE = REPO_ROOT / "terraform" / "evaluate-03" / "judge-server-paste.py"
-MARKER = "    # ─── Challenge 07 judge injects below this marker ──────────────────────"
+MARKER = "    # ─── Brand-voice judge injects below this marker ────────────────────────"
 SIGNATURE = 'ai_client.judge_config(\n            "otto-brand-voice-judge"'
 
 

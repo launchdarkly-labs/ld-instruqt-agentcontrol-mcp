@@ -51,7 +51,7 @@ Everything else is restored verbatim from `launchdarkly-labs/ld-instruqt`. These
 
 ### Notes on numbering
 
-`server.py` markers: `Challenge 01 paste block` and `Challenge 07 judge injects below this marker`. The second is named for the Evaluate track's chapter 7, not ours — `evaluate-03/patch-server.py` matches on that exact string, so leave it alone. Patch scripts and `check-image.sh` match these literally; changing one means changing `server.py`, the paste file, the patch script and the assignment together.
+`server.py` markers: `Challenge 01 paste block` and `Brand-voice judge injects below this marker`. The second used to say "Challenge 07", named for the Evaluate track's chapter 7 — meaningless in a four-chapter track and visible to the learner in chapter 01's paste box, so it was renamed on 2026-09-02. Patch scripts match these **literally**, so a rename is a lockstep edit across `terraform/challenge-01/server-paste.py`, `terraform/evaluate-03/patch-server.py`'s `MARKER` constant (which includes the leading four spaces), and the code box in `01-otto-is-born/assignment.md`. Verify afterwards by composing both patches over a scratch copy of `server.py` and checking the result parses.
 
 Module names keep their upstream prefixes (`challenge-*`, `evaluate-*`) rather than being renumbered to match chapter order. Renaming would diverge from the committed upstream for no gain.
 
