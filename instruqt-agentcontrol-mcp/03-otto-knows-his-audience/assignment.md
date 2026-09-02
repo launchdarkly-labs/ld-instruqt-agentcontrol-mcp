@@ -9,8 +9,9 @@ notes:
 - type: text
   contents: Not every customer is worth the same amount of inference. In this challenge
     you'll give Otto a second variation on a bigger model and route only premium shoppers
-    to it. The variation is asked for; the targeting rule is a REST paste — the hosted
-    MCP server cannot write a custom AI Config rule. The app doesn't change.
+    to it. You ask the agent for the variation and build the targeting rule yourself
+    in the UI — the hosted MCP server cannot write a custom AI Config rule. The app
+    doesn't change. It never learns there are two Ottos.
 tabs:
 - id: lncmuarxyqdc
   title: LaunchDarkly
@@ -70,41 +71,23 @@ Key it otto-premium, name it "Otto (Premium)", and back it with the Bedrock mode
 
 # Add the rule
 
-The agent can create the variation. It cannot add a custom targeting rule on an AI Config — the hosted MCP server has no write for that. The same semantic patch the UI would send works over REST. Paste this in a terminal in the [Code Editor](#tab-2):
+The agent creates the variation. It can't add a custom targeting rule on an AI Config — the hosted MCP server has no write for that — so you'll build this one yourself, which is no bad thing. A rule is a small pile of decisions, and the rule builder puts all of them in front of you at once.
 
-```bash
-set -a && . /opt/ld/ai-configs-intro/app/.env && set +a
+Open the [LaunchDarkly](#tab-0) tab, go to **Agents → Configs → Otto Assistant**, and click the **Targeting** tab. Make sure the environment selector reads **Test**.
 
-PREMIUM_ID=$(curl -sS \
-  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
-  -H "Authorization: ${LD_API_TOKEN}" \
-  -H "LD-API-Version: beta" \
-  | jq -r '.variations[] | select(.key=="otto-premium") | ._id')
+1. Above the **Default rule**, click **+** and select **Build a custom rule**.
+2. Build the clause:
+   1. **Context kind**: `user` — the app builds a user context, and a rule on any other kind matches nobody.
+   2. **Attribute**: `tier` — type it exactly. `userTier` or `user_tier` produces a rule that matches nobody, and a rule that matches nobody looks exactly like a rule that's working.
+   3. **Operator**: **is one of**
+   4. **Values**: `premium`, then press **Enter**. The value isn't committed until you do.
+3. In the variation dropdown at the end of the rule, select **Otto (Premium)**.
+4. Leave the **Default rule** as **Otto (Born)** — free shoppers and anyone with no tier at all keep the Haiku Otto. If your new rule lands on the default instead, *everyone* goes to Sonnet, which works perfectly and quietly costs you money.
+5. Click **Review and save**, then **Save changes**.
 
-curl -sS -X PATCH \
-  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/targeting" \
-  -H "Authorization: ${LD_API_TOKEN}" \
-  -H "LD-API-Version: beta" \
-  -H "Content-Type: application/json; domain-model=launchdarkly.semanticpatch" \
-  --data-raw "{
-    \"environmentKey\": \"test\",
-    \"instructions\": [{
-      \"kind\": \"addRule\",
-      \"variationId\": \"${PREMIUM_ID}\",
-      \"clauses\": [{
-        \"contextKind\": \"user\",
-        \"attribute\": \"tier\",
-        \"op\": \"in\",
-        \"values\": [\"premium\"],
-        \"negate\": false
-      }]
-    }]
-  }"
-```
+<!-- VERIFY: this click-path is copied from the live ld-agentcontrol-intro track, 05-otto-for-everyone, pulled with `instruqt track pull launchdarkly/ld-agentcontrol-intro` — same lesson, same rule, so the field labels and the two-step "Review and save" → "Save changes" confirm came from a track that ran. Two things to check: (a) the nav. Three spellings exist in the wild — that chapter says "AI → Configs", its own ch07 says "Configs", and this track says "Agents → Configs" in 02 and 05. Pick one and fix all three chapters together. (b) whether the variation dropdown shows display names ("Otto (Premium)") or keys; step 3 assumes names, and the docs call the control "Select...". -->
 
-That adds a Test rule: `tier` is `premium` → `otto-premium`. The default rule is left alone, so everyone else still gets `otto-born`. If `PREMIUM_ID` prints empty, the variation from the previous step isn't there yet.
-
-Then have the agent read it back:
+Then have the agent read it back — same object, other door:
 
 ```
 Show me otto-assistant's targeting in the Test environment: every rule in order, what each one matches on, what it serves, and what the default rule serves.
@@ -113,7 +96,9 @@ Show me otto-assistant's targeting in the Test environment: every rule in order,
 Two things to confirm:
 
 - There's a rule matching `tier` equals `premium`, serving `otto-premium`.
-- The default rule still serves `otto-born`. A rule that accidentally replaces the fallthrough sends *everyone* to Sonnet, which works perfectly and quietly costs you money.
+- The default rule still serves `otto-born`.
+
+If the agent reports no rules at all, the save didn't take. Go back to the **Targeting** tab, check the environment selector was on **Test**, and make sure you clicked through both **Review and save** and **Save changes**.
 
 # Watch it route
 

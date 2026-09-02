@@ -810,3 +810,24 @@ Worth remembering: **the CLI will pull any track by slug into an empty directory
 **Current live labs.** This only helps sandboxes whose setup runs after the change is on the image's `REPO_REF` (usually `main`). A session that already JIT'd as Reader stays Reader until someone Assigns access in Members, or the learner starts a new lab.
 
 **SCIM.** `POST /api/v2/members` is blocked when SCIM is on. This account is SAML, not SCIM. The UI invite path is disabled under SSO; the API invite is the supported escape hatch.
+
+---
+
+## Chapter 03's targeting rule moves from a REST paste to the rule builder (2026-09-02)
+
+**Decision:** `03-otto-knows-his-audience` replaces the `curl` semantic-patch block with a step-by-step walk through the UI's rule builder. The `otto-premium` variation is still created by prompting the agent — that half always worked, and it is the one place in the chapter the track's premise still holds.
+
+**Why, in the operator's words:** walk the participant through it rather than have them paste a REST call. Which is right on the teaching. The paste was written to unblock a chapter that MCP could not complete, and it did that — but a learner who pastes a `curl` learns that a rule is a JSON blob someone else wrote. A learner who builds one in the rule builder sees the actual decisions: which context kind, which attribute, which operator, and what happens to everyone the rule doesn't match. That last one is the chapter's real content.
+
+**The click-path is copied, not drafted.** Pulled from the live intro track with `instruqt track pull launchdarkly/ld-agentcontrol-intro` and lifted from `05-otto-for-everyone`, which teaches the same lesson — `tier is premium` routing a premium variation on an AI Config. Two details in it would not have survived a draft from the docs:
+
+- **`Values: premium` then Enter.** The value is not committed until you press it. A learner who types `premium` and clicks straight to save gets a clause with no values — and the check's `MATCHING` jq treats an empty `values` array as a match, so that state would have gone green while routing nobody.
+- **`Review and save`, *then* `Save changes`.** Two confirmations, not one. The draft in the reverted #9 had only the first, which is exactly the kind of thing that leaves a learner staring at an unsaved rule.
+
+**The nav is the open question, and there are now three answers.** That chapter says `AI → Configs`; its own `07-trust-but-verify` says `Configs`; this track says `Agents → Configs` in `02`, `03` and `05`. At most one is current. Flagged in every affected chapter with a `VERIFY` and in CLAUDE.md: verify once, fix all of them together, don't fix one in isolation.
+
+**What did not change.** `check-workstation` asserts the same four things and still reads the API, so it cannot tell how the rule got there — only three `fail-message` strings moved from "re-run the paste" to the Targeting tab. `terraform/challenge-05` still applies the `addRule` patch over REST, so `solve-workstation` is untouched and still depends on neither an LLM nor a browser.
+
+**The cost, and it is the same one as chapter 05's.** Two chapters now require the sandbox sign-in and neither has a fallback. That sign-in is documented above as unreliable. `01-meet-togglewear` has been rewritten to say the UI is needed rather than optional — the third time that sentence has moved, and the first time it says the UI is *required*. It should not be walked back again: it has been written as "nothing needs the UI" twice and falsified twice.
+
+**Not changed: the 360s limit.** The rule builder is slower than a paste, probably by a minute. The comparable intro-track chapter allows 900s. The budget was extended to 2400s two days ago for chapter 05 and the operator did not ask for more here, so this stays as it is and gets watched on the next live run rather than pre-emptively grown.

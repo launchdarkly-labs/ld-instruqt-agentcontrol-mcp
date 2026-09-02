@@ -12,8 +12,12 @@ The distinguishing premise: **the learner drives LaunchDarkly through the hosted
 
 **Two chapters no longer hold to that, both because AI Config targeting cannot be written from an agent.**
 
-- **`03-otto-knows-his-audience`** creates the variation through MCP and the targeting rule through a REST paste. The hosted MCP server has no write tool for a custom AI Config rule (flag `update-targeting-rules` returns `401: AI flags may not be modified directly`; `update-agentcontrol-config-targeting` is named in the getter and not registered). The LaunchDarkly tab is not reliable enough to gate the chapter. The paste is the same `addRule` semantic patch `terraform/challenge-05` uses.
-- **`05-trust-but-verify`** creates the variation through MCP and starts the guarded rollout **in the UI**, because a guarded rollout has no endpoint at all. Verified against the spec: AI Config and flag targeting `PATCH` both expose only `rolloutWeights` / `rolloutContextKind` / `rolloutBucketBy`, and `ReleaseGuardianConfiguration` / `GuardedReleaseConfig` are referenced from other schemas but from no path. Unlike `03` there is **no fallback** — if the sandbox sign-in is down the chapter cannot be completed.
+- **`03-otto-knows-his-audience`** creates the variation through MCP and builds the targeting rule **in the UI**. The hosted MCP server has no write tool for a custom AI Config rule (flag `update-targeting-rules` returns `401: AI flags may not be modified directly`; `update-agentcontrol-config-targeting` is named in the getter and not registered). A REST paste of the `addRule` semantic patch was the interim answer and was replaced on the operator's call — walking the rule builder teaches the rule, where pasting a `curl` teaches nothing. `terraform/challenge-05` still applies that patch, so solve is unaffected.
+- **`05-trust-but-verify`** has setup pre-build the variation and the judge attachment, and the learner starts the guarded rollout **in the UI** — no agent prompt at all. A guarded rollout has no endpoint. Verified against the spec: AI Config and flag targeting `PATCH` both expose only `rolloutWeights` / `rolloutContextKind` / `rolloutBucketBy`, and `ReleaseGuardianConfiguration` / `GuardedReleaseConfig` are referenced from other schemas but from no path.
+
+**Both chapters therefore need the sandbox sign-in, which is documented below as unreliable, and neither has a fallback.** `01-meet-togglewear` says so. Do not reintroduce a "nothing here needs the UI" line — it has been written and falsified three times.
+
+**The UI click-paths in both are copied from tracks that actually ran**, pulled with `instruqt track pull launchdarkly/ld-agentcontrol-intro` — `05-otto-for-everyone` for the targeting rule, `07-trust-but-verify` for the rollout. Prefer that over drafting from docs. **The nav is the one thing they disagree on**: that track says `AI → Configs` in one chapter and `Configs` in another, and this track says `Agents → Configs`. Three spellings, so at most one is right; verify once and fix every chapter together.
 
 See DECISIONS.md for both. The upstream fix is a typed add-rule tool and a guarded-rollout endpoint; until then, don't write prose that promises a learner never touches the UI.
 
@@ -23,7 +27,7 @@ Five challenges, **40 minutes** self-paced. The chapter set is driven by six lea
 |---|---|---|
 | `01-meet-togglewear` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
 | `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A read-only walkthrough of the six SDK lines, then a live prompt edit changes a shipping policy mid-session with no deploy. |
-| `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet; a terminal paste adds the `tier is premium` targeting rule via REST. No app change at all — the chapter's point. |
+| `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet; the learner builds the `tier is premium` targeting rule in the UI's rule builder, then reads it back through the agent. No app change at all — the chapter's point. |
 | `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. The app already invokes it. |
 | `05-trust-but-verify` | challenge | Setup pre-builds the `otto-stiff` Nova Pro variation and the judge attachment. The learner tours them and starts the guarded rollout **in the UI** — it has no API. No agent prompt in the chapter at all. |
 | `06-wrap-up` | quiz | Recap and one question. |

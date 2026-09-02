@@ -70,7 +70,7 @@ If the agent reports an invalid access token, tell the operator. The lab's crede
 
 <!-- VERIFY: confirm the code-server terminal path (Terminal > New Terminal) and that `claude` launches with no onboarding, trust, or MCP-approval prompts on a freshly baked image. -->
 
-This track assumes you know LaunchDarkly basics — flags, contexts, environments, targeting. The [LaunchDarkly](#tab-0) tab signs you into a sandbox account so you can look at what you've built. Almost everything here is built by the agent instead, and the tab is optional — with one exception: the last chapter starts a guarded rollout, which is a UI-only flow. If the sign-in is down when you reach it, tell your instructor.
+This track assumes you know LaunchDarkly basics — flags, contexts, environments, targeting. The [LaunchDarkly](#tab-0) tab signs you into a sandbox account, and you'll need it: the agent builds most of what you create here, but two things have no API behind them and so no tool the agent can reach. You'll build a targeting rule and start a guarded rollout by hand, in the UI. If that sign-in won't work when you get there, tell your instructor.
 
 # When the agent gets it wrong
 
