@@ -9,6 +9,16 @@ set -e
 cd /opt/ld/ai-configs-intro/terraform/evaluate-01
 echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
 terraform init -input=false
-terraform apply -auto-approve -target=null_resource.create_dataset
+# Surface the provisioner's output. The dataset POST goes to an INTERNAL
+# endpoint, and when it fails the only symptom the learner sees is an empty
+# Datasets view three sections into the chapter. `set -e` above means a real
+# failure now aborts setup, and the reason lands in this challenge's setup log
+# (`instruqt track logs`, or the lab's own log view).
+terraform apply -auto-approve -target=null_resource.create_dataset 2>&1 | tee /var/log/ch03-dataset-setup.log
+grep -q 'ERROR:' /var/log/ch03-dataset-setup.log && {
+  echo "" >&2
+  echo "Dataset seeding FAILED. Full output is in /var/log/ch03-dataset-setup.log" >&2
+  exit 1
+}
 
 exit 0

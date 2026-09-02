@@ -89,11 +89,27 @@ resource "null_resource" "create_dataset" {
           "name": "${local.evaluation_name}"
         }')
 
-      UPLOAD_URL=$(echo "$CREATE_RESPONSE" | jq -r '.upload.uploadUrl')
+      # printf, not echo: /bin/sh is dash and its builtin echo interprets
+      # backslash escapes, so a JSON body containing \n or \/ gets mangled and
+      # jq returns nothing. Same trap as the check scripts.
+      UPLOAD_URL=$(printf '%s' "$CREATE_RESPONSE" | jq -r '.upload.uploadUrl // empty')
+
+      if [ -z "$UPLOAD_URL" ]; then
+        echo "ERROR: the datasets POST returned no upload.uploadUrl." >&2
+        echo "  Response was:" >&2
+        printf '%s\n' "$CREATE_RESPONSE" | head -c 2000 >&2
+        echo "" >&2
+        echo "  This is an INTERNAL endpoint (/internal/projects/.../datasets), not part" >&2
+        echo "  of the public API, so it is unversioned and can change without notice." >&2
+        exit 1
+      fi
 
       curl -fsS -X PUT "$UPLOAD_URL" \
         -H 'Content-Type: application/x-ndjson' \
         --data-binary @${local.dataset_path}
+
+      echo "Dataset uploaded: ${local.dataset_filename} (${local.dataset_size} bytes)"
+      printf '%s' "$CREATE_RESPONSE" | jq -r '"  id=" + (.id // ._id // "?") + " name=" + (.name // "?")' >&2 || true
     EOT
   }
 }
