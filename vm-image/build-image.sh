@@ -132,8 +132,8 @@ say "Pre-initializing per-challenge terraform modules"
 # with chapter 07. Getting this list wrong is not a soft failure: the subshell
 # `cd` into a missing directory returns non-zero and this script is `set -e`,
 # so a stale name aborts the whole bake partway through.
-for ch in challenge-01 challenge-02 challenge-03 challenge-05 challenge-06 \
-          evaluate-03 evaluate-07; do
+for ch in challenge-01 challenge-02 challenge-05 \
+          evaluate-01 evaluate-03 evaluate-07; do
     dir="/opt/ld/ai-configs-intro/terraform/${ch}"
     if [ -d "$dir" ]; then
         (cd "$dir" && terraform init -input=false)

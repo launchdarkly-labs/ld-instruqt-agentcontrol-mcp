@@ -8,29 +8,37 @@ This file is the operational spec for Claude Code working on this project. Read 
 
 A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product through hands-on labs, aimed at developers evaluating LaunchDarkly and at existing customers expanding into AI use cases. Learners are assumed to already understand LaunchDarkly fundamentals (flags, contexts, environments); this workshop does **not** re-teach those.
 
-**The premise, as of 2026-09-02: this is the original UI-driven track, with three creation steps done by a coding agent instead.** The learner works in the LaunchDarkly UI for almost everything — prompt edits, snippets, targeting rules, monitoring, the guarded rollout — exactly as `ld-agentcontrol-build` and `ld-agentcontrol-intro` teach it. Three resources are asked for rather than clicked: the Config, the variations, and the judge.
+**The premise, as of 2026-09-02: this is the `control-freak-ai` track, with three creation steps done by a coding agent instead.** The learner works in the LaunchDarkly UI for almost everything — the SDK paste, targeting rules, prompt edits, the offline evaluation, the guarded rollout. Three resources are asked for rather than clicked: the Config, both variations, and the judge.
 
-This reverses the 2026-08-14 "MCP server replaces the LaunchDarkly UI as the build interface" decision and everything built on it. See DECISIONS.md, "Restored to the original UI track". Do not re-derive the MCP-first version from this file's history without reading that entry first.
+This reverses the 2026-08-14 "MCP server replaces the LaunchDarkly UI as the build interface" decision and everything built on it. See DECISIONS.md, "Restored to control-freak-ai".
 
-**Eight challenges plus a quiz, 7200s (2 hours).** The chapter set, timelimits and prose are the original's:
+**Four challenges, 4800s (80 minutes).** The chapter set, timelimits and prose are `control-freak-ai`'s, pulled from the platform:
 
-| Dir | Type | Beat | MCP? |
-|---|---|---|---|
-| `00-welcome` | challenge | Orientation, and connect `claude` to the MCP server. | connect only |
-| `01-otto-is-born` | challenge | **Ask for** the `otto-assistant` Config and its `otto-born` variation, turn it on in Test via the UI, paste the SDK block into `server.py`, say hi. | Config + variation |
-| `02-give-otto-personality` | challenge | Edit Otto's prompt in the UI, no redeploy. | — |
-| `03-otto-on-brand` | challenge | Create the `brand-voice` and `safety-rules` prompt snippets, refactor Otto's prompt around them. | — |
-| `04-quiz-configs-and-snippets` | quiz | Consolidation quiz. | — |
-| `05-otto-for-everyone` | challenge | **Ask for** the `otto-premium` Sonnet variation, then build the `tier is premium` targeting rule in the UI. | variation |
-| `06-how-is-otto-doing` | challenge | Read Otto's production data in the Monitoring view. | — |
-| `07-trust-but-verify` | challenge | **Ask for** `otto-brand-voice-judge`, patch the app to call it, then start a guarded rollout on `otto-stiff` in the UI and watch it revert. | judge |
-| `08-wrap-up` | quiz | Recap and one question. | — |
+| Dir | Beat | MCP? |
+|---|---|---|
+| `01-otto-is-born` (2100s) | Create the Config and `otto-born`, turn it on in Test, paste the SDK block into `server.py`, say hi — then add `otto-premium` and route premium shoppers to it. | Config + both variations |
+| `02-give-otto-personality` (600s) | Edit Otto's prompt in the UI, no redeploy. | — |
+| `03-otto-on-the-bench` (900s) | Offline evaluation against a golden dataset, in the UI. | — |
+| `04-trust-but-verify` (1200s) | **Ask for** `otto-brand-voice-judge`, patch the app to call it, then start a guarded rollout on `otto-stiff` and watch it revert. | judge |
 
-**Timelimits sum to exactly `track.yml`'s 7200** — 300 + 1200 + 600 + 900 + 600 + 900 + 900 + 1200 + 600. Adding anything means taking time from another chapter.
+There is **no welcome chapter and no wrap-up quiz** — the live track has four challenges, and the `00-welcome` directory in the `ld-workshop-control-freak-ai` repo is not among them. The connect-and-prove-it step for Claude Code therefore lives at the top of `01`, where it is first needed.
 
-**Prompt snippets are back in scope** and are chapter 03's whole subject. `terraform/challenge-03` builds them for the solve path; the learner creates them in the UI.
+**Timelimits sum to 4800, and `track.yml` says 4800.** The live `control-freak-ai` track says **4500** while its chapters sum to 4800 — a 300s discrepancy upstream. Ours is made consistent deliberately; don't "fix" it back.
 
-**The `server.py` pastes are back, and must NOT be pre-baked.** `vm-image/check-image.sh` asserts the *stubs* are intact — inverted back on 2026-09-02 from the 2026-08-27 pre-bake. Two patches compose over the shipped stub, verified: `terraform/challenge-01/patch-server.py` (chapter 01's `/chat` wiring) then `terraform/evaluate-03/patch-server.py` (chapter 07's judge call, which lands on a marker the first paste leaves behind). Both are idempotent.
+**Chapter-to-module mapping:**
+
+| Chapter | Modules |
+|---|---|
+| `01-otto-is-born` | `challenge-01` (+ `patch-server.py`, `server-paste.py`), `challenge-05` |
+| `02-give-otto-personality` | `challenge-02` |
+| `03-otto-on-the-bench` | `evaluate-01` |
+| `04-trust-but-verify` | `evaluate-03`, `evaluate-07` |
+
+`challenge-03` (prompt snippets) and `challenge-06` (monitoring) are **not in this repo** — no chapter uses them. If a chapter needing them ever lands, they are in `launchdarkly-labs/ld-instruqt`.
+
+**The `server.py` pastes are back, and must NOT be pre-baked.** `vm-image/check-image.sh` asserts the *stubs* are intact. Two patches compose over the shipped stub, verified: `terraform/challenge-01/patch-server.py` (chapter 01's `/chat` wiring) then `terraform/evaluate-03/patch-server.py` (chapter 04's judge call, landing on a marker the first paste leaves behind). Both idempotent.
+
+**Chapter 04's setup applies only `launchdarkly_metric.brand_voice_score` out of `evaluate-03`, with `-target`.** Applying the module in full — which is what upstream did — creates the judge the learner is asked to create, making their prompt a no-op. `solve-workstation` applies it in full, because Skip must not depend on an LLM.
 
 ## What is ours, not the original's
 
@@ -41,24 +49,11 @@ Everything else is restored verbatim from `launchdarkly-labs/ld-instruqt`. These
 - **`app/.mcp.json.example`** — has no counterpart upstream.
 - **`terraform/evaluate-03` and `evaluate-07`** — lifted from the Evaluate track, because chapter 07 came from there. The `ld-agentcontrol-intro` platform track's version of that chapter references a `terraform/challenge-07` that exists in **no repository**; it was pushed from an uncommitted working copy and its setup would fail. Do not treat that track as a source of truth.
 
-### Chapter-to-module mapping
+### Notes on numbering
 
-The original's mapping is 1:1 and sorted, which is the point of restoring it — the two-scheme divergence documented here until 2026-09-02 is gone:
+`server.py` markers: `Challenge 01 paste block` and `Challenge 07 judge injects below this marker`. The second is named for the Evaluate track's chapter 7, not ours — `evaluate-03/patch-server.py` matches on that exact string, so leave it alone. Patch scripts and `check-image.sh` match these literally; changing one means changing `server.py`, the paste file, the patch script and the assignment together.
 
-| Chapter | Terraform module |
-|---|---|
-| `01-otto-is-born` | `challenge-01` (+ `patch-server.py`, `server-paste.py`) |
-| `02-give-otto-personality` | `challenge-02` |
-| `03-otto-on-brand` | `challenge-03` (prompt snippets) |
-| `04-quiz-configs-and-snippets` | none |
-| `05-otto-for-everyone` | `challenge-05` |
-| `06-how-is-otto-doing` | `challenge-06` |
-| `07-trust-but-verify` | `evaluate-07` (Nova Pro + `otto-stiff`) and `evaluate-03` (judge + metric + `patch-server.py`) |
-| `08-wrap-up` | none |
-
-Chapter 07 is the one seam. It came from the Evaluate track, so it keeps that track's module names rather than being renumbered to `challenge-07` — renaming would diverge from the committed upstream for no gain, and `challenge-07` is precisely the name the unrestorable platform track used. Its setup applies `evaluate-07` in full and **only `launchdarkly_metric.brand_voice_score`** out of `evaluate-03`, with `-target`, because the learner asks the agent for the judge; solve applies `evaluate-03` in full instead.
-
-`server.py` markers: `Challenge 01 paste block` and `Challenge 07 judge injects below this marker`. Patch scripts and `check-image.sh` match on those exact strings — changing one means changing `server.py`, the paste file, the patch script and the assignment together.
+Module names keep their upstream prefixes (`challenge-*`, `evaluate-*`) rather than being renumbered to match chapter order. Renaming would diverge from the committed upstream for no gain.
 
 Learner-facing prose names chapters rather than numbering them, so a reorder can't make it wrong.
 
@@ -74,9 +69,10 @@ This track mirrors the structure and conventions of an existing LaunchDarkly Ins
 <repo-root>/
 ├── CLAUDE.md / DECISIONS.md / PHASES.md / NARRATIVE.md / OPERATOR-CHECKLIST-mcp.md
 ├── instruqt-agentcontrol-mcp/      # the track — slug ld-agentcontrol-mcp
-│   ├── track.yml (timelimit 7200) / config.yml
+│   ├── track.yml (timelimit 4800) / config.yml
 │   ├── track_scripts/{setup,cleanup}-workstation   # OURS: token, .mcp.json, SSO invite
-│   ├── 00-welcome/ … 08-wrap-up/                   # the original's chapters
+│   ├── 01-otto-is-born/ 02-give-otto-personality/
+│   ├── 03-otto-on-the-bench/ 04-trust-but-verify/  # control-freak-ai's chapters
 │   └── assets/
 ├── app/                            # ToggleWear — restored from ld-instruqt
 │   ├── server.py                   # ships with BOTH paste stubs intact
@@ -84,11 +80,12 @@ This track mirrors the structure and conventions of an existing LaunchDarkly Ins
 │   └── .mcp.json.example           # OURS
 ├── terraform/
 │   ├── student-bootstrap/          # identical to upstream
-│   ├── challenge-01/ 02/ 03/ 05/ 06/
-│   └── evaluate-03/ evaluate-07/   # chapter 07's modules
+│   ├── challenge-01/ challenge-02/ challenge-05/
+│   └── evaluate-01/ evaluate-03/ evaluate-07/
 ├── gcp-federation/
-├── traffic-generator/              # background_traffic.py, sabotage.py
-└── vm-image/                       # OURS: build-image.sh, check-image.sh, README.md
+├── traffic-generator/
+└── vm-image/                       # OURS: build-image.sh, check-image.sh,
+                                    #       bootstrap-live.sh, README.md
 ```
 
 ## Instruqt conventions (extracted from the reference track)

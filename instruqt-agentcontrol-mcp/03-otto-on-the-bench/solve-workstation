@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Apply the full evaluate-01 module: creates the dataset (no-op if setup
+# already did), creates the "Otto Born baseline" evaluation, and triggers
+# one run. End state matches what the learner would have produced by
+# clicking through the UI.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/evaluate-01
+terraform apply -auto-approve
+
+exit 0

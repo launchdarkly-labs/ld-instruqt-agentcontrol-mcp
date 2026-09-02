@@ -28,8 +28,8 @@ head2 "Repo and app source"
   || bad "app/.mcp.json.example missing" "setup-workstation will abort on the sed; you baked an old commit"
 # Module list follows the restored chapter set (2026-09-02): challenge-04 went
 # with the MCP-era rollout chapter; evaluate-03 and -07 arrived with chapter 07.
-for d in challenge-01 challenge-02 challenge-03 challenge-05 challenge-06 \
-         evaluate-03 evaluate-07 student-bootstrap; do
+for d in challenge-01 challenge-02 challenge-05 \
+         evaluate-01 evaluate-03 evaluate-07 student-bootstrap; do
   [ -d "$REPO/terraform/$d" ] && ok "terraform/$d present" || bad "terraform/$d missing" "wrong REPO_REF"
 done
 # The review-gate assertion is gone: the 2026-09-02 app restore removed

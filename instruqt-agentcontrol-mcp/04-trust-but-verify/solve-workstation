@@ -1,32 +1,29 @@
 #!/bin/sh
 #
-# Skip path for ch07. Re-applies the evaluate-07 module (Nova Pro + Stiff
-# variation), makes sure background traffic is running, and falls back to
-# a plain percentage-rollout on the fallthrough so the check's "rollout
-# configured" proxy passes. Note: this isn't a real GUARDED rollout — the
-# learner-driven UI flow is. See ../../PHASES-evaluate.md Phase 6 for the
-# start-guarded-rollout REST surface if a future revision wants to
-# automate it.
+# Skip path for the guarded-rollout challenge. Re-applies the evaluate-03
+# module (judge + metric + server.py injection) and the evaluate-07 module
+# (Nova Pro Stiff variation), makes sure background traffic is running, and
+# falls back to a plain percentage-rollout on the fallthrough so the
+# check's "rollout configured" proxy passes. Note: this isn't a real
+# GUARDED rollout — the learner-driven UI flow is.
 
 set -e
 
-REPO=/opt/ld/ai-configs-intro
-
-cd "$REPO/terraform/evaluate-07"
-terraform apply -auto-approve
-
-# The judge is the learner's MCP prompt in this chapter, so solve has to build
-# it the other way. Apply evaluate-03 in full — judge Config, its variation,
-# its fallthrough, and the metric setup already targeted — then patch the app
-# to call it. Solve must not depend on an LLM (see CLAUDE.md), which is exactly
-# why this module still exists.
-cd "$REPO/terraform/evaluate-03"
+# evaluate-03 in FULL here, unlike setup — this is the Skip path, so it has to
+# build the judge the learner would have asked the agent for. Solve must not
+# depend on an LLM (see CLAUDE.md), which is exactly why this module still
+# exists in the repo.
+cd /opt/ld/ai-configs-intro/terraform/evaluate-03
 echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
 terraform init -input=false
 terraform apply -auto-approve
 
-python3 "$REPO/terraform/evaluate-03/patch-server.py" || true
+# And the server-side judge call, which setup deliberately skips.
+python3 /opt/ld/ai-configs-intro/terraform/evaluate-03/patch-server.py || true
 service togglewear restart || true
+
+cd /opt/ld/ai-configs-intro/terraform/evaluate-07
+terraform apply -auto-approve
 
 # Background traffic.
 pkill -f experiment_traffic.py 2>/dev/null || true

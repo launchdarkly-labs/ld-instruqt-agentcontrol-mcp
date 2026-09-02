@@ -27,7 +27,7 @@ developers:
 - dgorton@launchdarkly.com
 show_timer: true
 idle_timeout: 1200
-timelimit: 7200
+timelimit: 4800
 lab_config:
   extend_ttl: 3600
   sidebar_enabled: true

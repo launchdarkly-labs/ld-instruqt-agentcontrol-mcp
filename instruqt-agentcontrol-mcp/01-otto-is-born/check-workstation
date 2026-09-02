@@ -1,12 +1,12 @@
 #!/bin/sh
 
-# 1. The otto-assistant Config exists.
+# 1. The otto-assistant AI Config exists.
 CONFIG=$(curl -s -X GET \
   "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
 
 if [ "$(echo "$CONFIG" | jq -r '.key // "null"')" = "null" ]; then
-  fail-message "The Otto Assistant Config has not been created yet. Follow the steps under **Create Otto's Config**."
+  fail-message "The Otto Assistant AI Config has not been created yet. Follow the steps under **Create Otto's AI Config**."
   exit 1
 fi
 
@@ -44,6 +44,59 @@ fi
 # 5. The learner has pasted the SDK code into server.py.
 if ! grep -q 'ai_client.completion_config(OTTO_CONFIG_KEY' /opt/ld/ai-configs-intro/app/server.py; then
   fail-message "Your server code still has the placeholder. Replace the **Challenge 01 paste block** in \`server.py\` with the code from the lab."
+  exit 1
+fi
+
+# 6. The otto-premium variation exists with the Sonnet 4.5 model config.
+PREMIUM_MODEL=$(echo "$CONFIG" | sed 's/\\/\\\\/g' | jq -r '.variations[]? | select(.key=="otto-premium") | .modelConfigKey // ""')
+if [ -z "$PREMIUM_MODEL" ]; then
+  fail-message "The premium variation hasn't been added yet. Create a new variation named **Otto (Premium)** with key **otto-premium**."
+  exit 1
+fi
+if [ "$PREMIUM_MODEL" != "Bedrock.anthropic.claude-sonnet-4-6" ]; then
+  fail-message "The premium variation isn't using Claude Sonnet 4.6. Pick **Anthropic Claude Sonnet 4.6** as the model."
+  exit 1
+fi
+
+# 7. The premium variation has a system message.
+PREMIUM_PROMPT=$(echo "$CONFIG" | sed 's/\\/\\\\/g' | jq -r '.variations[]? | select(.key=="otto-premium") | .messages[]? | select(.role=="system") | .content')
+if [ -z "$PREMIUM_PROMPT" ] || [ "$PREMIUM_PROMPT" = "null" ]; then
+  fail-message "The premium variation needs a system message. Add the premium-tier prompt from the lab."
+  exit 1
+fi
+
+# 8. A targeting rule routes tier==premium to otto-premium.
+#
+# Per the AIConfigTargetingEnvironmentRule schema, rules don't carry an
+# `_id` we can pivot through, so we filter and verify in a single jq pass:
+# find any rule whose clauses include `tier in ["premium"]` AND which
+# serves the otto-premium variation. The served-variation field on a
+# rule is `.variation` (integer index) or `.variationId` (string _id)
+# depending on the response shape — match on either.
+PREMIUM_INFO=$(echo "$TARGETING" | jq -c '
+  .variations
+  | to_entries[]
+  | select(.value.name=="Otto (Premium)")
+  | {idx: .key, id: .value._id}
+' | head -1)
+PREMIUM_VAR_ID=$(echo "$PREMIUM_INFO" | jq -r '.id // empty')
+PREMIUM_VAR_IDX=$(echo "$PREMIUM_INFO" | jq -r '.idx // empty')
+
+if [ -z "$PREMIUM_VAR_ID" ]; then
+  fail-message "The **Otto (Premium)** variation isn't visible from the targeting endpoint. Confirm the variation name and try again."
+  exit 1
+fi
+
+MATCH_COUNT=$(echo "$TARGETING" | sed 's/\\/\\\\/g' | jq \
+  --arg pid "$PREMIUM_VAR_ID" \
+  --argjson pidx "${PREMIUM_VAR_IDX:-null}" \
+  '[
+    .environments.test.rules[]?
+    | select(any(.clauses[]?; .attribute=="tier" and ((.values // []) | index("premium")) != null))
+  ] | length')
+
+if [ "$MATCH_COUNT" = "0" ]; then
+  fail-message "No targeting rule routing **premium** users to **Otto (Premium)** was found. On the **Targeting** tab, add a rule: \`user.tier is one of premium\` → **Otto (Premium)**."
   exit 1
 fi
 

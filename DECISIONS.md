@@ -866,3 +866,34 @@ So the base is `instruqt-build` plus `instruqt-evaluate/07-trust-but-verify`, wh
 **Verified, not assumed.** Both `server.py` patches composed over the restored stub in a scratch tree: unpatched parses, `challenge-01` then `evaluate-03` both apply, the result parses, both are idempotent. All 24 chapter scripts pass `sh -n`; all eight terraform modules `init`/`validate` clean (`evaluate-03` needed a whitespace-only `fmt`, inherited); `instruqt track validate` clean with no `.remote` files. All 30 challenge and tab IDs were regenerated — the copied ones belong to `ld-agentcontrol-build` and `-evaluate`, which are still live.
 
 **Not verified, and the operator owns it: the VM image must be rebaked.** `check-image.sh` has been inverted back to asserting the paste stubs are *intact*, which is correct for these chapters and wrong for the currently-baked image. Until someone rebakes and re-registers, chapter 01 opens `server.py` to find the exercise already done and chapter 07 wires the app to a judge before the learner creates it.
+
+---
+
+## Restored to control-freak-ai, not the 8-chapter build track (2026-09-02, superseding the entry above)
+
+**Correction.** The entry above restored the wrong track. When the operator said "go back to the original", I asked *how* to restore and never *which*, then picked `instruqt-build` from `ld-instruqt` on my own judgement — an eight-chapter, 7200s track. The operator had named two candidates earlier in the conversation, and the one they wanted was the other: **`control-freak-ai`** (`play.instruqt.com/manage/launchdarkly/tracks/control-freak-ai`, id `ixq5ol5pmf6c`), four challenges, 4800s. The lesson is narrow and worth keeping: when a request names a prior artefact, confirm *which* artefact before restoring from it, because a wrong base is not a wrong sentence — it is 116 files.
+
+**What it is.** Pulled from the platform with `instruqt track pull launchdarkly/control-freak-ai`, because the repo copy is not authoritative: `ld-workshop-control-freak-ai` contains a `00-welcome` directory that the live track does not include, and the repo has no `app/` or `terraform/` at all — it is track-only, layered on the same `/opt/ld/ai-configs-intro` image the AI-Configs workshop builds.
+
+| Chapter | Time | Modules | MCP |
+|---|---|---|---|
+| `01-otto-is-born` | 2100 | `challenge-01`, `challenge-05` | Config, `otto-born`, `otto-premium` |
+| `02-give-otto-personality` | 600 | `challenge-02` | — |
+| `03-otto-on-the-bench` | 900 | `evaluate-01` | — |
+| `04-trust-but-verify` | 1200 | `evaluate-03`, `evaluate-07` | the judge |
+
+Chapter 01 is the merged one: Config, first variation, the SDK paste, *and* the whole premium/targeting beat that the build track split into its own chapter. That is why it gets 2100s. **Offline evaluation is in scope again** as `03-otto-on-the-bench` — the objective DECISIONS previously recorded as unbuildable because it has no MCP path. It doesn't need one: it is a UI flow, and this track no longer insists otherwise.
+
+**`challenge-03` and `challenge-06` were dropped** from `terraform/` — prompt snippets and the monitoring view, neither used by any chapter here. They remain in `launchdarkly-labs/ld-instruqt` if a chapter ever needs them.
+
+**Three blockers found in the restored scripts, all of which would have failed every run:**
+
+- **The wrong secret name.** Five scripts authenticate with `LAUNCHDARKLY_AG_API_TOKEN`; our `config.yml` declares `LAUNCHDARKLY_ACCESS_TOKEN`. Every `curl` would have sent an empty `Authorization` header. Normalised to the declared secret. If the upstream track works, that account declares a differently-named secret — worth knowing before copying anything else from it.
+- **Chapter 04's assertions were commented out upstream** — the metric check and the rollout check both. That left the chapter's only learner-driven step unasserted, so **Check went green on an untouched default rule**. Re-enabled. The metric one is safe to enable now only because setup PATCHes `evaluationMetricKey`; upstream nothing did, which is presumably why it was commented out rather than fixed.
+- **`build-image.sh` would abort the bake.** Its module loop `cd`s into each directory under `set -e`, and the list still named modules this chapter set doesn't have. Corrected and guarded with a directory test so a future rename warns instead of aborting mid-bake.
+
+**Verified:** both `server.py` patches compose over the restored stub (unpatched parses → `challenge-01` → `evaluate-03` → parses → both idempotent); all chapter scripts pass `sh -n`; `bash -n` clean on all three `vm-image` scripts; seven terraform modules `init`/`validate` clean; `instruqt track validate` clean, zero `.remote` files; chapter timelimits sum to 4800 and `track.yml` agrees.
+
+**One upstream inconsistency deliberately not copied:** the live `control-freak-ai` track's `track.yml` says 4500 while its chapters sum to 4800. Ours is consistent at 4800.
+
+**Still the operator's to do: rebake the VM image.** Unchanged from the entry above, and unchanged in urgency. `build-image.sh` does not run `patch-server.py`, so a fresh bake from `main` leaves `server.py` with both stubs intact, which is what chapters 01 and 04 need. The currently-registered image has them pre-applied from the 35-minute era and does not reproduce that state from this repo.
