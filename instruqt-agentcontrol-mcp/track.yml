@@ -1,20 +1,17 @@
 slug: ld-agentcontrol-mcp
 id: 4yzeqxwrjvna
-title: Control Freak — Hands-On with AgentControl and MCP
-teaser: Take an AI assistant from placeholder line to a guarded rollout. Iterate prompts,
-  route by tier, evaluate offline, ship behind a safety net — asking a coding agent
-  for the pieces instead of clicking them.
-description: 'AgentControl lets you treat prompts, models, and targeting as runtime
+title: Govern an AI Agent with AgentControl and MCP
+teaser: Build an AI assistant, grade it with a judge, and hold its shakiest answers
+  for a human — driving LaunchDarkly entirely from your coding agent.
+description: 'AgentControl lets you treat prompts, models, and quality gates as runtime
   configuration instead of hardcoded values. In this track you''ll build Otto — the
   shopping assistant for ToggleWear, a fictional online retailer of LaunchDarkly-branded
-  apparel. You''ll create his first Config, route premium shoppers to a more capable
-  model, iterate on his personality without redeploying, grade him offline against
-  a golden dataset, and ship a risky new model behind a guarded rollout that
-  auto-reverts when quality drops. The Configs, variations and judge you create by
-  asking Claude Code over LaunchDarkly''s MCP server rather than clicking them; the
-  targeting, the evaluation and the rollout you drive in the UI. By the end Otto is
-  live, tier-aware, evaluated and guarded — and you''ve done it without touching
-  deployment.'
+  apparel. You won''t click through the LaunchDarkly UI to do it. Instead you''ll
+  connect Claude Code to the LaunchDarkly MCP server and ask for what you want in
+  plain language: a Config for Otto, a custom judge that scores whether he sounds
+  on-brand, and a review gate that ships his confident answers, holds the borderline
+  ones for a human, and suppresses the bad ones. By the end Otto is live, graded,
+  and governed — and you''ve done it without touching deployment.'
 icon: https://launchdarkly.com/favicon-dark-mode.png
 tags:
 - bedrock
