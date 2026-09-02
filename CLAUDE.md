@@ -121,7 +121,7 @@ tabs:
 
 Challenge and tab ids are random 12-character alphanumeric strings; generate fresh ones per challenge. Reference tabs by index: `[LaunchDarkly](#tab-0)`, `[ToggleWear](#tab-1)`, `[Code Editor](#tab-2)`.
 
-**Exception:** `03-otto-asks-for-help` adds a fourth tab, "Staff Review" (`#tab-3`), pointing at the app's `/review` page. Indices 0-2 are unchanged, so no existing reference moves. See the reviewer-surface entry in `DECISIONS.md` for why the review queue is its own page rather than a panel on the storefront.
+All nine chapters use exactly those three tabs — there is no fourth-tab exception any more. The "Staff Review" tab belonged to the review-gate chapter, which is gone along with the `/review` page it pointed at.
 
 ### `assignment.md` body voice
 
@@ -157,7 +157,7 @@ Three pastes, but only the first is an inline block:
 
 1. **Challenge 01** replaces the marked stub inside `/chat`.
 2. **Challenge 02** replaces the body of `score_response(req, assistant_text, model_id) -> Optional[float]`.
-3. **Challenge 03** replaces the body of `gate_response(req, assistant_text, score, model_id) -> tuple[str, str]`.
+(There is no third paste. The review gate's `gate_response()` went with the app restore.)
 
 `/chat` calls both functions in order and then `_remember(session_id, user_message, final_text)`, so history always records the text the customer actually received.
 
@@ -210,7 +210,7 @@ When implementing, **verify the latest stable version** before pinning. Don't as
 
 - Re-teaching LaunchDarkly basics. Assume mastery.
 - Prompt snippets, experiments, agent-mode Configs, agent graphs, tool management. Each is named in `06-wrap-up` as a next step; none is taught.
-- **Human-in-the-loop review.** Was `04-otto-asks-for-help`; cut 2026-08-27 because it maps to none of the six objectives. The chapter is gone but `terraform/challenge-03`, `gate_response()`, the review queue, `/review`, and the Staff Review page all remain in the repo unreferenced, so restoring it is a chapter rewrite rather than a rebuild. Do not delete them without checking DECISIONS.md first.
+- **Human-in-the-loop review.** Cut 2026-08-27, and as of the 2026-09-02 restore its code is gone too: the app came back from upstream without `gate_response()`, the review queue, `/review`, `review.html` or `review.js`, and `terraform/challenge-03` is now the prompt-snippets module. Restoring that chapter is a genuine rebuild, not a rewrite. The last commit that had it is the parent of the restore — see DECISIONS.md, "Restored to the original UI track".
 - **Guarded rollouts and targeting by user attribute were out of scope until 2026-08-27 and are now taught**, in `05-trust-but-verify` and `03-otto-knows-his-audience`.
 - **Offline evaluations are an objective with no MCP path.** Not built. The public REST API has no dataset or evaluation endpoints at all, and the docs describe offline evals as a UI-only flow under Agents → Configs → Playgrounds. See DECISIONS.md before attempting a chapter.
 - Lecture content. Presenters deliver that via slides.
