@@ -1,6 +1,6 @@
 ---
 slug: how-is-otto-doing
-id: ksocxxxmrger
+id: olxt4uy0grax
 type: challenge
 title: How is Otto Doing?
 teaser: Otto is live. Time to look at the data. Tokens, latency, and learner feedback,
@@ -11,16 +11,16 @@ notes:
     have been chatting with Otto and rating his answers. In this challenge you'll
     explore the AgentControl monitoring view and see how Otto's variations stack up.
 tabs:
-- id: gbus2qcml5o4
+- id: wcabzzh5bsvw
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: y6748tjpjqro
+- id: syai6swvywla
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: n0hotutp5yxc
+- id: xjywsrjxs2sr
   title: Code Editor
   type: service
   hostname: workstation

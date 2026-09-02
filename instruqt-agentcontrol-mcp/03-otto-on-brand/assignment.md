@@ -1,6 +1,6 @@
 ---
 slug: otto-on-brand
-id: 3yduvofx3oy4
+id: oyccm5o2bay7
 type: challenge
 title: Otto On-Brand at Scale
 teaser: Otto's prompt is getting long. Factor reusable brand voice and safety rules
@@ -12,16 +12,16 @@ notes:
     in one place and have every AgentControl Config that references them pick up the
     change.
 tabs:
-- id: q5vx16ad04kj
+- id: n9llppdwush6
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: cjpk73n3ezym
+- id: xrs1osbkz5rt
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: i0h6i1da7k54
+- id: si40btehzjid
   title: Code Editor
   type: service
   hostname: workstation

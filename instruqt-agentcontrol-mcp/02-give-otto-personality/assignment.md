@@ -1,6 +1,6 @@
 ---
 slug: give-otto-personality
-id: wch5m1f7hhqa
+id: uojuig1bo8yh
 type: challenge
 title: Give Otto a Personality
 teaser: Otto sounds like a robot. Marketing has notes. Iterate on his prompt — no
@@ -12,16 +12,16 @@ notes:
     you'll do exactly that — change Otto's voice from the AgentControl UI and watch
     the running app pick it up.
 tabs:
-- id: 6vmu7bz2445i
+- id: dx7x9y0jbgjp
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: b2zy4tyixaur
+- id: rqe5bglcz00s
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: iqswenl89yuf
+- id: cibnesvhsjo6
   title: Code Editor
   type: service
   hostname: workstation

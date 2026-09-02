@@ -1,6 +1,6 @@
 ---
 slug: quiz-configs-and-snippets
-id: 6cjs0ylcroj6
+id: sownlnqxfmfu
 type: quiz
 title: Quiz — AgentControl Configs and Snippets
 teaser: A quick check on what you just built.

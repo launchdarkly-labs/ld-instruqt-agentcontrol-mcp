@@ -1,6 +1,6 @@
 ---
 slug: trust-but-verify
-id: f8g0sbtz44ng
+id: vpcuvchy4ccg
 type: challenge
 title: Trust But Verify
 teaser: Roll out a risky new model behind a guarded rollout backed by the brand-voice
@@ -13,16 +13,16 @@ notes:
     let it watch for regression, and automatically roll back if quality drops. The
     brand-voice judge you built in Challenge 03 is the metric.
 tabs:
-- id: m8zqmo1yx1mr
+- id: cqmmehbthsoo
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: sootf7spy1t8
+- id: iycmpm9j4zkp
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: juia6mfqnsu6
+- id: gf0yogw1pvoo
   title: Code Editor
   type: service
   hostname: workstation
