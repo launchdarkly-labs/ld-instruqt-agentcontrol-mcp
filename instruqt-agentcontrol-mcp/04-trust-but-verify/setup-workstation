@@ -27,7 +27,7 @@ curl -X POST https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-c
      -d '{
   "key": "brand-voice",
   "name": "Brand voice",
-  "text": "You are Otto. You''re warm, helpful, and a little playful. You keep answers short by default and you''re honest when you don''t know something."
+  "text": "You are Otto. You'"'"'re warm, helpful, and a little playful. You keep answers short by default and you'"'"'re honest when you don'"'"'t know something."
 }'
 
 # 1. Pre-wire the brand-voice judge (judge config + metric + server.py
@@ -65,6 +65,23 @@ cd /opt/ld/ai-configs-intro/terraform/evaluate-07
 echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
 terraform init -input=false
 terraform apply -auto-approve
+
+# Confirm the variation exists rather than assuming the apply did it. This runs
+# last, and under `set -e` every step above it is a way for otto-stiff to end up
+# missing with no explanation on screen.
+STIFF_CHECK=$(curl -sS -X GET \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+  -H 'LD-API-Version: beta')
+
+if [ "$(printf '%s' "$STIFF_CHECK" | jq -r '[.variations[]? | select(.key=="otto-stiff")] | length')" != "1" ]; then
+  echo "ERROR: evaluate-07 applied but otto-assistant has no otto-stiff variation." >&2
+  echo "  Variations present:" >&2
+  printf '%s' "$STIFF_CHECK" | jq -r '.variations[]? | "    " + .key + "  (" + (.modelConfigKey // "no model") + ")"' >&2 || true
+  echo "  If otto-assistant itself is missing, chapter 01 was not completed —" >&2
+  echo "  evaluate-07 attaches a variation to it and cannot create it." >&2
+  exit 1
+fi
 
 # 3. Stop any prior traffic generators; start background_traffic.py.
 pkill -f experiment_traffic.py 2>/dev/null || true
