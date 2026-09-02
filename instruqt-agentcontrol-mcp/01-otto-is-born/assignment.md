@@ -1,6 +1,6 @@
 ---
 slug: otto-is-born
-id: we91nx0db3uy
+id: j3xxheqqrzof
 type: challenge
 title: Otto is Born
 teaser: Create Otto's first AgentControl Config and wire him into the ToggleWear app.
@@ -11,16 +11,16 @@ notes:
     code that bring him to life. By the end of this challenge, Otto will say his first
     words from the ToggleWear storefront.
 tabs:
-- id: tst2lv27j6lt
+- id: cyvnngw5yrll
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: 2afy8jecyott
+- id: zreju4bvyfzf
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: 773yf8k6ni1w
+- id: glwlxdt3sjjs
   title: Code Editor
   type: service
   hostname: workstation
