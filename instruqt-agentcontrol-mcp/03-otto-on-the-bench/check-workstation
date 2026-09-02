@@ -14,7 +14,7 @@ DATASETS=$(curl -fsS -X GET \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
   -H 'LD-API-Version: beta')
 
-DATASET_ID=$(echo "$DATASETS" | jq -r '.datasets[]? | select(.filename == "customer-questions.jsonl") | .id' | head -n 1)
+DATASET_ID=$(printf '%s' "$DATASETS" | jq -r '.datasets[]? | select(.filename == "customer-questions.jsonl") | .id' | head -n 1)
 
 if [ -z "$DATASET_ID" ] || [ "$DATASET_ID" = "null" ]; then
   fail-message "The customer-questions dataset is missing from your project. The track setup should have uploaded it — try running the **Skip** button if it didn't seed."
@@ -24,23 +24,23 @@ fi
 EVALUATIONS=$(curl -fsS -X GET \
   "${API}/projects/${LD_PROJECT_KEY}/evaluations" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
-  -H 'LD-API-Version: beta' | sed 's/\\/\\\\/g')
+  -H 'LD-API-Version: beta')
 
-EVAL_COUNT=$(echo "$EVALUATIONS" | sed 's/\\/\\\\/g' | jq -r '.items // [] | length')
+EVAL_COUNT=$(printf '%s' "$EVALUATIONS" | jq -r '.items // [] | length')
 if [ "$EVAL_COUNT" -lt 1 ]; then
   fail-message "You haven't created an evaluation yet. In the LaunchDarkly UI, go to **Evaluations**, click **Create evaluation**, point it at the **customer-questions** dataset and the **otto-born** variation."
   exit 1
 fi
 
 # # Walk evaluations looking for at least one completed run.
-# EVAL_IDS=$(echo "$EVALUATIONS" | jq -r '.items[]? | .id')
+# EVAL_IDS=$(printf '%s' "$EVALUATIONS" | jq -r '.items[]? | .id')
 # FOUND_COMPLETED_RUN=0
 # for ID in $EVAL_IDS; do
 #   RUNS=$(curl -fsS -X GET \
 #     "${API}/projects/${LD_PROJECT_KEY}/evaluations/${ID}/runs" \
 #     -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
 #     -H 'LD-API-Version: beta')
-#   COMPLETED=$(echo "$RUNS" | jq -r '[.items[]? | select((.status // .state) == "completed")] | length')
+#   COMPLETED=$(printf '%s' "$RUNS" | jq -r '[.items[]? | select((.status // .state) == "completed")] | length')
 #   if [ "$COMPLETED" -gt 0 ]; then
 #     FOUND_COMPLETED_RUN=1
 #     break

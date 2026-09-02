@@ -5,13 +5,13 @@ CONFIG=$(curl -s -X GET \
   "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
 
-if [ "$(echo "$CONFIG" | jq -r '.key // "null"')" = "null" ]; then
+if [ "$(printf '%s' "$CONFIG" | jq -r '.key // "null"')" = "null" ]; then
   fail-message "The Otto Assistant AI Config has not been created yet. Follow the steps under **Create Otto's AI Config**."
   exit 1
 fi
 
 # 2. The otto-born variation exists with a Haiku model config.
-VARIATION_MODEL=$(echo "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | .modelConfigKey // ""')
+VARIATION_MODEL=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | .modelConfigKey // ""')
 if [ -z "$VARIATION_MODEL" ]; then
   fail-message "Otto's first variation is missing. Make sure you created the variation named **Otto (Born)** with key **otto-born**."
   exit 1
@@ -23,7 +23,7 @@ fi
 
 # 3. The variation has a system message (don't assert specific wording yet —
 #    that's challenge 02's concern).
-SYSTEM_MSG=$(echo "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | .messages[]? | select(.role=="system") | .content' | head -c 1)
+SYSTEM_MSG=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | .messages[]? | select(.role=="system") | .content' | head -c 1)
 if [ -z "$SYSTEM_MSG" ]; then
   fail-message "Otto's variation needs a system message. Add the starter prompt from the lab instructions."
   exit 1
@@ -33,9 +33,9 @@ fi
 TARGETING=$(curl -s -X GET \
   "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/targeting" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
-BORN_NAME=$(echo "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | .name')
-FALLTHROUGH_IDX=$(echo "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
-FALLTHROUGH_NAME=$(echo "$TARGETING" | jq -r ".variations[${FALLTHROUGH_IDX}].name // empty")
+BORN_NAME=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") | .name')
+FALLTHROUGH_IDX=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
+FALLTHROUGH_NAME=$(printf '%s' "$TARGETING" | jq -r ".variations[${FALLTHROUGH_IDX}].name // empty")
 if [ "$FALLTHROUGH_NAME" != "$BORN_NAME" ]; then
   fail-message "Otto's **test** environment isn't serving the Born variation, so the app gets nothing back. Ask Claude Code: *\"In the Test environment, set the otto-assistant default rule to serve the otto-born variation.\"* Phrase it as the default rule rather than \"turn it on\" — that's the wording that works. Or set it by hand on the **Targeting** tab."
   exit 1
@@ -48,7 +48,7 @@ if ! grep -q 'ai_client.completion_config(OTTO_CONFIG_KEY' /opt/ld/ai-configs-in
 fi
 
 # 6. The otto-premium variation exists with the Sonnet 4.5 model config.
-PREMIUM_MODEL=$(echo "$CONFIG" | sed 's/\\/\\\\/g' | jq -r '.variations[]? | select(.key=="otto-premium") | .modelConfigKey // ""')
+PREMIUM_MODEL=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-premium") | .modelConfigKey // ""')
 if [ -z "$PREMIUM_MODEL" ]; then
   fail-message "The premium variation hasn't been added yet. Create a new variation named **Otto (Premium)** with key **otto-premium**."
   exit 1
@@ -59,7 +59,7 @@ if [ "$PREMIUM_MODEL" != "Bedrock.anthropic.claude-sonnet-4-6" ]; then
 fi
 
 # 7. The premium variation has a system message.
-PREMIUM_PROMPT=$(echo "$CONFIG" | sed 's/\\/\\\\/g' | jq -r '.variations[]? | select(.key=="otto-premium") | .messages[]? | select(.role=="system") | .content')
+PREMIUM_PROMPT=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-premium") | .messages[]? | select(.role=="system") | .content')
 if [ -z "$PREMIUM_PROMPT" ] || [ "$PREMIUM_PROMPT" = "null" ]; then
   fail-message "The premium variation needs a system message. Add the premium-tier prompt from the lab."
   exit 1
@@ -73,21 +73,21 @@ fi
 # serves the otto-premium variation. The served-variation field on a
 # rule is `.variation` (integer index) or `.variationId` (string _id)
 # depending on the response shape — match on either.
-PREMIUM_INFO=$(echo "$TARGETING" | jq -c '
+PREMIUM_INFO=$(printf '%s' "$TARGETING" | jq -c '
   .variations
   | to_entries[]
   | select(.value.name=="Otto (Premium)")
   | {idx: .key, id: .value._id}
 ' | head -1)
-PREMIUM_VAR_ID=$(echo "$PREMIUM_INFO" | jq -r '.id // empty')
-PREMIUM_VAR_IDX=$(echo "$PREMIUM_INFO" | jq -r '.idx // empty')
+PREMIUM_VAR_ID=$(printf '%s' "$PREMIUM_INFO" | jq -r '.id // empty')
+PREMIUM_VAR_IDX=$(printf '%s' "$PREMIUM_INFO" | jq -r '.idx // empty')
 
 if [ -z "$PREMIUM_VAR_ID" ]; then
   fail-message "The **Otto (Premium)** variation isn't visible from the targeting endpoint. Confirm the variation name and try again."
   exit 1
 fi
 
-MATCH_COUNT=$(echo "$TARGETING" | sed 's/\\/\\\\/g' | jq \
+MATCH_COUNT=$(printf '%s' "$TARGETING" | jq \
   --arg pid "$PREMIUM_VAR_ID" \
   --argjson pidx "${PREMIUM_VAR_IDX:-null}" \
   '[

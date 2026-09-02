@@ -3,9 +3,9 @@
 # Fetch the otto-born variation's current messages.
 VARIATION=$(curl -s -X GET \
   "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/variations/otto-born" \
-  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" | sed 's/\\/\\\\/g')
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
 
-SYSTEM_PROMPT=$(echo "$VARIATION" | sed 's/\\/\\\\/g' | jq -r '.items[0].messages[]? | select(.role=="system") | .content')
+SYSTEM_PROMPT=$(printf '%s' "$VARIATION" | jq -r '.items[0].messages[]? | select(.role=="system") | .content')
 
 if [ -z "$SYSTEM_PROMPT" ] || [ "$SYSTEM_PROMPT" = "null" ]; then
   fail-message "Otto's variation has no system message. Open the **Otto (Born)** variation and update its system message."
@@ -14,14 +14,14 @@ fi
 
 # Heuristic: Otto's new prompt must mention his name and at least two of the
 # personality keywords from the lab guidance.
-if ! echo "$SYSTEM_PROMPT" | grep -qi 'otto'; then
+if ! printf '%s' "$SYSTEM_PROMPT" | grep -qi 'otto'; then
   fail-message "Otto's prompt should refer to him by name. Update the system message so it tells the model the assistant's name is Otto."
   exit 1
 fi
 
 KEYWORDS=0
 for word in warm helpful playful brief concise honest; do
-  if echo "$SYSTEM_PROMPT" | grep -qi "$word"; then
+  if printf '%s' "$SYSTEM_PROMPT" | grep -qi "$word"; then
     KEYWORDS=$((KEYWORDS + 1))
   fi
 done
@@ -33,7 +33,7 @@ fi
 
 # Confirm the old bland prompt is gone — the literal first sentence of the
 # starter prompt is "You are a customer service assistant for ToggleWear".
-if echo "$SYSTEM_PROMPT" | grep -q 'a customer service assistant for ToggleWear'; then
+if printf '%s' "$SYSTEM_PROMPT" | grep -q 'a customer service assistant for ToggleWear'; then
   fail-message "Otto is still using his original placeholder prompt. Replace the system message with the personality version from the lab."
   exit 1
 fi
