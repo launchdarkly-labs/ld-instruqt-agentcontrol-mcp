@@ -93,12 +93,37 @@ Have a look at what it built in the [LaunchDarkly](#tab-0) tab under **Agents �
 
 # Turn Otto on in `Test`
 
-By default Otto's `Test` environment is serving the placeholder "disabled" variation. Switch it to the Born variation we just created.
+A brand-new Config serves a built-in "disabled" variation until something points elsewhere — so right now Otto exists and answers nothing. Ask the agent to point the default rule at the variation you just made:
 
-1. Click the **Targeting** tab.
-2. Make sure the environment selector reads **Test**.
-3. Under **Default rule**, click **Edit** and select **Otto (Born)**.
-4. Click **Review and save**, then **Save changes**.
+```
+In the Test environment, set the otto-assistant default rule to serve the otto-born variation.
+```
+
+Say it that way — *set the default rule* — rather than "turn Otto on" or "enable it". Same outcome, but the phrasing steers the agent at the instruction that works.
+
+Read it back:
+
+```
+What does otto-assistant's default rule serve in the Test environment?
+```
+
+It should come back as `otto-born`. If the agent reports the disabled variation, or says it couldn't enable the Config, tell it plainly: *"Set the Test environment's default rule to serve otto-born."*
+
+You can see the same thing in the [LaunchDarkly](#tab-0) tab under **Agents → Configs → Otto Assistant → Targeting**, with the environment selector on **Test** — and if the agent can't manage it, that's where you'd do it by hand: **Default rule** → **Edit** → **Otto (Born)** → **Review and save** → **Save changes**.
+
+<!-- VERIFY: this prompt is deliberately worded "set the default rule" because
+     DECISIONS.md records toggle-agentcontrol-config as BROKEN — it sends
+     turnFlagOn, which the AgentControl targeting endpoint rejects with
+     "invalid instruction 'turnFlagOn'". The fallthrough write
+     (updateFallthroughVariationOrRollout) was verified working over MCP in the
+     2026-08-14 spike. Confirm on a live run that the agent picks the
+     fallthrough tool from this wording and not the toggle.
+
+     Note for whoever reads this next: the fallthrough write working does NOT
+     mean AI Config targeting works over MCP generally. addRule is a different
+     instruction and is not available — which is why chapter 01's premium
+     targeting rule below is still built by hand. Don't generalise from this
+     section to that one. -->
 
 # Wire Otto into the app
 

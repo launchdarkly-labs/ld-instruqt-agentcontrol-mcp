@@ -37,7 +37,7 @@ BORN_NAME=$(echo "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-born") |
 FALLTHROUGH_IDX=$(echo "$TARGETING" | jq -r '.environments.test.fallthrough.variation // empty')
 FALLTHROUGH_NAME=$(echo "$TARGETING" | jq -r ".variations[${FALLTHROUGH_IDX}].name // empty")
 if [ "$FALLTHROUGH_NAME" != "$BORN_NAME" ]; then
-  fail-message "Otto's **test** environment isn't serving the Born variation. On the **Targeting** tab, set the default variation to **Otto (Born)**."
+  fail-message "Otto's **test** environment isn't serving the Born variation, so the app gets nothing back. Ask Claude Code: *\"In the Test environment, set the otto-assistant default rule to serve the otto-born variation.\"* Phrase it as the default rule rather than \"turn it on\" — that's the wording that works. Or set it by hand on the **Targeting** tab."
   exit 1
 fi
 
