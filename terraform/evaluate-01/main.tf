@@ -51,10 +51,28 @@ resource "null_resource" "create_dataset" {
       ACCOUNT_ID=$(curl -s -X GET '${local.api_base}/account' \
           -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" | jq -r '._id')
       MEMBER_EMAIL='instruqt%2B${var.project_key}@launchdarkly.com'
-      MEMBER_ID=$(curl -s -X GET '${local.api_base}/members?filter=email:$MEMBER_EMAIL' \
+      MEMBER_ID=$(curl -s -X GET "${local.api_base}/members?filter=email:$MEMBER_EMAIL" \
           -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" | jq -r '.items[0]._id')
-      LD_PROJECT_ID=$(curl -s -X GET '${local.api_base}/projects/$LD_PROJECT_KEY' \
+      LD_PROJECT_ID=$(curl -s -X GET '${local.api_base}/projects/${var.project_key}' \
           -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" | jq -r '._id')
+
+      # Fail loudly. The internal datasets endpoint accepts the POST with null
+      # X-Ld-* headers and creates nothing, so a failed lookup used to surface
+      # only as an empty Datasets view three sections into the chapter, with a
+      # green setup behind it. Two of these lookups were also single-quoted and
+      # never expanded at all — see the note above.
+      for pair in "ACCOUNT_ID=$ACCOUNT_ID" "MEMBER_ID=$MEMBER_ID" "LD_PROJECT_ID=$LD_PROJECT_ID"; do
+        name=$${pair%%=*}; value=$${pair#*=}
+        if [ -z "$value" ] || [ "$value" = "null" ]; then
+          echo "ERROR: $name did not resolve — refusing to create the dataset with a null header." >&2
+          if [ "$name" = "MEMBER_ID" ]; then
+            echo "  Looked up instruqt+${var.project_key}@launchdarkly.com. That member is created by" >&2
+            echo "  track_scripts/setup-workstation (see DECISIONS.md, 'Invite the lab SSO user as" >&2
+            echo "  Writer'). If the invite failed, this lookup has nothing to find." >&2
+          fi
+          exit 1
+        fi
+      done
 
       CREATE_RESPONSE=$(curl -fsS -X POST \
         '${local.int_base}/projects/${var.project_key}/datasets' \
