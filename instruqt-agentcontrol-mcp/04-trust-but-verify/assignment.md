@@ -1,6 +1,6 @@
 ---
 slug: trust-but-verify
-id: w0aalbw74hs2
+id: 1fhrsrtwdlhy
 type: challenge
 title: Trust But Verify
 teaser: Roll out a risky new model behind a guarded rollout backed by a brand-voice
@@ -14,21 +14,21 @@ notes:
     lab has pre-wired a brand-voice judge that scores every Otto response — that's
     the metric your rollout will watch.
 tabs:
-- id: 0zysjdygtly8
+- id: ztjb28gxb8bj
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: mou853tlmolz
+- id: hjtihepupj7j
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: v5imiuwy71sj
+- id: ntzvbaruxbjb
   title: Code Editor
   type: service
   hostname: workstation
   port: 8080
-- id: aai87ovh73xd
+- id: ijjyazhihkax
   title: Terminal
   type: terminal
   hostname: workstation

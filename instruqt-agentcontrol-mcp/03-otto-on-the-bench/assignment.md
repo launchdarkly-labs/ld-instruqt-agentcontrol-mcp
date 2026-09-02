@@ -1,6 +1,6 @@
 ---
 slug: otto-on-the-bench
-id: 9e7y35yxfset
+id: mwc8cxyht0lc
 type: challenge
 title: Otto on the Bench
 teaser: Run an offline evaluation against a golden dataset of customer questions to
@@ -12,16 +12,16 @@ notes:
     LLM-as-a-judge, and read the results to spot where he's weak. Knowing where Otto
     slips is what makes the guarded rollout in the next challenge meaningful.
 tabs:
-- id: hy4clsiqfe3g
+- id: abamltayi6su
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: ypwgr469f8y6
+- id: wb3hjaolkdf8
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: 1t6343u68io7
+- id: zbuazjouo9xd
   title: Code Editor
   type: service
   hostname: workstation
