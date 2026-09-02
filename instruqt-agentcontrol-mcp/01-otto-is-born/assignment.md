@@ -136,8 +136,6 @@ Find the block marked:
 # Challenge 01 paste block — replace this stub with real Otto code.
 ```
 
-**Search for `real Otto code`, not for "Challenge 01 paste block".** There are two blocks with that name — the other one is `CodeControl Challenge 01 paste block`, inside `/api/features`, and it belongs to a different workshop. Paste into that one and Otto stays silent while the storefront breaks instead.
-
 Replace **everything between the opening marker and the** `# ─── End Challenge 01 paste block ────` **line** with:
 
 ```python
@@ -214,7 +212,7 @@ Got any t-shirts?
 
 Otto should answer for real this time. He'll be brief and a little robotic — that's by design; we'll fix his voice in the next challenge.
 
-**If he says "Otto isn't wired up yet"**, the paste didn't land — you're still running the stub. Check that you replaced the block containing `real Otto code` rather than the CodeControl one, and that the file saved. If you'd rather not hand-edit it, apply the same code from a terminal:
+**If he says "Otto isn't wired up yet"**, the paste didn't land — you're still running the stub. Check that you replaced the whole stub between the two markers, and that the file saved. If you'd rather not hand-edit it, apply the same code from a terminal:
 
 ```bash
 python3 /opt/ld/ai-configs-intro/terraform/challenge-01/patch-server.py \
