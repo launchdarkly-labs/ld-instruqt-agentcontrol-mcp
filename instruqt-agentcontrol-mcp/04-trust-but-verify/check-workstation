@@ -12,6 +12,18 @@
 #      the test environment's fallthrough — permissive proxy for "rollout
 #      configured."
 
+#
+# NOTE: this is /bin/sh, which is dash on Ubuntu, and dash's builtin `echo`
+# interprets backslash escapes. `echo "$JSON" | jq` therefore turns escaped \n
+# inside JSON strings into real newlines and jq fails with "control characters
+# must be escaped" — so every extraction silently returns empty and the check
+# reports the resource as missing when it is right there in the UI. That is
+# exactly what happened to the judge assertion below on 2026-09-02: the judge's
+# rubric is multi-line, so it fired every time.
+#
+# Always `printf '%s' "$JSON" | jq`. Upstream worked around this with
+# `sed 's/\\/\\\\/g'` in some places and not others; those are removed,
+# because with printf they are not merely unnecessary but wrong.
 API="https://app.launchdarkly.com/api/v2"
 API_INT="https://app.launchdarkly.com/internal"
 
@@ -19,7 +31,7 @@ CONFIG=$(curl -fsS -X GET \
   "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
 
-STIFF=$(echo "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-stiff") | .modelConfigKey // ""')
+STIFF=$(printf '%s' "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-stiff") | .modelConfigKey // ""')
 if [ -z "$STIFF" ]; then
   fail-message "The **Otto (Stiff)** Nova Pro variation hasn't been created. Re-run setup, or use the **Skip** button if setup isn't working."
   exit 1
@@ -37,12 +49,12 @@ JUDGE=$(curl -s -X GET \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
   -H 'LD-API-Version: beta')
 
-if [ "$(echo "$JUDGE" | jq -r '.key // ""')" != "otto-brand-voice-judge" ]; then
+if [ "$(printf '%s' "$JUDGE" | jq -r '.key // ""')" != "otto-brand-voice-judge" ]; then
   fail-message "No Config keyed **otto-brand-voice-judge** exists yet. Ask Claude Code for it using the prompt under **Ask for the judge** — the key matters, because this check and the app's judge call both look for it."
   exit 1
 fi
 
-if [ "$(echo "$JUDGE" | jq -r '.mode // ""')" != "judge" ]; then
+if [ "$(printf '%s' "$JUDGE" | jq -r '.mode // ""')" != "judge" ]; then
   fail-message "**otto-brand-voice-judge** exists but isn't in judge mode, so it can't score anything. Mode is fixed at creation — ask Claude Code to delete it and recreate it in judge mode."
   exit 1
 fi
@@ -57,7 +69,7 @@ fi
 # on an untouched default rule. The metric assertion is safe to enable now
 # because setup-workstation PATCHes evaluationMetricKey; upstream nothing did,
 # which is presumably why it was commented out rather than fixed.
-EVAL_KEY=$(echo "$CONFIG" | jq -r '.evaluationMetricKey // ""')
+EVAL_KEY=$(printf '%s' "$CONFIG" | jq -r '.evaluationMetricKey // ""')
 if [ "$EVAL_KEY" != "otto-brand-voice-score" ]; then
   fail-message "Otto's evaluationMetricKey isn't wired to **otto-brand-voice-score**, so the rollout has no metric to watch. Setup wires this — tell your instructor, or pick the metric by hand in the rollout dialog."
   exit 1
@@ -67,7 +79,7 @@ TARGETING=$(curl -fsS -X GET \
   "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/targeting" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
 
-HAS_ROLLOUT=$(echo "$TARGETING" | jq -r '.environments.test.fallthrough.rollout // empty')
+HAS_ROLLOUT=$(printf '%s' "$TARGETING" | jq -r '.environments.test.fallthrough.rollout // empty')
 if [ -z "$HAS_ROLLOUT" ]; then
   fail-message "No rollout on the Test environment's default rule yet. On the **Targeting** tab, click the **Default rule**, set **Serve** to **Guarded rollout**, pick **otto-brand-voice-score** as the metric and turn **Roll back on regression** on."
   exit 1
