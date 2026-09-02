@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-03
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+
+exit 0

@@ -1,0 +1,70 @@
+#!/bin/sh
+
+# Validates the learner has set up the guarded rollout.
+#
+# Three assertions:
+#   1. The otto-stiff Nova Pro variation exists (setup-workstation creates
+#      it; we re-check in case the learner deleted it).
+#   2. otto-assistant's evaluationMetricKey points at otto-brand-voice-score
+#      (set by ch03; double-checked here for the rollout to make sense).
+#   3. A guarded rollout (or at least a rollout structure) is configured on
+#      the test environment's fallthrough — permissive proxy for "rollout
+#      configured."
+
+API="https://app.launchdarkly.com/api/v2"
+
+CONFIG=$(curl -fsS -X GET \
+  "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
+
+STIFF=$(echo "$CONFIG" | jq -r '.variations[]? | select(.key=="otto-stiff") | .modelConfigKey // ""')
+if [ -z "$STIFF" ]; then
+  fail-message "The **Otto (Stiff)** Nova Pro variation hasn't been created. Re-run setup, or use the **Skip** button if setup isn't working."
+  exit 1
+fi
+if [ "$STIFF" != "Amazon.nova-pro" ]; then
+  fail-message "Otto (Stiff) isn't using Amazon Nova Pro. Expected modelConfigKey **Amazon.nova-pro**, got **${STIFF}**."
+  exit 1
+fi
+
+# The judge is the learner's job in this chapter — they ask the agent for it.
+# Assert on key and mode only: the rubric wording and the model spelling are
+# the agent's to choose, and mode is the one thing that cannot be fixed by
+# editing afterwards.
+JUDGE=$(curl -s -X GET \
+  "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-brand-voice-judge" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+  -H 'LD-API-Version: beta')
+
+if [ "$(echo "$JUDGE" | jq -r '.key // ""')" != "otto-brand-voice-judge" ]; then
+  fail-message "No Config keyed **otto-brand-voice-judge** exists yet. Ask Claude Code for it using the prompt under **Ask for the judge** — the key matters, because this check and the app's judge call both look for it."
+  exit 1
+fi
+
+if [ "$(echo "$JUDGE" | jq -r '.mode // ""')" != "judge" ]; then
+  fail-message "**otto-brand-voice-judge** exists but isn't in judge mode, so it can't score anything. Mode is fixed at creation — ask Claude Code to delete it and recreate it in judge mode."
+  exit 1
+fi
+
+if ! grep -q 'otto-brand-voice-judge' /opt/ld/ai-configs-intro/app/server.py; then
+  fail-message "The app isn't calling the judge yet, so no scores are being written. Run the \`patch-server.py\` command under **Ask for the judge**, then \`service togglewear restart\`."
+  exit 1
+fi
+
+EVAL_KEY=$(echo "$CONFIG" | jq -r '.evaluationMetricKey // ""')
+if [ "$EVAL_KEY" != "otto-brand-voice-score" ]; then
+  fail-message "Otto's evaluationMetricKey isn't wired to **otto-brand-voice-score**, so the rollout has no metric to watch. Setup wires this — tell your operator, or pick the metric by hand in the rollout dialog."
+  exit 1
+fi
+
+TARGETING=$(curl -fsS -X GET \
+  "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/targeting" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}")
+
+HAS_ROLLOUT=$(echo "$TARGETING" | jq -r '.environments.test.fallthrough.rollout // empty')
+if [ -z "$HAS_ROLLOUT" ]; then
+  fail-message "No guarded rollout configured on the test environment's default rule. On the **Targeting** tab, click the default rule and choose **Start guarded rollout** with the **otto-brand-voice-score** metric."
+  exit 1
+fi
+
+exit 0

@@ -8,59 +8,61 @@ This file is the operational spec for Claude Code working on this project. Read 
 
 A single **Instruqt track** teaching LaunchDarkly's **AgentControl** product through hands-on labs, aimed at developers evaluating LaunchDarkly and at existing customers expanding into AI use cases. Learners are assumed to already understand LaunchDarkly fundamentals (flags, contexts, environments); this workshop does **not** re-teach those.
 
-The distinguishing premise: **the learner drives LaunchDarkly through the hosted MCP server, not the UI.** Claude Code runs on the workstation, already connected, and the learner creates Configs, judges, and flags by describing what they want in plain language. The LaunchDarkly UI is used for *looking at* what was built and for reading scores, not for building.
+**The premise, as of 2026-09-02: this is the original UI-driven track, with three creation steps done by a coding agent instead.** The learner works in the LaunchDarkly UI for almost everything — prompt edits, snippets, targeting rules, monitoring, the guarded rollout — exactly as `ld-agentcontrol-build` and `ld-agentcontrol-intro` teach it. Three resources are asked for rather than clicked: the Config, the variations, and the judge.
 
-**Two chapters no longer hold to that, both because AI Config targeting cannot be written from an agent.**
+This reverses the 2026-08-14 "MCP server replaces the LaunchDarkly UI as the build interface" decision and everything built on it. See DECISIONS.md, "Restored to the original UI track". Do not re-derive the MCP-first version from this file's history without reading that entry first.
 
-- **`03-otto-knows-his-audience`** creates the variation through MCP and builds the targeting rule **in the UI**. The hosted MCP server has no write tool for a custom AI Config rule (flag `update-targeting-rules` returns `401: AI flags may not be modified directly`; `update-agentcontrol-config-targeting` is named in the getter and not registered). A REST paste of the `addRule` semantic patch was the interim answer and was replaced on the operator's call — walking the rule builder teaches the rule, where pasting a `curl` teaches nothing. `terraform/challenge-05` still applies that patch, so solve is unaffected.
-- **`05-trust-but-verify`** has setup pre-build the variation and the judge attachment, and the learner starts the guarded rollout **in the UI** — no agent prompt at all. A guarded rollout has no endpoint. Verified against the spec: AI Config and flag targeting `PATCH` both expose only `rolloutWeights` / `rolloutContextKind` / `rolloutBucketBy`, and `ReleaseGuardianConfiguration` / `GuardedReleaseConfig` are referenced from other schemas but from no path.
+**Eight challenges plus a quiz, 7200s (2 hours).** The chapter set, timelimits and prose are the original's:
 
-**Both chapters therefore need the sandbox sign-in, which is documented below as unreliable, and neither has a fallback.** `01-meet-togglewear` says so. Do not reintroduce a "nothing here needs the UI" line — it has been written and falsified three times.
+| Dir | Type | Beat | MCP? |
+|---|---|---|---|
+| `00-welcome` | challenge | Orientation, and connect `claude` to the MCP server. | connect only |
+| `01-otto-is-born` | challenge | **Ask for** the `otto-assistant` Config and its `otto-born` variation, turn it on in Test via the UI, paste the SDK block into `server.py`, say hi. | Config + variation |
+| `02-give-otto-personality` | challenge | Edit Otto's prompt in the UI, no redeploy. | — |
+| `03-otto-on-brand` | challenge | Create the `brand-voice` and `safety-rules` prompt snippets, refactor Otto's prompt around them. | — |
+| `04-quiz-configs-and-snippets` | quiz | Consolidation quiz. | — |
+| `05-otto-for-everyone` | challenge | **Ask for** the `otto-premium` Sonnet variation, then build the `tier is premium` targeting rule in the UI. | variation |
+| `06-how-is-otto-doing` | challenge | Read Otto's production data in the Monitoring view. | — |
+| `07-trust-but-verify` | challenge | **Ask for** `otto-brand-voice-judge`, patch the app to call it, then start a guarded rollout on `otto-stiff` in the UI and watch it revert. | judge |
+| `08-wrap-up` | quiz | Recap and one question. | — |
 
-**The UI click-paths in both are copied from tracks that actually ran**, pulled with `instruqt track pull launchdarkly/ld-agentcontrol-intro` — `05-otto-for-everyone` for the targeting rule, `07-trust-but-verify` for the rollout. Prefer that over drafting from docs. **The nav is the one thing they disagree on**: that track says `AI → Configs` in one chapter and `Configs` in another, and this track says `Agents → Configs`. Three spellings, so at most one is right; verify once and fix every chapter together.
+**Timelimits sum to exactly `track.yml`'s 7200** — 300 + 1200 + 600 + 900 + 600 + 900 + 900 + 1200 + 600. Adding anything means taking time from another chapter.
 
-See DECISIONS.md for both. The upstream fix is a typed add-rule tool and a guarded-rollout endpoint; until then, don't write prose that promises a learner never touches the UI.
+**Prompt snippets are back in scope** and are chapter 03's whole subject. `terraform/challenge-03` builds them for the solve path; the learner creates them in the UI.
 
-Five challenges, **40 minutes** self-paced. The chapter set is driven by six learning objectives — see DECISIONS.md, "Track rebuilt around six learning objectives".
+**The `server.py` pastes are back, and must NOT be pre-baked.** `vm-image/check-image.sh` asserts the *stubs* are intact — inverted back on 2026-09-02 from the 2026-08-27 pre-bake. Two patches compose over the shipped stub, verified: `terraform/challenge-01/patch-server.py` (chapter 01's `/chat` wiring) then `terraform/evaluate-03/patch-server.py` (chapter 07's judge call, which lands on a marker the first paste leaves behind). Both are idempotent.
 
-| Dir | Type | Beat |
-|---|---|---|
-| `01-meet-togglewear` | challenge | Orientation, then connect to the MCP server and prove it with a real call. |
-| `02-otto-is-born` | challenge | One prompt creates the `otto-assistant` Config, its `otto-born` variation, and the Test targeting rule. A read-only walkthrough of the six SDK lines, then a live prompt edit changes a shipping policy mid-session with no deploy. |
-| `03-otto-knows-his-audience` | challenge | One prompt adds `otto-premium` on Sonnet; the learner builds the `tier is premium` targeting rule in the UI's rule builder, then reads it back through the agent. No app change at all — the chapter's point. |
-| `04-otto-gets-graded` | challenge | One prompt creates `otto-brand-voice-judge` in judge mode, attaches it at 100% sampling, and creates the metric. The app already invokes it. |
-| `05-trust-but-verify` | challenge | Setup pre-builds the `otto-stiff` Nova Pro variation and the judge attachment. The learner tours them and starts the guarded rollout **in the UI** — it has no API. No agent prompt in the chapter at all. |
-| `06-wrap-up` | quiz | Recap and one question. |
+## What is ours, not the original's
 
-**The budget is 40 minutes and it is fully spent** — 240 + 480 + 360 + 300 + 900 + 120 = 2400, exactly `track.yml`'s `timelimit`. It was 35 minutes / 2100s until 2026-08-31, when `05-trust-but-verify` went from 600s to 900s: it became a UI chapter with a tour and a rollout dialog, and the rollback needs clock to fire. The operator chose to extend the track rather than take the time from another chapter — the alternatives, and why each was worse, are in DECISIONS.md. Adding anything now means taking the time from another chapter or extending again.
+Everything else is restored verbatim from `launchdarkly-labs/ld-instruqt`. These four things are not, and each exists for a reason:
 
-**There are no `server.py` pastes any more.** Both were pre-baked into the VM image on 2026-08-27 to buy the time — see DECISIONS.md, "Cut to 35 minutes". The learner touches LaunchDarkly only. Consequences worth knowing before you edit anything:
+- **`instruqt-agentcontrol-mcp/track_scripts/`** — a superset of the original's. Same project bootstrap and key export, plus minting the scoped `LD_API_TOKEN`, rendering `app/.mcp.json`, patching `/root/.claude.json`, and inviting the lab SSO user as Writer so UI writes work at all (see DECISIONS.md, "Invite the lab SSO user as Writer").
+- **`vm-image/build-image.sh` and `check-image.sh`** — also a superset. The original's neither installs Claude Code nor deletes this file from the learner's VM.
+- **`app/.mcp.json.example`** — has no counterpart upstream.
+- **`terraform/evaluate-03` and `evaluate-07`** — lifted from the Evaluate track, because chapter 07 came from there. The `ld-agentcontrol-intro` platform track's version of that chapter references a `terraform/challenge-07` that exists in **no repository**; it was pushed from an uncommitted working copy and its setup would fail. Do not treat that track as a source of truth.
 
-- `app/server.py` ships with `/chat` wired and `score_response()` implemented. `terraform/challenge-01` and `challenge-02`'s `patch-server.py` are now idempotent no-ops on a correctly baked image, and are kept so solve still works if someone bakes from an older commit.
-- `vm-image/check-image.sh` asserts the *implementations* are present. It used to assert the stubs were. Inverting that back would silently ship an unwired app.
-- The paste assertions in `02`'s and `04`'s `check-workstation` are retained but their `fail-message` text now blames the image, not the learner — because that's the only thing that can cause them to fire.
+### Chapter-to-module mapping
 
-**The tightest chapter is still `05-trust-but-verify`**, even at 900s: a UI tour, a rollout dialog, and then waiting for a regression detector we do not control. The comparable chapter in the `ld-agentcontrol-intro` track allows 1200s for the same content. If a live run overshoots, that is the next number to move.
+The original's mapping is 1:1 and sorted, which is the point of restoring it — the two-scheme divergence documented here until 2026-09-02 is gone:
 
-### Two numbering schemes, deliberately
+| Chapter | Terraform module |
+|---|---|
+| `01-otto-is-born` | `challenge-01` (+ `patch-server.py`, `server-paste.py`) |
+| `02-give-otto-personality` | `challenge-02` |
+| `03-otto-on-brand` | `challenge-03` (prompt snippets) |
+| `04-quiz-configs-and-snippets` | none |
+| `05-otto-for-everyone` | `challenge-05` |
+| `06-how-is-otto-doing` | `challenge-06` |
+| `07-trust-but-verify` | `evaluate-07` (Nova Pro + `otto-stiff`) and `evaluate-03` (judge + metric + `patch-server.py`) |
+| `08-wrap-up` | none |
 
-**Directory index** is presentation order only: `01`..`06`.
+Chapter 07 is the one seam. It came from the Evaluate track, so it keeps that track's module names rather than being renumbered to `challenge-07` — renaming would diverge from the committed upstream for no gain, and `challenge-07` is precisely the name the unrestorable platform track used. Its setup applies `evaluate-07` in full and **only `launchdarkly_metric.brand_voice_score`** out of `evaluate-03`, with `-target`, because the learner asks the agent for the judge; solve applies `evaluate-03` in full instead.
 
-**Terraform modules and code markers** are numbered by *substantive* chapter, and do not shift — including when a chapter is cut or a new one lands in the middle. The mapping is therefore no longer sorted, and that is the intended behaviour, not drift:
-
-| Module | Chapter | Directory |
-|---|---|---|
-| `challenge-01` | Otto's Config | `02-otto-is-born` |
-| `challenge-02` | brand-voice judge | `04-otto-gets-graded` |
-| `challenge-03` | review gate | **none — chapter cut, module retained** |
-| `challenge-04` | guarded rollout | `05-trust-but-verify` |
-| `challenge-05` | tier-based routing | `03-otto-knows-his-audience` |
-
-The `server.py` markers (`Challenge 01 paste block`, `Challenge 02 judge: replace this body`, `Challenge 03 review gate: replace this body`) match that scheme, because patch scripts and checks match on those exact strings. The third marker is now unreachable from any chapter but stays in `server.py` — it's the stub a learner falls back to, and removing it would break `terraform/challenge-03/patch-server.py`. The routing and guarded-rollout chapters add no markers: neither touches the app.
+`server.py` markers: `Challenge 01 paste block` and `Challenge 07 judge injects below this marker`. Patch scripts and `check-image.sh` match on those exact strings — changing one means changing `server.py`, the paste file, the patch script and the assignment together.
 
 Learner-facing prose names chapters rather than numbering them, so a reorder can't make it wrong.
 
-**Lecture content lives in slides, not in the tracks.** Don't embed conceptual exposition in `assignment.md` beyond what a self-paced learner needs to make sense of each step.
+**Lecture content lives in slides, not in the tracks.** Don't embed conceptual exposition in `assignment.md` beyond what a self-paced learner needs.
 
 ## The reference track
 
@@ -70,33 +72,23 @@ This track mirrors the structure and conventions of an existing LaunchDarkly Ins
 
 ```
 <repo-root>/
-├── CLAUDE.md                       # this file
-├── DECISIONS.md                    # why decisions were made
-├── PHASES.md                       # build sequence
-├── NARRATIVE.md                    # Otto's story + voice guide
-├── OPERATOR-CHECKLIST-mcp.md       # pre-delivery checklist
-├── instruqt-agentcontrol-mcp/      # the track
-│   ├── track.yml                   # slug ld-agentcontrol-mcp
-│   ├── config.yml
-│   ├── track_scripts/{setup,cleanup}-workstation
-│   ├── 01-meet-togglewear/ … 06-wrap-up/
-│   └── assets/                     # images referenced from assignment.md
-├── app/                            # ToggleWear app, baked into the VM image
-│   ├── server.py                   # FastAPI server + review queue + static
-│   ├── static/{index.html,app.js,style.css,images/}
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── .mcp.json.example           # rendered to .mcp.json at lab start
+├── CLAUDE.md / DECISIONS.md / PHASES.md / NARRATIVE.md / OPERATOR-CHECKLIST-mcp.md
+├── instruqt-agentcontrol-mcp/      # the track — slug ld-agentcontrol-mcp
+│   ├── track.yml (timelimit 7200) / config.yml
+│   ├── track_scripts/{setup,cleanup}-workstation   # OURS: token, .mcp.json, SSO invite
+│   ├── 00-welcome/ … 08-wrap-up/                   # the original's chapters
+│   └── assets/
+├── app/                            # ToggleWear — restored from ld-instruqt
+│   ├── server.py                   # ships with BOTH paste stubs intact
+│   ├── static/ requirements.txt .env.example
+│   └── .mcp.json.example           # OURS
 ├── terraform/
-│   ├── student-bootstrap/          # LD project + test env (track setup)
-│   ├── challenge-01/               # Otto's Config + SDK paste
-│   ├── challenge-02/               # brand-voice judge + metric + attachment
-│   ├── challenge-03/               # thresholds flag + review-gate paste
-│   ├── challenge-04/               # Nova Pro + otto-stiff + rollout fallback
-│   └── challenge-05/               # Sonnet + otto-premium + tier targeting rule
-├── gcp-federation/                 # AWS IAM role + GCP OIDC trust for Bedrock
-├── traffic-generator/              # background traffic so scores populate
-└── vm-image/                       # inputs for baking the VM image
+│   ├── student-bootstrap/          # identical to upstream
+│   ├── challenge-01/ 02/ 03/ 05/ 06/
+│   └── evaluate-03/ evaluate-07/   # chapter 07's modules
+├── gcp-federation/
+├── traffic-generator/              # background_traffic.py, sabotage.py
+└── vm-image/                       # OURS: build-image.sh, check-image.sh, README.md
 ```
 
 ## Instruqt conventions (extracted from the reference track)
@@ -129,7 +121,7 @@ tabs:
 
 Challenge and tab ids are random 12-character alphanumeric strings; generate fresh ones per challenge. Reference tabs by index: `[LaunchDarkly](#tab-0)`, `[ToggleWear](#tab-1)`, `[Code Editor](#tab-2)`.
 
-**Exception:** `03-otto-asks-for-help` adds a fourth tab, "Staff Review" (`#tab-3`), pointing at the app's `/review` page. Indices 0-2 are unchanged, so no existing reference moves. See the reviewer-surface entry in `DECISIONS.md` for why the review queue is its own page rather than a panel on the storefront.
+All nine chapters use exactly those three tabs — there is no fourth-tab exception any more. The "Staff Review" tab belonged to the review-gate chapter, which is gone along with the `/review` page it pointed at.
 
 ### `assignment.md` body voice
 
@@ -165,7 +157,7 @@ Three pastes, but only the first is an inline block:
 
 1. **Challenge 01** replaces the marked stub inside `/chat`.
 2. **Challenge 02** replaces the body of `score_response(req, assistant_text, model_id) -> Optional[float]`.
-3. **Challenge 03** replaces the body of `gate_response(req, assistant_text, score, model_id) -> tuple[str, str]`.
+(There is no third paste. The review gate's `gate_response()` went with the app restore.)
 
 `/chat` calls both functions in order and then `_remember(session_id, user_message, final_text)`, so history always records the text the customer actually received.
 
@@ -218,7 +210,7 @@ When implementing, **verify the latest stable version** before pinning. Don't as
 
 - Re-teaching LaunchDarkly basics. Assume mastery.
 - Prompt snippets, experiments, agent-mode Configs, agent graphs, tool management. Each is named in `06-wrap-up` as a next step; none is taught.
-- **Human-in-the-loop review.** Was `04-otto-asks-for-help`; cut 2026-08-27 because it maps to none of the six objectives. The chapter is gone but `terraform/challenge-03`, `gate_response()`, the review queue, `/review`, and the Staff Review page all remain in the repo unreferenced, so restoring it is a chapter rewrite rather than a rebuild. Do not delete them without checking DECISIONS.md first.
+- **Human-in-the-loop review.** Cut 2026-08-27, and as of the 2026-09-02 restore its code is gone too: the app came back from upstream without `gate_response()`, the review queue, `/review`, `review.html` or `review.js`, and `terraform/challenge-03` is now the prompt-snippets module. Restoring that chapter is a genuine rebuild, not a rewrite. The last commit that had it is the parent of the restore — see DECISIONS.md, "Restored to the original UI track".
 - **Guarded rollouts and targeting by user attribute were out of scope until 2026-08-27 and are now taught**, in `05-trust-but-verify` and `03-otto-knows-his-audience`.
 - **Offline evaluations are an objective with no MCP path.** Not built. The public REST API has no dataset or evaluation endpoints at all, and the docs describe offline evals as a UI-only flow under Agents → Configs → Playgrounds. See DECISIONS.md before attempting a chapter.
 - Lecture content. Presenters deliver that via slides.

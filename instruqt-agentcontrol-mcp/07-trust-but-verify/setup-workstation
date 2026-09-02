@@ -1,0 +1,81 @@
+#!/bin/sh
+
+# Per-challenge setup for ch07 (guarded rollout).
+#
+# Three jobs. The middle one is the reason this script isn't just the original.
+#
+# 1. Apply the evaluate-07 module: the Nova Pro model config and the Otto
+#    (Stiff) variation. Deliberately off-brand, meant to score badly, so the
+#    rollout has something real to detect.
+#
+# 2. Apply ONLY the metric out of evaluate-03, with -target. In the original
+#    Evaluate track that whole module ran in its own chapter and created the
+#    brand-voice judge as well. Here the learner asks the agent for the judge,
+#    so terraform must not create it — otherwise their prompt is a no-op
+#    against a resource that already exists, and the chapter teaches nothing.
+#
+#    The metric is a different matter: it is the thing the judge writes into
+#    and the thing the rollout watches, and nothing in the chapter asks the
+#    learner to create it. Pre-building it keeps the judge prompt honest
+#    without pre-empting it.
+#
+#    Note evaluate-03's own null_resource.wire_evaluation_metric is commented
+#    out upstream, so otto-assistant's evaluationMetricKey is NOT set by
+#    terraform. That is inherited behaviour, not an omission here — see the
+#    VERIFY in this chapter's assignment about the metric picker.
+#
+# 3. Start background traffic so the metric has a baseline before the rollout
+#    begins. A guarded rollout with no data sits at stage one indefinitely.
+#
+# The server-side judge call is NOT patched here. evaluate-03/patch-server.py
+# hardcodes the otto-brand-voice-judge key and would wire the app to a judge
+# the learner has not created yet. The assignment runs it after the prompt
+# succeeds instead.
+
+set -e
+
+REPO=/opt/ld/ai-configs-intro
+
+cd "$REPO/terraform/evaluate-07"
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+terraform apply -auto-approve
+
+cd "$REPO/terraform/evaluate-03"
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+terraform apply -auto-approve -target=launchdarkly_metric.brand_voice_score
+
+# Wire otto-assistant's evaluationMetricKey at the metric.
+#
+# evaluate-03's null_resource.wire_evaluation_metric is commented out upstream,
+# so nothing in terraform does this — and this chapter's check-workstation
+# asserts it, with a fail-message blaming "Challenge 03". Inherited straight
+# from the Evaluate track, where it would have failed 100% of the time.
+#
+# It matters beyond the check: this is the field the guarded-rollout dialog
+# reads to pre-select which metric the rollout watches. Without it the learner
+# opens the dialog to an empty metric picker.
+#
+# Non-fatal on purpose. If it fails the learner can still choose the metric by
+# hand in the dialog, and failing setup over it would be worse.
+curl -fsS -X PATCH \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+  -H 'Content-Type: application/json' \
+  -H 'LD-API-Version: beta' \
+  --data-raw '{"evaluationMetricKey":"otto-brand-voice-score"}' \
+  >/dev/null 2>&1 \
+  || echo "(could not wire evaluationMetricKey — learner picks the metric in the rollout dialog)"
+
+# Stop any prior traffic generators; start background_traffic.py.
+pkill -f experiment_traffic.py 2>/dev/null || true
+pkill -f realchat_traffic.py 2>/dev/null || true
+
+if ! pgrep -f background_traffic.py > /dev/null; then
+  nohup "$REPO/app/.venv/bin/python3" \
+    "$REPO/traffic-generator/background_traffic.py" \
+    > /var/log/togglewear-bg-traffic.log 2>&1 &
+fi
+
+exit 0

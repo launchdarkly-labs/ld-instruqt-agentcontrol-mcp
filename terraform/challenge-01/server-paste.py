@@ -1,4 +1,3 @@
-    # ─── Challenge 01: wire Otto to /chat ─────────────────────────────────
     # Build context, evaluate the otto-assistant Config.
     context = Context.builder(req.session_id).set("tier", req.user_tier).build()
     cfg = ai_client.completion_config(OTTO_CONFIG_KEY, context, FALLBACK_CONFIG)
@@ -43,6 +42,9 @@
         })
 
     assistant_text = _extract_text(response)
+    with _state_lock:
+        _history[req.session_id].append(LDMessage(role="user", content=req.message))
+        _history[req.session_id].append(LDMessage(role="assistant", content=assistant_text))
 
     usage = response.get("usage") or {}
     metrics = response.get("metrics") or {}
@@ -51,3 +53,5 @@
         req.session_id, req.user_tier, turn, model_id,
         usage.get("inputTokens"), usage.get("outputTokens"), metrics.get("latencyMs"),
     )
+
+    # ─── Challenge 07 judge injects below this marker ──────────────────────

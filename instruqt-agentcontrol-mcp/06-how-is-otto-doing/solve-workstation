@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# Solve re-runs the traffic generator, which is what setup also did. If a
+# learner skipped this challenge, they still get a populated monitoring view.
+
+set -e
+
+VENV=/opt/ld/ai-configs-intro/app/.venv
+SCRIPT=/opt/ld/ai-configs-intro/traffic-generator/generate_traffic.py
+"$VENV/bin/python" "$SCRIPT"
+
+exit 0

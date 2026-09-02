@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# 1. Both snippets exist.
+for snip in brand-voice safety-rules; do
+  STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+    "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/prompt-snippets/${snip}" \
+    -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" | sed 's/\\/\\\\/g')
+  if [ "$STATUS" != "200" ]; then
+    fail-message "The **${snip}** snippet doesn't exist yet. Create it from the Library → Snippets page."
+    exit 1
+  fi
+done
+
+# 2. otto-born's system message references both snippets.
+PROMPT=$(curl -s -X GET \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/variations/otto-born" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" | sed 's/\\/\\\\/g' \
+  | jq -r '.items[0].messages[]? | select(.role=="system") | .content')
+
+# The canonical snippet-reference syntax is `{{snippet.<key>#<version>}}`,
+# but the LD UI's "Load snippet" button may inline the snippet's text
+# rather than insert the template token. We just look for the snippet key
+# substring — it lands either way (the key appears in the markup if the
+# token is inserted, and "brand-voice"/"safety-rules" appear in the
+# inlined text either way since those words live inside the snippets).
+if ! echo "$PROMPT" | grep -q 'brand-voice'; then
+  fail-message "Otto's prompt doesn't reference the **brand-voice** snippet. Insert it where Otto's personality used to be."
+  exit 1
+fi
+
+if ! echo "$PROMPT" | grep -q 'safety-rules'; then
+  fail-message "Otto's prompt doesn't reference the **safety-rules** snippet. Insert it where the don't-make-things-up guardrails used to be."
+  exit 1
+fi
+
+exit 0
