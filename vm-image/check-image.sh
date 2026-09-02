@@ -26,11 +26,15 @@ head2 "Repo and app source"
 [ -f "$APP/server.py" ] && ok "app/server.py present" || bad "app/server.py missing" "wrong REPO_REF?"
 [ -f "$APP/.mcp.json.example" ] && ok "app/.mcp.json.example present (setup renders this)" \
   || bad "app/.mcp.json.example missing" "setup-workstation will abort on the sed; you baked an old commit"
-for d in challenge-01 challenge-02 challenge-03 challenge-04 challenge-05 student-bootstrap; do
+# Module list follows the restored chapter set (2026-09-02): challenge-04 went
+# with the MCP-era rollout chapter; evaluate-03 and -07 arrived with chapter 07.
+for d in challenge-01 challenge-02 challenge-03 challenge-05 challenge-06 \
+         evaluate-03 evaluate-07 student-bootstrap; do
   [ -d "$REPO/terraform/$d" ] && ok "terraform/$d present" || bad "terraform/$d missing" "wrong REPO_REF"
 done
-[ -f "$APP/static/review.html" ] && ok "staff review page present (retired chapter; kept for restore)" \
-  || warn "app/static/review.html missing" "harmless today — the review-gate chapter is cut. Only matters if that chapter is restored; see DECISIONS.md"
+# The review-gate assertion is gone: the 2026-09-02 app restore removed
+# review.html, review.js and gate_response() outright, so its absence is
+# correct rather than tolerable.
 
 head2 "Authoring docs stripped (they spoil the labs)"
 LEAK=0

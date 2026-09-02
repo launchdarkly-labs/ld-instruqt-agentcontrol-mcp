@@ -127,8 +127,19 @@ cd /opt/ld/ai-configs-intro/terraform/student-bootstrap
 terraform init
 
 say "Pre-initializing per-challenge terraform modules"
-for ch in challenge-01 challenge-02 challenge-03 challenge-04 challenge-05; do
-    (cd "/opt/ld/ai-configs-intro/terraform/${ch}" && terraform init -input=false)
+# Module list follows the restored chapter set (2026-09-02). challenge-04 is
+# gone with the MCP-era guarded-rollout chapter, and evaluate-03/-07 are new
+# with chapter 07. Getting this list wrong is not a soft failure: the subshell
+# `cd` into a missing directory returns non-zero and this script is `set -e`,
+# so a stale name aborts the whole bake partway through.
+for ch in challenge-01 challenge-02 challenge-03 challenge-05 challenge-06 \
+          evaluate-03 evaluate-07; do
+    dir="/opt/ld/ai-configs-intro/terraform/${ch}"
+    if [ -d "$dir" ]; then
+        (cd "$dir" && terraform init -input=false)
+    else
+        say "  WARNING: terraform/${ch} not in this checkout — skipping"
+    fi
 done
 
 say "Pre-seeding Claude Code so the learner's first run has no prompts"
