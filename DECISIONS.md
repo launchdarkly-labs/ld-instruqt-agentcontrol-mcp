@@ -831,3 +831,38 @@ Worth remembering: **the CLI will pull any track by slug into an empty directory
 **The cost, and it is the same one as chapter 05's.** Two chapters now require the sandbox sign-in and neither has a fallback. That sign-in is documented above as unreliable. `01-meet-togglewear` has been rewritten to say the UI is needed rather than optional — the third time that sentence has moved, and the first time it says the UI is *required*. It should not be walked back again: it has been written as "nothing needs the UI" twice and falsified twice.
 
 **Not changed: the 360s limit.** The rule builder is slower than a paste, probably by a minute. The comparable intro-track chapter allows 900s. The budget was extended to 2400s two days ago for chapter 05 and the operator did not ask for more here, so this stays as it is and gets watched on the next live run rather than pre-emptively grown.
+
+---
+
+## Restored to the original UI track, with MCP for three creation steps (2026-09-02)
+
+**Decision:** the whole MCP-first track is withdrawn. `instruqt-agentcontrol-mcp/` is now the original eight-chapter UI-driven workshop, restored from `launchdarkly-labs/ld-instruqt`, with exactly three steps swapped to agent prompts: the Config, the variations, and the judge. Operator's call, after a run of the MCP-first version: *"i dont like whole workshop… as close as possible to the original but use the MCP for creating the config and variation."*
+
+**This reverses, in one commit:** "MCP server replaces the LaunchDarkly UI as the build interface" (2026-08-14), "Scope cut to one track" and its 35-minute descendant "Cut to 35 minutes" (2026-08-27), the six-objective chapter set, the pre-baking of both `server.py` pastes, and every chapter written against them. Prompt snippets and the monitoring chapter come back into scope; the review gate stays out.
+
+**What the base actually is, because two candidates were wrong.**
+
+- `ld-agentcontrol-intro` on the platform looks like the ideal base — eight chapters, 7200s, includes the rollout. **It is not restorable.** Its `07-trust-but-verify` setup applies `terraform/challenge-07`, which exists in *neither* `ld-instruqt` nor `ld-workshop-ai-configs-intro`. It was pushed from an uncommitted working copy, and its setup would fail on a fresh lab. It is a reference for prose only, never for infrastructure.
+- `instruqt-build` in `ld-instruqt` **is** cleanly restorable: seven chapters, a 1:1 sorted chapter→module mapping, every module committed.
+
+So the base is `instruqt-build` plus `instruqt-evaluate/07-trust-but-verify`, which brings `evaluate-07` (Nova Pro + `otto-stiff`) and `evaluate-03` (judge + metric + `patch-server.py`). Timelimits sum to 7200 unchanged, which is also what the platform track claims — the two agree on shape, and only ours has working terraform behind it.
+
+**A piece of luck worth recording:** `evaluate-03` creates `otto-brand-voice-judge` and `otto-brand-voice-score` — the exact keys this repo already used. Those names were never ours; they came from the Evaluate track. The `otto-response-judge` / `otto-quality-score` naming exists *only* in the unrestorable platform track. So the traffic generators, `sabotage.py` and the judge prose all still line up with no renaming.
+
+**Where MCP survives, and why only there.** Creating a resource is the one thing where describing it beats clicking it, and it is also the only thing the hosted MCP server does reliably — the two findings that killed the MCP-first track were that it cannot write a custom AI Config targeting rule, and that a guarded rollout has no endpoint at all. Both of those are now UI steps in chapters the original already wrote that way, so those failures are designed out rather than worked around.
+
+- `01-otto-is-born` — Config and first variation. Everything else in the chapter (turning it on in Test, the `server.py` paste, saying hi) is the original's.
+- `05-otto-for-everyone` — the premium variation. The targeting rule stays UI.
+- `07-trust-but-verify` — the judge, followed by the learner running `evaluate-03/patch-server.py` to wire the app to it. The rollout stays UI.
+- `00-welcome` gains a connect-and-prove-it step, because three chapters now depend on the agent and discovering a broken MCP connection in chapter 07 would be miserable.
+
+**Four things kept rather than restored**, each MCP- or lab-necessary: our `track_scripts/` (superset — token minting, `.mcp.json`, SSO Writer invite), our `vm-image/` (superset — installs Claude Code, deletes this file from the learner's VM), `app/.mcp.json.example`, and the two Evaluate modules. Documented in CLAUDE.md under "What is ours, not the original's" so the next author doesn't "restore" them away.
+
+**Two inherited bugs found and fixed while wiring chapter 07.** Both would have failed every run:
+
+- Its check asserted `otto-assistant.evaluationMetricKey == "otto-brand-voice-score"` with a fail-message blaming "Challenge 03" — but `evaluate-03`'s `null_resource.wire_evaluation_metric` is **commented out upstream**, so nothing set it. Setup now PATCHes it, non-fatally. It matters beyond the check: it is the field the guarded-rollout dialog reads to pre-select the metric.
+- Setup applied `evaluate-03` in full, which would have created the judge the learner is asked to create — making their prompt a no-op against an existing resource. Now `-target`ed to the metric alone.
+
+**Verified, not assumed.** Both `server.py` patches composed over the restored stub in a scratch tree: unpatched parses, `challenge-01` then `evaluate-03` both apply, the result parses, both are idempotent. All 24 chapter scripts pass `sh -n`; all eight terraform modules `init`/`validate` clean (`evaluate-03` needed a whitespace-only `fmt`, inherited); `instruqt track validate` clean with no `.remote` files. All 30 challenge and tab IDs were regenerated — the copied ones belong to `ld-agentcontrol-build` and `-evaluate`, which are still live.
+
+**Not verified, and the operator owns it: the VM image must be rebaked.** `check-image.sh` has been inverted back to asserting the paste stubs are *intact*, which is correct for these chapters and wrong for the currently-baked image. Until someone rebakes and re-registers, chapter 01 opens `server.py` to find the exercise already done and chapter 07 wires the app to a judge before the learner creates it.

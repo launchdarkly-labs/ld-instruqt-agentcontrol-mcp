@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Populate Otto's monitoring view by simulating ~30 seconds of chat traffic
+# against the existing variations. Runs the generator synchronously so the
+# challenge doesn't start until data is in LaunchDarkly.
+
+set -e
+
+VENV=/opt/ld/ai-configs-intro/app/.venv
+SCRIPT=/opt/ld/ai-configs-intro/traffic-generator/generate_traffic.py
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-06
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+
+echo "Running traffic generator..."
+"$VENV/bin/python" "$SCRIPT"
+
+exit 0

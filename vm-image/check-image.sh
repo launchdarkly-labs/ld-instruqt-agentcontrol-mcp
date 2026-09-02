@@ -55,19 +55,27 @@ head2 "Python venv"
   || bad "an SDK import failed" "check app/requirements.txt installed cleanly"
 "$APP/.venv/bin/python3" -c "import ast,pathlib; ast.parse(pathlib.Path('$APP/server.py').read_text())" 2>/dev/null \
   && ok "server.py parses" || bad "server.py does not parse" "bad commit baked"
-# The two learner-facing pastes are PRE-BAKED as of 2026-08-27 — the app ships
-# fully wired so the 35-minute track spends no time on code. So these assert the
-# opposite of what they used to: the implementations must be present, not the
-# stubs. See DECISIONS.md, "Cut to 35 minutes".
-grep -q '# ─── Challenge 01: wire Otto to /chat' "$APP/server.py" \
-  && ok "/chat is pre-wired to Bedrock" \
-  || bad "/chat is still the unwired stub" "run terraform/challenge-01/patch-server.py before saving the image, or Otto returns a canned reply all track"
-grep -q '# ─── Challenge 02: brand-voice judge' "$APP/server.py" \
-  && ok "score_response() pre-wired to the judge" \
-  || bad "score_response() is still the stub" "run terraform/challenge-02/patch-server.py before saving; without it the judge never scores and the guarded rollout has no metric"
-grep -q 'Challenge 03 review gate: replace this body' "$APP/server.py" \
-  && ok "gate_response stub intact (retired chapter; stub is the shipping behaviour)" \
-  || warn "gate_response stub marker missing" "the review-gate chapter is cut, so this only matters if it's restored"
+# server.py must ship with the STUBS INTACT, not the implementations.
+#
+# This inverts what it asserted between 2026-08-27 and 2026-09-02, when both
+# pastes were pre-baked to buy time in a 35-minute track. That is undone: the
+# track is the original 8-chapter UI-driven one again, chapter 01 teaches the
+# /chat paste, and chapter 07 runs evaluate-03/patch-server.py after the judge
+# prompt. Baking either implementation now means the learner opens server.py to
+# find their exercise already done.
+#
+# Verified 2026-09-02 by composing both patches over this server.py in a scratch
+# tree: unpatched parses, challenge-01 then evaluate-03 both apply, the result
+# parses, and both are idempotent on re-run.
+grep -q 'Challenge 01 paste block' "$APP/server.py" \
+  && ok "Challenge 01 paste stub intact (the learner wires /chat)" \
+  || bad "Challenge 01 paste stub is missing" "server.py looks pre-wired — do NOT run terraform/challenge-01/patch-server.py before saving the image, or chapter 01 has nothing to teach"
+if ! grep -q 'ai_client.judge_config' "$APP/server.py"; then
+  ok "judge call not pre-baked"
+else
+  bad "server.py already calls the judge" "chapter 07 patches this in after the learner's judge prompt; pre-baking wires the app to a Config that does not exist yet"
+fi
+
 
 head2 "Claude Code"
 command -v claude >/dev/null 2>&1 && ok "claude on PATH ($(command -v claude))" \

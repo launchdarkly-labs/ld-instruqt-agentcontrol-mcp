@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/challenge-03
+terraform apply -auto-approve
+
+exit 0

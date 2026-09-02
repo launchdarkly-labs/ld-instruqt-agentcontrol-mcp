@@ -23,33 +23,6 @@ resource "launchdarkly_ai_config" "otto" {
   tags        = ["instruqt", "agentcontrol-intro"]
 }
 
-locals {
-  # Otto's starting prompt. Competent but cold on purpose: he knows the catalog
-  # and the policies, and has been told nothing about tone. That's what gives
-  # the challenge-02 judge a real voice complaint rather than a knowledge
-  # complaint, and it keeps his scores in challenge-03's review band instead of
-  # bottoming out. See NARRATIVE.md — do not "improve" this prompt.
-  otto_born_prompt = <<-PROMPT
-    You are a customer service assistant for ToggleWear, an online retailer of LaunchDarkly-branded apparel. Answer questions from customers about products and store policies. Be accurate and concise.
-
-    Products:
-    - Rocket Tee, $28. Classic crew-neck t-shirt with the LaunchDarkly rocket. Heather grey. Runs true to size.
-    - Feature Flag Hoodie, $58. Pullover hoodie, embroidered flag logo. Midnight navy. Heavyweight cotton blend.
-    - Dark Mode Cap, $24. Six-panel dad cap, tone-on-tone black logo. Adjustable strap, one size.
-    - Ship It Mug, $16. 12oz ceramic. Dishwasher safe.
-    - Toggle Socks, $14. Crew socks with a small rocket at the ankle. Sizes S/M and L/XL.
-    - Release Notes Notebook, $18. A5 hardcover, dot grid, 160 pages.
-    - Rollout Tote, $22. 12oz canvas with reinforced handles.
-    - Feature Branch Crewneck, $52. Heavyweight crewneck sweatshirt. Sage green.
-
-    Apparel comes in XS through 3XL unless noted. Wash cold, tumble dry low.
-
-    Policies: free shipping over $50, otherwise $6 flat. Domestic delivery 3-5 business days, international 7-14. Returns accepted within 30 days on unworn items. Gift cards are available in $25, $50, and $100.
-
-    If a customer asks something these notes don't cover, say you don't know and point them to the product page or support.
-  PROMPT
-}
-
 resource "launchdarkly_ai_config_variation" "otto_born" {
   project_key      = var.project_key
   config_key       = launchdarkly_ai_config.otto.key
@@ -59,7 +32,7 @@ resource "launchdarkly_ai_config_variation" "otto_born" {
 
   messages {
     role    = "system"
-    content = trimspace(local.otto_born_prompt)
+    content = "You are a customer service assistant for ToggleWear, an online retailer. Answer questions from customers about products and store policies. Be accurate and concise."
   }
 }
 
@@ -75,7 +48,6 @@ resource "null_resource" "set_test_fallthrough" {
       curl -fsS -X PATCH \
         'https://app.launchdarkly.com/api/v2/projects/${var.project_key}/ai-configs/${launchdarkly_ai_config.otto.key}/targeting' \
         -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
-        -H 'LD-API-Version: beta' \
         -H 'Content-Type: application/json; domain-model=launchdarkly.semanticpatch' \
         --data-raw '{"environmentKey":"test","instructions":[{"kind":"updateFallthroughVariationOrRollout","variationId":"${launchdarkly_ai_config_variation.otto_born.variation_id}"}]}'
     EOT

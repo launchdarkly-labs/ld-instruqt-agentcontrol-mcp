@@ -1,30 +1,36 @@
 'use strict';
 
 const PRODUCTS = [
-  { id: 'rocket-tee', name: 'Rocket Tee', price: 28,
-    desc: 'Classic crew-neck t-shirt with the LaunchDarkly rocket. Heather grey.',
-    img: '/static/images/rocket-tee.svg' },
+  { id: 'togglebot-tee', name: 'ToggleBot Tee', price: 28,
+    desc: 'Crew-neck tee with the ToggleBot mascot. Charcoal grey.',
+    img: '/static/images/togglebot-tee.png' },
   { id: 'feature-flag-hoodie', name: 'Feature Flag Hoodie', price: 58,
-    desc: 'Pullover hoodie. Embroidered flag logo. Midnight navy.',
-    img: '/static/images/feature-flag-hoodie.svg' },
+    desc: 'Pullover hoodie with flag management diagram. Midnight navy.',
+    img: '/static/images/feature-flag-hoodie.png' },
   { id: 'dark-mode-cap', name: 'Dark Mode Cap', price: 24,
-    desc: 'Six-panel dad cap. Tone-on-tone black logo.',
-    img: '/static/images/dark-mode-cap.svg' },
+    desc: 'Six-panel dad cap. Feature Flag System embroidery. Charcoal.',
+    img: '/static/images/dark-mode-cap.png' },
   { id: 'ship-it-mug', name: 'Ship It Mug', price: 16,
-    desc: '12oz ceramic. "Ship it" in the LaunchDarkly font.',
-    img: '/static/images/ship-it-mug.svg' },
+    desc: '12oz ceramic with "Ship it" and the ToggleWear rocket.',
+    img: '/static/images/ship-it-mug.png' },
   { id: 'toggle-socks', name: 'Toggle Socks', price: 14,
-    desc: 'Crew socks with a tiny rocket on the ankle.',
-    img: '/static/images/toggle-socks.svg' },
+    desc: 'Crew socks with embroidered rocket logo. Charcoal.',
+    img: '/static/images/toggle-socks.png' },
   { id: 'release-notes-notebook', name: 'Release Notes Notebook', price: 18,
-    desc: 'A5 hardcover. Dot grid. For your actual release notes.',
-    img: '/static/images/release-notes-notebook.svg' },
+    desc: 'A5 hardcover. Dot grid. Version, date, and key features cover.',
+    img: '/static/images/release-notes-notebook.png' },
   { id: 'rollout-tote', name: 'Rollout Tote', price: 22,
-    desc: '12oz canvas. Reinforced handles.',
-    img: '/static/images/rollout-tote.svg' },
-  { id: 'feature-branch-crewneck', name: 'Feature Branch Crewneck', price: 52,
-    desc: 'Heavyweight crewneck sweatshirt. Sage green.',
-    img: '/static/images/feature-branch-crewneck.svg' },
+    desc: 'Canvas tote with rollout phase diagram. Reinforced handles.',
+    img: '/static/images/rollout-tote.png' },
+  { id: 'deployment-crewneck', name: 'Deployment Crewneck', price: 52,
+    desc: 'Heavyweight crewneck with deployment workflow. Sage green.',
+    img: '/static/images/deployment-crewneck.png' },
+  { id: 'deployment-hoodie', name: 'Deployment Hoodie', price: 62,
+    desc: 'Pullover hoodie with deployment workflow diagram. Navy.',
+    img: '/static/images/deployment-hoodie.png' },
+  { id: 'neon-flag-hoodie', name: 'Neon Flag Hoodie', price: 64,
+    desc: 'Charcoal hoodie with neon feature flag system graphic.',
+    img: '/static/images/neon-flag-hoodie.png' },
 ];
 
 // ---------- Product grid ----------
@@ -64,7 +70,40 @@ function initTierSwitch() {
   sel.addEventListener('change', () => {
     userTier = sel.value;
     appendBubble('system', `Switched to ${userTier === 'premium' ? 'Premium' : 'Free'} user.`);
+    fetchFeatures();
   });
+}
+
+// ---------- Feature flags ----------
+
+async function fetchFeatures() {
+  try {
+    const res = await fetch(
+      `/api/features?session_id=${encodeURIComponent(getSessionId())}&user_tier=${encodeURIComponent(userTier)}`
+    );
+    if (!res.ok) return;
+    const flags = await res.json();
+    document.getElementById('new-arrivals').hidden = !flags.new_arrivals_enabled;
+    document.getElementById('premium-banner').hidden = !flags.premium_banner_enabled;
+    const sortBar = document.getElementById('sort-bar');
+    sortBar.hidden = !flags.new_layout_enabled;
+    if (flags.new_layout_enabled) {
+      document.getElementById('product-count').textContent = `${PRODUCTS.length} items`;
+    }
+    if (flags.hero_headline) {
+      document.getElementById('hero-headline').textContent = flags.hero_headline;
+    }
+  } catch (_) {
+    // non-fatal — storefront still works without flag data
+  }
+}
+
+// ---------- Event tracking ----------
+
+function trackClick(eventKey) {
+  fetch(`/api/track?session_id=${encodeURIComponent(getSessionId())}&event_key=${encodeURIComponent(eventKey)}`, {
+    method: 'POST'
+  }).catch(() => {});
 }
 
 // ---------- Otto widget ----------
@@ -187,28 +226,6 @@ function initChatForm() {
   });
 }
 
-// ---------- Reviewer decisions coming back (Challenge 03) ----------
-//
-// When the gate holds a response, the customer sees a placeholder and a human
-// decides in the Staff Review tab. This drains whatever they decided and drops
-// it into the transcript, so an approval appears without a page refresh.
-// A no-op until Challenge 03's gate starts holding anything.
-
-const UPDATES_POLL_MS = 3000;
-
-async function pollUpdates() {
-  try {
-    const res = await fetch(`/review/updates?session_id=${encodeURIComponent(getSessionId())}`);
-    if (!res.ok) return;
-    const { messages } = await res.json();
-    (messages || []).forEach((text) => appendBubble('otto', text));
-  } catch (err) {
-    // The endpoint exists from the start, so a failure here is a real error
-    // rather than a not-yet-built challenge. Log and keep polling.
-    console.warn('updates poll error', err);
-  }
-}
-
 // ---------- Boot ----------
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -216,7 +233,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initTierSwitch();
   initOttoPanel();
   initChatForm();
+  fetchFeatures();
   appendBubble('system', "Hi — I'm Otto. Ask me anything about ToggleWear.");
-  pollUpdates();
-  setInterval(pollUpdates, UPDATES_POLL_MS);
+  document.getElementById('shop').addEventListener('click', (e) => {
+    if (e.target.closest('.product')) trackClick('product-click');
+  });
 });

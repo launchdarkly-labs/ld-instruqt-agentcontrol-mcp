@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ToggleWear — Wear your features on your sleeve.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -17,8 +20,6 @@
     <a href="#shop">Shop</a>
     <a href="#about">About</a>
     <a href="#support">Support</a>
-    <!-- Fallback route to the staff queue, in case the Instruqt tab can't deep-link. -->
-    <a href="/review">Staff review</a>
   </nav>
   <div class="tier-switch">
     <label for="user-tier">Logged in as</label>
@@ -31,9 +32,41 @@
 
 <main>
   <section class="hero">
-    <h1>Wear your features on your sleeve.</h1>
-    <p class="hero-sub">LaunchDarkly-branded apparel for people who ship.</p>
+    <div class="hero-content">
+      <span class="hero-eyebrow">ToggleWear Co.</span>
+      <h1 id="hero-headline">Wear your features on your sleeve.</h1>
+      <p class="hero-sub">LaunchDarkly-branded apparel for people who ship.</p>
+      <a href="#shop" class="hero-cta">Shop the collection</a>
+    </div>
   </section>
+
+  <section id="new-arrivals" class="new-arrivals" hidden aria-label="New Arrivals">
+    <div class="new-arrivals-inner">
+      <span class="new-arrivals-badge">New</span>
+      <div class="new-arrivals-text">
+        <strong>New Arrivals</strong>
+        <span>Fresh drops just landed. Scroll down to shop the latest.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="premium-banner" class="premium-banner" hidden aria-label="Premium Members">
+    <div class="premium-banner-inner">
+      <span class="premium-badge">Premium</span>
+      <div class="premium-banner-text">
+        <strong>Members Only</strong>
+        <span>Exclusive drops and early access — available to premium members.</span>
+      </div>
+    </div>
+  </section>
+
+  <div id="sort-bar" class="sort-bar" hidden>
+    <span class="sort-bar-label">All Products</span>
+    <div class="sort-bar-controls">
+      <span class="sort-bar-tag">New Layout</span>
+      <span class="sort-bar-count" id="product-count"></span>
+    </div>
+  </div>
 
   <section id="shop" class="product-grid" aria-label="Products"></section>
 </main>
@@ -69,7 +102,14 @@
 </aside>
 
 <footer class="site-footer">
-  <small>&copy; ToggleWear. A fictional shop for a real LaunchDarkly workshop.</small>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark" aria-hidden="true">◐</span>
+      <span>ToggleWear</span>
+    </div>
+    <p>A fictional shop for a real LaunchDarkly workshop.</p>
+    <small>&copy; 2026 ToggleWear Co. All features are toggleable.</small>
+  </div>
 </footer>
 
 <script src="/static/app.js" defer></script>

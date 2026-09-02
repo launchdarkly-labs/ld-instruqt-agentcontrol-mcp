@@ -1,0 +1,58 @@
+#!/bin/sh
+
+# 1. The otto-premium variation exists with the Sonnet 4.5 model config.
+CONFIG=$(curl -s -X GET \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" | sed 's/\\/\\\\/g')
+
+PREMIUM_MODEL=$(echo "$CONFIG" | sed 's/\\/\\\\/g' | jq -r '.variations[]? | select(.key=="otto-premium") | .modelConfigKey // ""')
+if [ -z "$PREMIUM_MODEL" ]; then
+  fail-message "The premium variation hasn't been added yet. Create a new variation named **Otto (Premium)** with key **otto-premium**."
+  exit 1
+fi
+if [ "$PREMIUM_MODEL" != "Bedrock.anthropic.claude-sonnet-4-6" ]; then
+  fail-message "The premium variation isn't using Claude Sonnet 4.6. Pick **Anthropic Claude Sonnet 4.6** as the model."
+  exit 1
+fi
+
+# 2. The variation has a system message.
+PREMIUM_PROMPT=$(echo "$CONFIG" | sed 's/\\/\\\\/g' | jq -r '.variations[]? | select(.key=="otto-premium") | .messages[]? | select(.role=="system") | .content')
+if [ -z "$PREMIUM_PROMPT" ] || [ "$PREMIUM_PROMPT" = "null" ]; then
+  fail-message "The premium variation needs a system message. Add the premium-tier prompt from the lab."
+  exit 1
+fi
+
+# 3. A targeting rule routes tier==premium to otto-premium.
+TARGETING=$(curl -s -X GET \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant/targeting" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" | sed 's/\\/\\\\/g')
+
+PREMIUM_VAR_ID=$(echo "$TARGETING" | sed 's/\\/\\\\/g' | jq -r '.variations[]? | select(.name=="Otto (Premium)") | ._id')
+
+# Look for a rule with a clause attribute=tier, op=in, values includes "premium",
+# pointing at the premium variation (by index).
+PREMIUM_RULE=$(echo "$TARGETING" | jq -r '
+  .environments.test.rules[]?.clauses[]?
+  | select(.attribute=="tier" and .op=="in" and (.values | index("premium")))
+  | .id
+' | head -1)
+
+if [ -z "$PREMIUM_RULE" ]; then
+  fail-message "No targeting rule for **premium** users found. On the **Targeting** tab, add a rule like: \`user.tier is one of premium\` → **Otto (Premium)**."
+  exit 1
+fi
+
+# This section is commented there are attributes which do not exist. 
+# At some point, I do want to wire this back up, but it needs a different approach.
+# 
+# # Confirm the rule serves the premium variation (by index)
+# RULE_VAR_IDX=$(echo "$TARGETING" | sed 's/\\/\\\\/g' | jq -r --arg rid "$PREMIUM_RULE" '
+#   .environments.test.rules[]? | select(._id==$rid) | .variation
+# ')
+# RULE_VAR_ID=$(echo "$TARGETING" | sed 's/\\/\\\\/g' | jq -r --argjson idx "$RULE_VAR_IDX" '.variations[$idx]._id')
+# if [ "$RULE_VAR_ID" != "$PREMIUM_VAR_ID" ]; then
+#   fail-message "The premium targeting rule is serving the wrong variation. Make sure it routes to **Otto (Premium)**."
+#   exit 1
+# fi
+
+exit 0
