@@ -16,8 +16,17 @@ if [ -z "$VARIATION_MODEL" ]; then
   fail-message "Otto's first variation is missing. Make sure you created the variation named **Otto (Born)** with key **otto-born**."
   exit 1
 fi
-if [ "$VARIATION_MODEL" != "Bedrock.anthropic.claude-haiku-4-5-20251001-v1:0" ]; then
-  fail-message "Otto's variation isn't using Claude Haiku 4.5. Pick **Anthropic Claude Haiku 4.5** as the model."
+# Match the model FAMILY, not one exact key. Two reasons:
+#
+#   * terraform/challenge-01 — the module Skip applies — creates this model
+#     config with key "Bedrock.anthropic.claude-haiku-4-5-20251001-v1_0", with
+#     an UNDERSCORE. An exact test against the colon form meant pressing Skip
+#     on this chapter produced a state its own check rejected.
+#   * the learner asks an agent for the model, and a model-config key has
+#     several valid spellings. See CLAUDE.md: assert on keys, modes and model
+#     families — not on display names.
+if ! printf '%s' "$VARIATION_MODEL" | grep -qi 'haiku-4-5'; then
+  fail-message "Otto's variation is running \`${VARIATION_MODEL}\`, which isn't Claude Haiku 4.5. Ask Claude Code to point it at anthropic.claude-haiku-4-5-20251001-v1:0."
   exit 1
 fi
 
@@ -53,8 +62,9 @@ if [ -z "$PREMIUM_MODEL" ]; then
   fail-message "The premium variation hasn't been added yet. Create a new variation named **Otto (Premium)** with key **otto-premium**."
   exit 1
 fi
-if [ "$PREMIUM_MODEL" != "Bedrock.anthropic.claude-sonnet-4-6" ]; then
-  fail-message "The premium variation isn't using Claude Sonnet 4.6. Pick **Anthropic Claude Sonnet 4.6** as the model."
+# Family match, same reasoning as otto-born above.
+if ! printf '%s' "$PREMIUM_MODEL" | grep -qi 'sonnet-4'; then
+  fail-message "The premium variation is running \`${PREMIUM_MODEL}\`, which isn't a Sonnet 4 model. The point of the section is that premium shoppers get a stronger model — ask Claude Code to point it at anthropic.claude-sonnet-4-6."
   exit 1
 fi
 
