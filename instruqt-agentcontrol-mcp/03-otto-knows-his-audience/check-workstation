@@ -173,7 +173,7 @@ fi
 
 curl -s --max-time 60 -o /dev/null -X POST 'http://localhost:3000/chat' \
   -H 'Content-Type: application/json' \
-  --data-raw '{"message":"Do the Toggle Socks come in large?","user_tier":"premium","session_id":"check-premium-routing"}'
+  --data-raw "{\"message\":\"What's the difference between the Rocket Tee and the Feature Branch Crewneck?\",\"user_tier\":\"premium\",\"session_id\":\"check-premium-routing\"}"
 
 ROUTED=$(journalctl -u togglewear --since '-2 min' 2>/dev/null \
   | grep 'chat session=check-premium-routing' | tail -1)

@@ -107,7 +107,7 @@ Open the [ToggleWear](#tab-1) tab. The header has a **Logged in as** dropdown, a
 1. With **Free user** selected, chat with Otto and ask:
 
 ```text
-Do the Toggle Socks come in large?
+What's the difference between the Rocket Tee and the Feature Branch Crewneck?
 ```
 
 That answer came from Haiku — the `otto-born` variation, same as it has all track.
