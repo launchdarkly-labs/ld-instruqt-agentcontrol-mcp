@@ -102,25 +102,23 @@ If the agent reports no rules at all, the save didn't take. Go back to the **Tar
 
 # Watch it route
 
-This is the part worth actually doing, because a targeting rule you haven't seen fire is a hypothesis.
+Open the [ToggleWear](#tab-1) tab. The header has a **Logged in as** dropdown, and it defaults to **Free user**.
 
-Open a terminal in the [Code Editor](#tab-2) and tail the app's log:
-
-```bash
-journalctl -u togglewear -f | grep 'chat session='
-```
-
-Now open the [ToggleWear](#tab-1) tab. Top right, there's a **Logged in as** switcher set to **Free user**. Ask Otto something:
+1. With **Free user** selected, chat with Otto and ask:
 
 ```text
 Do the Toggle Socks come in large?
 ```
 
-The log line shows `tier=free` and a `model=` ending in `haiku`.
+That answer came from Haiku — the `otto-born` variation, same as it has all track.
 
-Switch the dropdown to **Premium user** and ask again. Same question, same app, same code path — and now `tier=premium` with a `model=` ending in `sonnet`.
+2. Change the dropdown to **Premium user**, reset the chat, and ask the same question again.
+
+This one came from Sonnet, because the context now carries `tier: "premium"` and the rule you just built matched it. Both Ottos run the same prompt, so he sounds like himself either way — what changed is the model underneath, not the personality.
 
 Nothing was redeployed. Nothing was restarted. The app made the same call both times and LaunchDarkly answered it differently.
+
+<!-- VERIFY: the reference tracks (ld-agentcontrol-build and ld-agentcontrol-intro, 05-otto-for-everyone) give their premium variation a richer premium prompt, so the two answers read visibly differently. This track deliberately keeps both prompts identical so the chapter is about routing rather than voice — which means the Haiku and Sonnet answers may look nearly the same to a learner. Confirm on a live run whether the difference is perceptible. If it isn't, the honest options are giving otto-premium a slightly richer prompt, or leaning on the agent read-back above as the proof and softening this section's claim. -->
 
 # One step further
 

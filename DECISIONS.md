@@ -831,3 +831,25 @@ Worth remembering: **the CLI will pull any track by slug into an empty directory
 **The cost, and it is the same one as chapter 05's.** Two chapters now require the sandbox sign-in and neither has a fallback. That sign-in is documented above as unreliable. `01-meet-togglewear` has been rewritten to say the UI is needed rather than optional — the third time that sentence has moved, and the first time it says the UI is *required*. It should not be walked back again: it has been written as "nothing needs the UI" twice and falsified twice.
 
 **Not changed: the 360s limit.** The rule builder is slower than a paste, probably by a minute. The comparable intro-track chapter allows 900s. The budget was extended to 2400s two days ago for chapter 05 and the operator did not ask for more here, so this stays as it is and gets watched on the next live run rather than pre-emptively grown.
+
+---
+
+## Strip the log-tailing step from "Watch it route" (2026-09-02)
+
+**Decision:** `03-otto-knows-his-audience` no longer has the learner tail `journalctl -u togglewear`. The section now verifies routing the way the reference tracks do — flip the **Logged in as** switcher and ask Otto the same question twice.
+
+**Why.** The operator's rule: if a step isn't in the tracks this one descends from, and isn't required by the MCP premise, it shouldn't be here. Checked all three:
+
+| Track | `journalctl` / `tail -f` / `/var/log` in learner prose |
+|---|---|
+| `ld-agentcontrol-build` (6 chapters) | 0 |
+| `control-freak-ai` (5 chapters) | 0 |
+| `ld-agentcontrol-intro` | 0 |
+
+All three verify by observing the answer change. The log tail was invented here and has nothing to do with MCP, so it goes. It also cost the chapter a terminal trip and a second tab for a step that taught nothing about AgentControl.
+
+**The check keeps its `journalctl`, and that is not inconsistent.** `check-workstation` step 4 POSTs a premium request and greps the service log for the model that served it. That is the only assertion in the chapter that proves the rule *fired* rather than merely existing, and it is invisible to the learner. The reference tracks' checks have no equivalent and are weaker for it. Learner-facing prose and machine assertions are allowed to use different evidence.
+
+**One thing this exposes, flagged rather than fixed.** The reference tracks give their premium variation a *richer premium prompt*, so the two answers read visibly differently and "observe the answer" is a real demonstration. This track deliberately keeps both prompts identical — see the chapter's own "Otto's personality stays identical" paragraph — so only the model differs, and a Haiku answer next to a Sonnet answer on the same prompt may look much the same. The log line was the only thing making the routing *visible*. Carries a `VERIFY`: if the difference isn't perceptible on a live run, the options are giving `otto-premium` a slightly richer prompt, or leaning on the agent read-back as the proof and softening the section's claim. Do not answer that from a desk.
+
+**Also noted, not changed.** The other section in this chapter with no counterpart in any reference track is **"One step further"** — the aside about segments and percentage splits. It is conceptual exposition, which CLAUDE.md says belongs in slides rather than `assignment.md`. Left alone because the operator named only "Watch it route", but it is the next candidate if the same rule is applied again.
