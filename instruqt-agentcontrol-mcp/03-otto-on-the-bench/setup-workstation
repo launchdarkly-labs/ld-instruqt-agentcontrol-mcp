@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Pre-seed the customer-questions dataset so the learner arrives with the
+# Datasets view populated. The learner creates and runs the evaluation
+# themselves; the dataset upload itself isn't pedagogically interesting.
+
+set -e
+
+cd /opt/ld/ai-configs-intro/terraform/evaluate-01
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+terraform apply -auto-approve -target=null_resource.create_dataset
+
+exit 0

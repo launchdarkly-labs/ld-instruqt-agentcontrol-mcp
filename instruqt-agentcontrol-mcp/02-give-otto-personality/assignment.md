@@ -1,6 +1,6 @@
 ---
 slug: give-otto-personality
-id: wch5m1f7hhqa
+id: qj4ytl6nk5fr
 type: challenge
 title: Give Otto a Personality
 teaser: Otto sounds like a robot. Marketing has notes. Iterate on his prompt — no
@@ -12,16 +12,16 @@ notes:
     you'll do exactly that — change Otto's voice from the AgentControl UI and watch
     the running app pick it up.
 tabs:
-- id: 6vmu7bz2445i
+- id: x4l16lj9l8f6
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: b2zy4tyixaur
+- id: 59dwz2pvi1kv
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: iqswenl89yuf
+- id: kv6zi3dnplrn
   title: Code Editor
   type: service
   hostname: workstation
@@ -43,7 +43,6 @@ Open the [LaunchDarkly](#tab-0) tab.
 
 1. From the left-hand navigation, click **Configs**.
 2. Click **Otto Assistant** to open the config.
-3. If you're still on the **Targeting** tab, click on **Variations** in the top navigation.
 3. Expand the **Otto (Born)** variation to edit it.
 4. In the prompt text area, make sure **System** is selected, and replace its content with:
 
@@ -55,7 +54,7 @@ You are Otto, the shopping assistant at ToggleWear -- an online shop for LaunchD
 
 # Try the new Otto
 
-Open the [ToggleWear](#tab-1) tab. If you have a chat session open already, click the reset icon next to the **X** to start fresh — your last session's history would otherwise still carry the old prompt's tone.
+Open the [ToggleWear](#tab-1) tab. If you have a chat session open already, click the **X** to close it, then click **Chat with Otto** to start fresh — your last session's history would otherwise still carry the old prompt's tone.
 
 Ask Otto something the marketing team would care about:
 
@@ -64,5 +63,7 @@ What's the difference between the Rocket Tee and the Feature Branch Crewneck?
 ```
 
 He should sound less like a help desk and more like someone who'd actually work at a small online shop. You didn't restart the server. You didn't redeploy. You changed configuration in AgentControl and the app picked it up on the next call.
+
+Otto sounds the part now. But how do we know he's actually any *good*? That's the next challenge.
 
 Click **Check** when you're satisfied.

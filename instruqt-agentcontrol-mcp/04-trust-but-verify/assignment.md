@@ -1,9 +1,9 @@
 ---
 slug: trust-but-verify
-id: f8g0sbtz44ng
+id: w0aalbw74hs2
 type: challenge
 title: Trust But Verify
-teaser: Roll out a risky new model behind a guarded rollout backed by the brand-voice
+teaser: Roll out a risky new model behind a guarded rollout backed by a brand-voice
   judge — watch it auto-revert when quality drops.
 notes:
 - type: text
@@ -11,22 +11,27 @@ notes:
     to try it. You want to try it too, but only if it doesn't make Otto sound off-brand.
     This is exactly what guarded rollouts are for — ship the change behind a metric,
     let it watch for regression, and automatically roll back if quality drops. The
-    brand-voice judge you built in Challenge 03 is the metric.
+    lab has pre-wired a brand-voice judge that scores every Otto response — that's
+    the metric your rollout will watch.
 tabs:
-- id: m8zqmo1yx1mr
+- id: 0zysjdygtly8
   title: LaunchDarkly
   type: browser
   hostname: launchdarkly
-- id: sootf7spy1t8
+- id: mou853tlmolz
   title: ToggleWear
   type: service
   hostname: workstation
   port: 3000
-- id: juia6mfqnsu6
+- id: v5imiuwy71sj
   title: Code Editor
   type: service
   hostname: workstation
   port: 8080
+- id: aai87ovh73xd
+  title: Terminal
+  type: terminal
+  hostname: workstation
 difficulty: basic
 timelimit: 1200
 enhanced_loading: null
@@ -34,10 +39,10 @@ enhanced_loading: null
 
 # What's already in place
 
-Most of this challenge is already wired:
+Most of this challenge is already wired by the lab:
 
 - A new variation, **Otto (Stiff)**, has been added to Otto Assistant. It's backed by Amazon Nova Pro and has a deliberately corporate-sounding prompt — formal greetings, formal sign-offs, the works.
-- The **otto-brand-voice-score** metric exists, numeric, higher-is-better.
+- The **otto-brand-voice-score** metric exists — numeric, higher-is-better.
 - Background traffic is flowing at ~1 session every 2 seconds. Each session emits an `otto-brand-voice-score` event biased by which model served it. Stiff's mean is well below the others.
 
 What's *not* built is the thing that decides what "good" means. You'll ask for that, then **configure a guarded rollout** that splits traffic between Otto (Born) and Otto (Stiff), watches `otto-brand-voice-score`, and rolls back automatically if Stiff's score regresses.
@@ -64,7 +69,7 @@ Read it back before moving on:
 Show me the otto-brand-voice-judge Config: its mode, its evaluation metric key, its variation's model and system message, and what the Test default rule serves.
 ```
 
-Mode must be **judge** — it's fixed at creation, so a completion-mode judge needs deleting and recreating rather than editing.
+Mode must be **judge**. It's fixed at creation, so a completion-mode judge needs deleting and recreating rather than editing.
 
 Now wire the app to call it. In a terminal in the [Code Editor](#tab-2):
 
@@ -73,7 +78,11 @@ python3 /opt/ld/ai-configs-intro/terraform/evaluate-03/patch-server.py \
   && service togglewear restart
 ```
 
-That drops the judge invocation into `server.py` below the marker Challenge 01's paste left behind, so every real `/chat` answer gets scored from here on.
+That drops the judge invocation into `server.py` below the marker your Challenge 01 paste left behind, so every `/chat` answer gets scored from here on.
+
+Before you continue, due to caching in the virtual browser, you'll need to refresh the virtual browser (not your browser).
+
+![Refresh Virtual Browser](../assets/otto-browser-refresh.png)
 
 # Inspect what changed
 
@@ -87,13 +96,12 @@ That drops the judge invocation into `server.py` below the marker Challenge 01's
 1. Click the **Targeting** tab. Confirm the environment is **test**.
 2. Click the **Default rule** (the fallthrough). You should see an option to **Start guarded rollout**.
 3. Configure:
-   - **Test variation**: **Otto (Stiff)**
-   - **Control variation**: **Otto (Born)**
-   - **Metric to watch**: **otto-brand-voice-score**
-   - **Regression direction**: lower is worse (the metric's success criteria is HigherThanBaseline)
-   - **Stages**: 10% → 25% → 50% → 100% (or whatever the UI offers). Each stage's monitoring window should be 1-2 minutes — short enough that the rollout completes inside the lab budget.
-4. **On regression**: choose **Rollback** (not just notify).
-5. Click **Start**.
+   - **Original variation**: **Otto (Born)**
+   - **Target variation**: **Otto (Stiff)**
+   - **Metric to watch**: **Otto Brand Voice Score**
+   - **Otto Brand Voice Score**: Check **Auto rollback**
+   - **Rollout duration**: 1 hour
+4. Click **Review and save**, then **Save changes**.
 
 # Watch what happens
 
@@ -117,6 +125,6 @@ It emits 60 low-score events directly. The rollback usually fires within a minut
 
 # What you just saw
 
-A risky model entered production behind a metric guard. The judge you wrote in Challenge 03 — the one whose criteria came from a snippet you wrote in Build — caught the regression and rolled it back without you watching. That's the whole point: when the safety net runs itself, you can ship more aggressively.
+A risky model entered production behind a metric guard. The pre-wired brand-voice judge caught the regression and rolled it back without you watching. That's the whole point: when the safety net runs itself, you can ship more aggressively.
 
 Click **Check** when the guarded rollout is configured and running.

@@ -1,0 +1,79 @@
+#!/bin/sh
+
+# Per-challenge setup for the guarded-rollout challenge.
+#
+# Pre-wires the brand-voice judge that the learner does NOT build by hand
+# in this track (evaluate-03 module: creates the otto-brand-voice-judge
+# Config, the otto-brand-voice-score metric, sets evaluationMetricKey on
+# otto-assistant, and patches server.py to invoke the judge on each
+# /chat response).
+#
+# Then applies the evaluate-07 module (adds the Nova Pro Stiff variation)
+# and swaps in the long-running background_traffic.py so the rollout has
+# organic data flowing while the learner configures it. Background traffic
+# emits otto-brand-voice-score events biased per model — Stiff scores
+# low, so the guarded rollout's regression detection fires once a
+# meaningful fraction of traffic hits the Stiff variation.
+
+set -e
+
+# Hacky workaround until AgentControl is supported in service tokens
+export LAUNCHDARKLY_ACCESS_TOKEN="${LAUNCHDARKLY_ACCESS_TOKEN}"
+
+
+curl -X POST https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/prompt-snippets \
+     -H "Authorization: $LAUNCHDARKLY_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+  "key": "brand-voice",
+  "name": "Brand voice",
+  "text": "You are Otto. You''re warm, helpful, and a little playful. You keep answers short by default and you''re honest when you don''t know something."
+}'
+
+# 1. Pre-wire the brand-voice judge (judge config + metric + server.py
+#    invocation). Without this, the guarded rollout has no metric to watch.
+# ONLY the metric out of evaluate-03, with -target.
+#
+# Upstream this applied the module in full, which also creates the brand-voice
+# judge. Here the learner asks the agent for that judge, so terraform must not
+# create it first — otherwise their prompt is a no-op against a resource that
+# already exists and the chapter teaches nothing.
+#
+# The metric is different: it is what the judge writes into and what the
+# rollout watches, and no step asks the learner to create it.
+cd /opt/ld/ai-configs-intro/terraform/evaluate-03
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+terraform apply -auto-approve -target=launchdarkly_metric.brand_voice_score
+
+# Point otto-assistant's evaluationMetricKey at that metric. evaluate-03's own
+# null_resource.wire_evaluation_metric is commented out upstream, so nothing
+# else does this — and it is the field the guarded-rollout dialog reads to
+# pre-select which metric the rollout watches. Non-fatal: without it the
+# learner picks the metric by hand.
+curl -fsS -X PATCH \
+  "https://app.launchdarkly.com/api/v2/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
+  -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
+  -H 'Content-Type: application/json' \
+  -H 'LD-API-Version: beta' \
+  --data-raw '{"evaluationMetricKey":"otto-brand-voice-score"}' \
+  >/dev/null 2>&1 \
+  || echo "(could not wire evaluationMetricKey — learner picks the metric in the rollout dialog)"
+
+# 2. Add the Nova Pro Stiff variation.
+cd /opt/ld/ai-configs-intro/terraform/evaluate-07
+echo "project_key = \"${LD_PROJECT_KEY}\"" > terraform.tfvars
+terraform init -input=false
+terraform apply -auto-approve
+
+# 3. Stop any prior traffic generators; start background_traffic.py.
+pkill -f experiment_traffic.py 2>/dev/null || true
+pkill -f realchat_traffic.py 2>/dev/null || true
+
+if ! pgrep -f background_traffic.py > /dev/null; then
+  nohup /opt/ld/ai-configs-intro/app/.venv/bin/python3 \
+    /opt/ld/ai-configs-intro/traffic-generator/background_traffic.py \
+    > /var/log/togglewear-bg-traffic.log 2>&1 &
+fi
+
+exit 0

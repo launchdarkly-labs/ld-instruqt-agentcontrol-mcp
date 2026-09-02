@@ -6,12 +6,14 @@
 #   1. The otto-stiff Nova Pro variation exists (setup-workstation creates
 #      it; we re-check in case the learner deleted it).
 #   2. otto-assistant's evaluationMetricKey points at otto-brand-voice-score
-#      (set by ch03; double-checked here for the rollout to make sense).
+#      (set by setup-workstation via evaluate-03; double-checked here for
+#      the rollout to make sense).
 #   3. A guarded rollout (or at least a rollout structure) is configured on
 #      the test environment's fallthrough — permissive proxy for "rollout
 #      configured."
 
 API="https://app.launchdarkly.com/api/v2"
+API_INT="https://app.launchdarkly.com/internal"
 
 CONFIG=$(curl -fsS -X GET \
   "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-assistant" \
@@ -27,10 +29,9 @@ if [ "$STIFF" != "Amazon.nova-pro" ]; then
   exit 1
 fi
 
-# The judge is the learner's job in this chapter — they ask the agent for it.
-# Assert on key and mode only: the rubric wording and the model spelling are
-# the agent's to choose, and mode is the one thing that cannot be fixed by
-# editing afterwards.
+# The judge is the learner's job now — they ask the agent for it. Assert key
+# and mode only: the rubric wording and model spelling are the agent's to
+# choose, and mode is the one thing that cannot be fixed by editing after.
 JUDGE=$(curl -s -X GET \
   "${API}/projects/${LD_PROJECT_KEY}/ai-configs/otto-brand-voice-judge" \
   -H "Authorization: ${LAUNCHDARKLY_ACCESS_TOKEN}" \
@@ -47,13 +48,18 @@ if [ "$(echo "$JUDGE" | jq -r '.mode // ""')" != "judge" ]; then
 fi
 
 if ! grep -q 'otto-brand-voice-judge' /opt/ld/ai-configs-intro/app/server.py; then
-  fail-message "The app isn't calling the judge yet, so no scores are being written. Run the \`patch-server.py\` command under **Ask for the judge**, then \`service togglewear restart\`."
+  fail-message "The app isn't calling the judge yet, so nothing is writing scores. Run the \`patch-server.py\` command under **Ask for the judge**, then \`service togglewear restart\`."
   exit 1
 fi
 
+# Re-enabled. These were commented out upstream, which left the chapter's only
+# learner-driven step — starting the rollout — unasserted, so Check went green
+# on an untouched default rule. The metric assertion is safe to enable now
+# because setup-workstation PATCHes evaluationMetricKey; upstream nothing did,
+# which is presumably why it was commented out rather than fixed.
 EVAL_KEY=$(echo "$CONFIG" | jq -r '.evaluationMetricKey // ""')
 if [ "$EVAL_KEY" != "otto-brand-voice-score" ]; then
-  fail-message "Otto's evaluationMetricKey isn't wired to **otto-brand-voice-score**, so the rollout has no metric to watch. Setup wires this — tell your operator, or pick the metric by hand in the rollout dialog."
+  fail-message "Otto's evaluationMetricKey isn't wired to **otto-brand-voice-score**, so the rollout has no metric to watch. Setup wires this — tell your instructor, or pick the metric by hand in the rollout dialog."
   exit 1
 fi
 
@@ -63,7 +69,7 @@ TARGETING=$(curl -fsS -X GET \
 
 HAS_ROLLOUT=$(echo "$TARGETING" | jq -r '.environments.test.fallthrough.rollout // empty')
 if [ -z "$HAS_ROLLOUT" ]; then
-  fail-message "No guarded rollout configured on the test environment's default rule. On the **Targeting** tab, click the default rule and choose **Start guarded rollout** with the **otto-brand-voice-score** metric."
+  fail-message "No rollout on the Test environment's default rule yet. On the **Targeting** tab, click the **Default rule**, set **Serve** to **Guarded rollout**, pick **otto-brand-voice-score** as the metric and turn **Roll back on regression** on."
   exit 1
 fi
 
